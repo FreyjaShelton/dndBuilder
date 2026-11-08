@@ -43,6 +43,7 @@ export function CharacterProvider({ children }) {
 	const value = {
 		character,
 		setEdition,
+		loadCharacter: (loaded) => setCharacter(loaded),
 		updateInfo: updateSection('info'),
 		updateRace: updateSection('race'),
 		updateClass: updateSection('classInfo'),

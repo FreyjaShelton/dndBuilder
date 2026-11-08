@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Box, Card, CardContent, CircularProgress, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, CircularProgress, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import characterSheet from './5E_CharacterSheet_Fillable.pdf';
 import characterSheet2024 from './DnD_2024_Character_Sheet.pdf';
@@ -241,7 +242,8 @@ const PdfEditor = () => {
 			<Card sx={{ backgroundColor: 'background.paper' }}>
 				<CardContent sx={{ padding: 3 }}>
 					<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', marginBottom: 2 }}>
-						<Typography variant="body2" sx={{ color: 'text.secondary' }}>Character sheet</Typography>
+						<Button variant="contained" href="#/sheet" endIcon={<OpenInNewIcon />}>Open interactive sheet</Button>
+						<Typography variant="body2" sx={{ color: 'text.secondary' }}>or a printable PDF:</Typography>
 						<ToggleButtonGroup
 							exclusive
 							size="small"

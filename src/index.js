@@ -15,6 +15,7 @@ import Abilities from './pages/abilities/Abilities';
 import Background from './pages/background/Background';
 import Equipment from './pages/equipment/Equipment';
 import Finalize from './pages/finalize/Finalize';
+import SheetPage from './pages/sheet/SheetPage';
 import { CharacterProvider } from './context/CharacterContext';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './theme';
@@ -75,6 +76,11 @@ const router = createHashRouter([
 				element: <Finalize />
 			},
 		],
+	},
+	{
+		path: "/sheet",
+		element: <SheetPage />,
+		errorElement: <ErrorPage />,
 	},
 
 ]);
