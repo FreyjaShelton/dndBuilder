@@ -1,6 +1,7 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
+import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
 import {
 	getRaceAbilityBonuses, getRaceArmor, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts, getSubraceRecord, resolveRace,
 } from './raceChoices';
@@ -28,6 +29,7 @@ export function getClass(character) {
 }
 
 export function getBackground(character) {
+	if (!is2024(character)) return resolveBackground(character);
 	return rules(character).backgrounds[character.background.name] || null;
 }
 
@@ -117,6 +119,7 @@ export function getRacialSkillPicks(character) {
 }
 
 export function getBackgroundSkills(character) {
+	if (!is2024(character)) return getBackgroundSkillList(character);
 	const bg = getBackground(character);
 	if (!bg) return [];
 	return bg.name === 'Custom' ? character.background.customSkills.slice(0, 2) : bg.skills;
@@ -323,7 +326,11 @@ export function getLanguages(character) {
 		const open = l.pickCount - l.picked.length;
 		parts.push([...l.fixed, ...l.picked].join(', ') + (open > 0 ? ` (+${open} to choose)` : ''));
 	}
-	if (bg?.languages) parts.push(`Background: ${bg.languages}`);
+	if (bg) {
+		const l = getBackgroundLanguages(character);
+		const open = l.pickCount - l.picked.length;
+		if (l.fixed.length || l.picked.length || open > 0) parts.push(`Background: ${[...l.fixed, ...l.picked].join(', ')}${open > 0 ? ` (+${open} to choose)` : ''}`);
+	}
 	const fromClass = getChoiceLanguages(character);
 	if (fromClass.length) parts.push(`Class: ${fromClass.join(', ')}`);
 	return parts;

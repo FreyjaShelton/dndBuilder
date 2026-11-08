@@ -9,7 +9,7 @@ const editionDependentDefaults = {
 	race: { name: '', subrace: '', version: '', abilityChoices: [], skillChoices: [], lineage: '', originFeat: '', choices: {} },
 	classInfo: { className: '', level: 1, subclass: '', optionalFeatures: [], choices: {} },
 	background: {
-		name: '', customName: '', customSkills: [], customProficiency: '',
+		name: '', variant: '', choices: {}, customName: '', customSkills: [], customProficiency: '',
 		abilityMode: 'twoOne', abilityPlus2: '', abilityPlus1: '', abilityPlus1b: '', originFeat: '',
 		personalityTraits: '', ideals: '', bonds: '', flaws: '',
 	},

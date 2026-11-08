@@ -21,6 +21,7 @@ import {
 } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
 import { getRaceChoiceSummaries, getRaceTools } from '../../utils/raceChoices';
+import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 
 const SHEET_ABILITY_FIELDS = {
 	str: ['STR', 'STRmod'], dex: ['DEX', 'DEXmod '], con: ['CON', 'CONmod'],
@@ -179,6 +180,8 @@ const PdfEditor = () => {
 		if (!is2024(character)) {
 			const racialTools = [...new Set(getRaceTools(character))];
 			if (racialTools.length) proficiencyLines.push(`Racial tools: ${racialTools.join(', ')}`);
+			const bgTools = [...new Set(getBackgroundTools(character))];
+			if (bgTools.length) proficiencyLines.push(`Background tools: ${bgTools.join(', ')}`);
 		}
 		proficiencyLines.push(...getLanguages(character).map((l) => `Languages: ${l}`));
 		setText('ProficienciesLang', proficiencyLines.join('\n'), 7);
@@ -196,7 +199,9 @@ const PdfEditor = () => {
 		}
 		if (!is2024(character)) getRaceChoiceSummaries(character).forEach((l) => featureLines.push(l));
 		getOriginFeats(character).forEach((f) => featureLines.push(`${f} (feat)`));
-		if (bg?.feature?.name) featureLines.push(`${bg.feature.name} (${bg.name})`);
+		if (!is2024(character) && bg?.features) bg.features.filter((f) => f.description).forEach((f) => featureLines.push(`${f.name} (${bg.name})`));
+		else if (bg?.feature?.name) featureLines.push(`${bg.feature.name} (${bg.name})`);
+		if (!is2024(character)) getBackgroundChoiceSummaries(character).forEach((l) => featureLines.push(l));
 		setText('Features and Traits', featureLines.join(', '), 8);
 
 		const equipmentLines = [];

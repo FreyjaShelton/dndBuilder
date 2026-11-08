@@ -5,6 +5,7 @@ import { getEditionData } from '../../data';
 import { getClassFeatureNames, getOriginFeats } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
 import { getRaceChoiceSummaries } from '../../utils/raceChoices';
+import { getBackgroundChoiceSummaries } from '../../utils/backgroundChoices';
 
 const baseName = (n) => n.replace(/\s*\(.*\)\s*$/, '').trim();
 
@@ -72,7 +73,14 @@ export default function FeaturesTab({ character, d }) {
 					{feats.map((f) => <Entry key={f.name} title={f.name}>{f.description}</Entry>)}
 				</Section>
 			)}
-			{d.background?.feature?.name && (
+			{character.edition === '2014' && d.background?.features?.length > 0 ? (
+				<Section title={`Background: ${d.background.name}`}>
+					{getBackgroundChoiceSummaries(character).map((line) => (
+						<Typography key={line} variant="body2" sx={{ marginBottom: 0.5 }}>{line}</Typography>
+					))}
+					{d.background.features.filter((bf) => bf.description).map((bf) => <Entry key={bf.name} title={bf.name}>{bf.description}</Entry>)}
+				</Section>
+			) : d.background?.feature?.name && (
 				<Section title="Background feature">
 					<Entry title={d.background.feature.name}>{d.background.feature.description}</Entry>
 				</Section>

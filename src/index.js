@@ -12,7 +12,7 @@ import Race from './pages/race/RaceRoute';
 import Skills from './pages/skills/Skills';
 import Spells from './pages/spells/SpellsRoute';
 import Abilities from './pages/abilities/Abilities';
-import Background from './pages/background/Background';
+import Background from './pages/background/BackgroundRoute';
 import Equipment from './pages/equipment/Equipment';
 import Finalize from './pages/finalize/Finalize';
 import SheetPage from './pages/sheet/SheetPage';

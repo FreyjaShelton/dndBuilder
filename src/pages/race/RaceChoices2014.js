@@ -154,3 +154,5 @@ export default function RaceChoice({ def, character, value, onChange }) {
 	}
 	return null;
 }
+
+export { OptionPicker, MultiPicker };
