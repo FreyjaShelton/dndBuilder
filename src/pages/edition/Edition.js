@@ -8,9 +8,10 @@ const editionOptions = [
 	{
 		id: '2024',
 		title: 'D&D 2024',
-		tag: 'Default',
+		tag: '',
 		summary: 'The revised core rules.',
 		points: [
+			'THIS IS A WORK IN PROGRESS. The 2024 rules are not yet finalized.',
 			'Species instead of races; ability score bonuses come from your background',
 			'Every background grants an Origin feat',
 			'Weapon Mastery properties, updated classes and class tables',
@@ -19,7 +20,7 @@ const editionOptions = [
 	{
 		id: '2014',
 		title: 'D&D 2014',
-		tag: '',
+		tag: 'Default',
 		summary: 'The original 5th Edition rules.',
 		points: [
 			'Races and subraces grant ability score bonuses',
@@ -35,7 +36,7 @@ export default function Edition() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Edition', character.edition)}
+				eyebrow={getStepEyebrow('Edition', character)}
 				title="Edition"
 				subtitle="Choose which version of the rules to build with. Race/species, class, background and equipment options follow your choice."
 			/>

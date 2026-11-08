@@ -127,7 +127,7 @@ export default function Spells() {
 
 	const header = (
 		<PageHeader
-			eyebrow={getStepEyebrow('Spells', character.edition)}
+			eyebrow={getStepEyebrow('Spells', character)}
 			title="Spells"
 			subtitle="Choose the cantrips and spells your class knows or prepares."
 		/>

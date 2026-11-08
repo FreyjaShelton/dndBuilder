@@ -7,7 +7,7 @@ const CharacterContext = React.createContext(null);
 // 2014 race/class/background can't leak into a 2024 character (or vice versa).
 const editionDependentDefaults = {
 	race: { name: '', subrace: '', abilityChoices: [], skillChoices: [], lineage: '', originFeat: '' },
-	classInfo: { className: '', level: 1 },
+	classInfo: { className: '', level: 1, subclass: '', optionalFeatures: [], choices: {} },
 	background: {
 		name: '', customName: '', customSkills: [], customProficiency: '',
 		abilityMode: 'twoOne', abilityPlus2: '', abilityPlus1: '', abilityPlus1b: '', originFeat: '',
@@ -34,8 +34,10 @@ const initialCharacter = {
 export function CharacterProvider({ children }) {
 	const [character, setCharacter] = React.useState(initialCharacter);
 
+	// patch is an object to merge, or a function of the current section returning one (for updates that
+	// must build on the latest value, such as rapid clicks on a list of choices).
 	const updateSection = (section) => (patch) =>
-		setCharacter((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
+		setCharacter((prev) => ({ ...prev, [section]: { ...prev[section], ...(typeof patch === 'function' ? patch(prev[section]) : patch) } }));
 
 	const setEdition = (edition) =>
 		setCharacter((prev) => (prev.edition === edition ? prev : { ...prev, edition, ...editionDependentDefaults }));

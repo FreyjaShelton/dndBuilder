@@ -2,6 +2,7 @@ import classes2014 from './2014/classes';
 import races2014 from './2014/races';
 import backgrounds2014 from './2014/backgrounds';
 import * as equipment2014 from './2014/equipment';
+import feats2014 from './2014/feats';
 import classes2024 from './2024/classes';
 import races2024 from './2024/races';
 import backgrounds2024 from './2024/backgrounds';
@@ -9,7 +10,7 @@ import * as equipment2024 from './2024/equipment';
 import feats2024 from './2024/feats';
 import spells2024 from './2024/spells';
 
-export const DEFAULT_EDITION = '2024';
+export const DEFAULT_EDITION = '2014';
 
 // Each edition carries its own rules data. 2014 "races" are called species in 2024.
 const editions = {
@@ -32,7 +33,7 @@ const editions = {
 		races: races2014,
 		backgrounds: backgrounds2014,
 		equipment: equipment2014,
-		feats: [],
+		feats: feats2014,
 		spells: [],
 	},
 };

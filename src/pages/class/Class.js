@@ -10,6 +10,7 @@ import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { getEditionData } from '../../data';
 import { is2024 } from '../../utils/characterCalc';
+import ClassLevels from './ClassLevels';
 
 const norm = (s) => s.replace(/\s+/g, ' ');
 
@@ -53,7 +54,7 @@ export default function Class() {
 	const cls = classes[className];
 
 	const handleClassChange = (event) => {
-		updateClass({ className: event.target.value });
+		updateClass({ className: event.target.value, subclass: '', optionalFeatures: [], choices: {} });
 		updateSkills({ classChoices: [] });
 		updateSpells({ cantrips: [], prepared: [], spellbook: [] });
 	};
@@ -61,7 +62,7 @@ export default function Class() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Class', character.edition)}
+				eyebrow={getStepEyebrow('Class', character)}
 				title="Class"
 				subtitle="Your class defines your hit points, proficiencies, and what you can do."
 			/>
@@ -97,8 +98,9 @@ export default function Class() {
 							))}
 						</Box>
 						<ClassTable cls={cls} level={Number(level)} />
+						{!is2024(character) && <ClassLevels key={className} character={character} updateClass={updateClass} />}
 						<Box sx={{ marginTop: 2 }}>
-							{cls.features.filter((f) => f.description && (is2024(character) ? f.level : f.headingLevel === 2)).map((f) => (
+							{is2024(character) && cls.features.filter((f) => f.description && f.level).map((f) => (
 								<Accordion key={f.name} disableGutters>
 									<AccordionSummary expandIcon={<ExpandMoreIcon />}>
 										<Typography>{is2024(character) ? `Level ${f.level}: ${f.name}` : f.name}</Typography>

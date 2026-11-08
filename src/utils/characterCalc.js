@@ -1,6 +1,7 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
+import { getChoiceLanguages, getChoiceSkills, getChosenFeats, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
 const abilityKeyByName = Object.fromEntries(Object.entries(ABILITY_NAMES).map(([k, v]) => [v, k]));
 const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
@@ -36,6 +37,16 @@ export function getProficiencyBonus(level) {
 // 2014: bonuses come from race/subrace (plus the player's picks for "choose N" races).
 // 2024: bonuses come from the background: +2/+1 or +1/+1/+1 among its listed abilities.
 export function getAbilityBonuses(character) {
+	const bonuses = getBaseAbilityBonuses(character);
+	if (!is2024(character)) {
+		// 2014: add Ability Score Improvements, half-feats and fixed class increases chosen on the Class page.
+		const { bonuses: classBonuses } = getClassAbilityEffects(character);
+		ABILITY_KEYS.forEach((k) => { bonuses[k] += classBonuses[k]; });
+	}
+	return bonuses;
+}
+
+function getBaseAbilityBonuses(character) {
 	const bonuses = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
 	if (is2024(character)) {
 		const bg = getBackground(character);
@@ -70,9 +81,10 @@ export function getAbilityBonuses(character) {
 
 export function getFinalAbilities(character) {
 	const bonuses = getAbilityBonuses(character);
+	const { cap } = getClassAbilityEffects(character);
 	return Object.fromEntries(ABILITY_KEYS.map((k) => {
 		const base = character.abilities[k];
-		return [k, base === '' ? '' : Math.min(20, Number(base) + bonuses[k])];
+		return [k, base === '' ? '' : Math.min(cap[k], Number(base) + bonuses[k])];
 	}));
 }
 
@@ -121,6 +133,7 @@ export function getProficientSkills(character) {
 		...getBackgroundSkills(character),
 		...getRacialSkills(character),
 		...character.skills.classChoices,
+		...getChoiceSkills(character),
 	];
 	return [...new Set(all)];
 }
@@ -209,7 +222,8 @@ export function getHitPoints(character) {
 	const sub = getSubrace(character);
 	const dwarvenToughness = (sub?.name === 'Hill Dwarf') || (is2024(character) && character.race.name === 'Dwarf');
 	const average = Math.floor(cls.hitDie / 2) + 1;
-	return cls.hitDie + conMod + (level - 1) * (average + conMod) + (dwarvenToughness ? level : 0);
+	const toughFeat = !is2024(character) && getChosenFeats(character).includes('Tough') ? 2 * level : 0;
+	return cls.hitDie + conMod + (level - 1) * (average + conMod) + (dwarvenToughness ? level : 0) + toughFeat;
 }
 
 export function getSpeed(character) {
@@ -240,9 +254,11 @@ export function getSkillBonuses(character) {
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
 	const proficient = getProficientSkills(character);
+	const expertise = is2024(character) ? [] : getExpertiseSkills(character);
 	return skills.map((s) => {
 		const isProf = proficient.includes(s.name);
-		return { ...s, proficient: isProf, bonus: mods[s.ability] + (isProf ? prof : 0) };
+		const isExpert = isProf && expertise.includes(s.name);
+		return { ...s, proficient: isProf, expertise: isExpert, bonus: mods[s.ability] + (isProf ? prof : 0) + (isExpert ? prof : 0) };
 	});
 }
 
@@ -304,6 +320,8 @@ export function getLanguages(character) {
 	}
 	if (race) parts.push(race.languages.replace(/^You can speak, read, and write /, '').split(/\.(\s|$)/)[0]);
 	if (bg?.languages) parts.push(`Background: ${bg.languages}`);
+	const fromClass = getChoiceLanguages(character);
+	if (fromClass.length) parts.push(`Class: ${fromClass.join(', ')}`);
 	return parts;
 }
 

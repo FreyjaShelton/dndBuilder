@@ -3,6 +3,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from '
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getEditionData } from '../../data';
 import { getClassFeatureNames, getOriginFeats } from '../../utils/characterCalc';
+import { getSheetFeatures } from '../../utils/classChoices';
 
 const baseName = (n) => n.replace(/\s*\(.*\)\s*$/, '').trim();
 
@@ -29,7 +30,9 @@ function Section({ title, children }) {
 export default function FeaturesTab({ character, d }) {
 	const data = getEditionData(character.edition);
 	const classFeatures = [];
-	if (d.cls) {
+	if (d.cls && character.edition === '2014') {
+		getSheetFeatures(character).forEach((f) => classFeatures.push({ name: f.label, description: f.description }));
+	} else if (d.cls) {
 		const seen = new Set();
 		getClassFeatureNames(d.cls, d.level).forEach((full) => {
 			const base = baseName(full);

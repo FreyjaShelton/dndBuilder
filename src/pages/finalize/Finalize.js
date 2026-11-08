@@ -17,8 +17,9 @@ import {
 	getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getProficiencyBonus, getRace,
 	getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getSubrace,
-	getAbilityMods, getCarriedGold, getOriginFeats,
+	getAbilityMods, getCarriedGold, getOriginFeats, is2024,
 } from '../../utils/characterCalc';
+import { getSheetFeatures } from '../../utils/classChoices';
 
 const SHEET_ABILITY_FIELDS = {
 	str: ['STR', 'STRmod'], dex: ['DEX', 'DEXmod '], con: ['CON', 'CONmod'],
@@ -182,7 +183,8 @@ const PdfEditor = () => {
 			[...race.traits, ...(subrace?.traits || [])].forEach((t) => featureLines.push(`${t.name} (${race.name})`));
 		}
 		if (cls) {
-			getClassFeatureNames(cls, level).forEach((n) => featureLines.push(n));
+			const names = is2024(character) ? getClassFeatureNames(cls, level) : getSheetFeatures(character).map((f) => f.label);
+			names.forEach((n) => featureLines.push(n));
 		}
 		if (race?.lineage && character.race.lineage) {
 			featureLines.push(`${race.lineage.label}: ${character.race.lineage}`);
@@ -248,7 +250,7 @@ const PdfEditor = () => {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Finalize', character.edition)}
+				eyebrow={getStepEyebrow('Finalize', character)}
 				title="Finalize"
 				subtitle="Your character sheet, filled out automatically from everything you've entered."
 			/>

@@ -1,4 +1,5 @@
 import { getEditionData } from '../data';
+import { getSelectedSpells2014 } from './spells2014';
 import {
 	getCantripsKnown, getClass, getLevel, getPreparedSpellsLimit, getSpellSlots,
 } from './characterCalc';
@@ -46,6 +47,7 @@ const byName = (character) => {
 
 // Chosen cantrips and prepared spells as full records, in sheet order (cantrips, then level/name).
 export function getSelectedSpells(character) {
+	if (character.edition === '2014') return getSelectedSpells2014(character);
 	if (!isSpellcaster(character)) return [];
 	const lookup = byName(character);
 	const chosen = [...character.spells.cantrips, ...character.spells.prepared]

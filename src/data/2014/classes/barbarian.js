@@ -8,6 +8,13 @@ const barbarian = {
 		"Strength",
 		"Constitution"
 	],
+	"spellcastingAbility": "",
+	"subclassLevel": 3,
+	"subclassFeatureLevels": [
+		6,
+		10,
+		14
+	],
 	"armorProficiencies": "Light armor, medium armor, shields",
 	"weaponProficiencies": "Simple weapons, martial weapons",
 	"toolProficiencies": "None",
@@ -36,7 +43,7 @@ const barbarian = {
 		"caption": "The Barbarian",
 		"columns": [
 			"Level",
-			"Proficiency\nBonus",
+			"Proficiency Bonus",
 			"Features",
 			"Rages",
 			"Rage Damage"
@@ -59,7 +66,7 @@ const barbarian = {
 			[
 				"3rd",
 				"+2",
-				"Primal Path",
+				"Primal Path, Primal Knowledge (Optional)",
 				"3",
 				"+2"
 			],
@@ -73,7 +80,7 @@ const barbarian = {
 			[
 				"5th",
 				"+3",
-				"Extra Attack, Fast Movement⁠",
+				"Extra Attack, Fast Movement",
 				"3",
 				"+2"
 			],
@@ -87,7 +94,7 @@ const barbarian = {
 			[
 				"7th",
 				"+3",
-				"Feral Instinct",
+				"Feral Instinct, Instinctive Pounce (Optional)",
 				"4",
 				"+2"
 			],
@@ -108,14 +115,14 @@ const barbarian = {
 			[
 				"10th",
 				"+4",
-				"Path feature",
+				"Path feature, Primal Knowledge (Optional)",
 				"4",
 				"+3"
 			],
 			[
 				"11th",
 				"+4",
-				"Relentless⁠ Rage",
+				"Relentless Rage",
 				"4",
 				"+3"
 			],
@@ -129,7 +136,7 @@ const barbarian = {
 			[
 				"13th",
 				"+5",
-				"Brutal Critical (2 dice)",
+				"Brutal Critical (2 dice)",
 				"5",
 				"+3"
 			],
@@ -157,7 +164,7 @@ const barbarian = {
 			[
 				"17th",
 				"+6",
-				"Brutal Critical (3 dice)",
+				"Brutal Critical (3 dice)",
 				"6",
 				"+4"
 			],
@@ -178,7 +185,7 @@ const barbarian = {
 			[
 				"20th",
 				"+6",
-				"Primal Champion⁠",
+				"Primal Champion",
 				"Unlimited",
 				"+4"
 			]
@@ -187,111 +194,532 @@ const barbarian = {
 	"features": [
 		{
 			"name": "Rage",
-			"headingLevel": 2,
-			"description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action.\nWhile raging, you gain the following benefits if you aren't wearing heavy armor:\n• You have advantage on Strength checks and Strength saving throws.\n• When you make a melee weapon attack using Strength, you gain a +2 bonus to the damage roll. This bonus increases as you level.\n• You have resistance to bludgeoning, piercing, and slashing damage.\nIf you are able to cast spells, you can't cast them or concentrate on them while raging.\nYour rage lasts for 1 minute. It ends early if you are knocked unconscious or if your turn ends and you haven't attacked a hostile creature since your last turn or taken damage since then. You can also end your rage on your turn as a bonus action.\nOnce you have raged the maximum number of times for your barbarian level, you must finish a long rest before you can rage again. You may rage 2 times at 1st level, 3 at 3rd, 4 at 6th, 5 at 12th, and 6 at 17th."
+			"levels": [
+				1
+			],
+			"description": "In battle, you fight with primal ferocity. On your turn, you can enter a rage as a bonus action.\nWhile raging, you gain the following benefits if you aren't wearing heavy armor:\n• You have advantage on Strength checks and Strength saving throws.\n• When you make a melee weapon attack using Strength, you gain a bonus to the damage roll that increases as you gain levels as a barbarian, as shown in the Rage Damage column of the Barbarian table.\n• You have resistance to bludgeoning, piercing, and slashing damage.\nIf you are able to cast spells, you can't cast them or concentrate on them while raging.\nYour rage lasts for 1 minute. It ends early if you are knocked unconscious or if your turn ends and you haven't attacked a hostile creature since your last turn or taken damage since then. You can also end your rage on your turn as a bonus action.\nOnce you have raged the number of times shown for your barbarian level in the Rages column of the Barbarian table, you must finish a long rest before you can rage again."
 		},
 		{
 			"name": "Unarmored Defense",
-			"headingLevel": 2,
-			"description": "While you are not wearing any armor, your Armor Class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
+			"levels": [
+				1
+			],
+			"description": "While you are not wearing any armor, your armor class equals 10 + your Dexterity modifier + your Constitution modifier. You can use a shield and still gain this benefit."
 		},
 		{
 			"name": "Danger Sense",
-			"headingLevel": 2,
-			"description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. To gain this benefit, you can't be blinded, deafened, or incapacitated."
+			"levels": [
+				2
+			],
+			"description": "At 2nd level, you gain an uncanny sense of when things nearby aren't as they should be, giving you an edge when you dodge away from danger. You have advantage on Dexterity saving throws against effects that you can see, such as traps and spells. To gain this benefit, you can't be blinded, deafened, or incapacitated."
 		},
 		{
 			"name": "Reckless Attack",
-			"headingLevel": 2,
-			"description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn."
+			"levels": [
+				2
+			],
+			"description": "Starting at 2nd level, you can throw aside all concern for defense to attack with fierce desperation. When you make your first attack on your turn, you can decide to attack recklessly. Doing so gives you advantage on melee weapon attack rolls using Strength during this turn, but attack rolls against you have advantage until your next turn."
 		},
 		{
 			"name": "Primal Path",
-			"headingLevel": 2,
-			"description": "At 3rd level, you choose a path that shapes the nature of your rage, such as the Path of the Berserker. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th levels."
+			"levels": [
+				3
+			],
+			"description": "At 3rd level, you choose a path that shapes the nature of your rage. Your choice grants you features at 3rd level and again at 6th, 10th, and 14th levels.\nPath | Source\nAncestral Guardian | Xanathar's Guide to Everything\nBattlerager | Sword Coast Adventurer's Guide\nBeast | Tasha's Cauldron of Everything\nBerserker | Player's Handbook\nGiant | Bigby Presents: Glory of the Giants\nStorm Herald | Xanathar's Guide to Everything\nTotem Warrior | Player's Handbook\nWild Magic | Tasha's Cauldron of Everything\nZealot | Xanathar's Guide to Everything\nArchived Unearthed Arcana\nBeast | Unearthed Arcana 67 - Subclasses, Part 1\nGiant | Unearthed Arcana 83 - Giant Options\nWild Soul | Unearthed Arcana 60 - Barbarian and Monk"
+		},
+		{
+			"name": "Primal Knowledge",
+			"levels": [
+				3,
+				10
+			],
+			"optional": true,
+			"description": "When you reach 3rd level and again at 10th level, you gain proficiency in one skill of your choice from the list of skills available to barbarians at 1st level."
 		},
 		{
 			"name": "Ability Score Improvement",
-			"headingLevel": 2,
-			"description": "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can’t increase an ability score above 20 using this feature."
+			"levels": [
+				4,
+				8,
+				12,
+				16,
+				19
+			],
+			"description": "When you reach 4th level, and again at 8th, 12th, 16th, and 19th level, you can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. As normal, you can't increase an ability score above 20 using this feature."
 		},
 		{
 			"name": "Extra Attack",
-			"headingLevel": 2,
-			"description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
+			"levels": [
+				5
+			],
+			"description": "Beginning at 5th level, you can attack twice, instead of once, whenever you take the Attack action on your turn."
 		},
 		{
 			"name": "Fast Movement",
-			"headingLevel": 2,
+			"levels": [
+				5
+			],
 			"description": "Starting at 5th level, your speed increases by 10 feet while you aren't wearing heavy armor."
 		},
 		{
 			"name": "Feral Instinct",
-			"headingLevel": 2,
-			"description": "By 7th level, your instincts are so honed that you have advantage on initiative rolls.\nAdditionally, if you are surprised at the beginning of combat and aren't incapacitated, you can act normally on your first turn, but only if you enter your rage before doing anything else on that turn."
+			"levels": [
+				7
+			],
+			"description": "By 7th level, your instincts are so honed that you have advantage on initiative rolls.\nAdditionally, if you are surprised at the beginning of combat and aren't incapacitated, you can act normally on your first turn, but only if you enter your rage before doing anything else on that turn."
+		},
+		{
+			"name": "Instinctive Pounce",
+			"levels": [
+				7
+			],
+			"optional": true,
+			"description": "At 7th level, as part of the bonus action you take to enter your rage, you can move up to half your speed."
 		},
 		{
 			"name": "Brutal Critical",
-			"headingLevel": 2,
+			"levels": [
+				9,
+				13,
+				17
+			],
 			"description": "Beginning at 9th level, you can roll one additional weapon damage die when determining the extra damage for a critical hit with a melee attack.\nThis increases to two additional dice at 13th level and three additional dice at 17th level."
 		},
 		{
 			"name": "Relentless Rage",
-			"headingLevel": 2,
-			"description": "Starting at 11th level, your rage can keep you fighting despite grievous wounds. If you drop to 0 hit points while you're raging and don't die outright, you can make a DC 10 Constitution saving throw. If you succeed, you drop to 1 hit point instead.\nEach time you use this feature after the first, the DC increases by 5. When you finish a short or long rest, the DC resets to 10."
+			"levels": [
+				11
+			],
+			"description": "Starting at 11th level, your rage can keep you fighting despite grievous wounds. If you drop to 0 hit points while you're raging and don't die outright, you can make a DC 10 Constitution saving throw. If you succeed, you drop to 1 hit point instead.\nEach time you use this feature after the first, the DC increases by 5. When you finish a short or long rest, the DC resets to 10."
 		},
 		{
 			"name": "Persistent Rage",
-			"headingLevel": 2,
+			"levels": [
+				15
+			],
 			"description": "Beginning at 15th level, your rage is so fierce that it ends early only if you fall unconscious or if you choose to end it."
 		},
 		{
 			"name": "Indomitable Might",
-			"headingLevel": 2,
+			"levels": [
+				18
+			],
 			"description": "Beginning at 18th level, if your total for a Strength check is less than your Strength score, you can use that score in place of the total."
 		},
 		{
 			"name": "Primal Champion",
-			"headingLevel": 2,
+			"levels": [
+				20
+			],
 			"description": "At 20th level, you embody the power of the wilds. Your Strength and Constitution scores increase by 4. Your maximum for those scores is now 24."
-		},
-		{
-			"name": "Primal Paths",
-			"headingLevel": 2,
-			"description": ""
-		},
-		{
-			"name": "Path of the Berserker",
-			"headingLevel": 3,
-			"description": "For some barbarians, rage is a means to an end— that end being violence. The Path of the Berserker is a path of untrammeled fury, slick with blood. As you enter the berserker’s rage, you thrill in the chaos of battle, heedless of your own health or well-being."
-		},
-		{
-			"name": "Frenzy",
-			"headingLevel": 4,
-			"description": "Starting when you choose this path at 3rd level, you can go into a frenzy when you rage. If you do so, for the duration of your rage you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion (as described in Conditions)."
-		},
-		{
-			"name": "Mindless Rage",
-			"headingLevel": 4,
-			"description": "Beginning at 6th level, you can’t be charmed or frightened while raging. If you are charmed or frightened when you enter your rage, the effect is suspended for the duration of the rage."
-		},
-		{
-			"name": "Intimidating Presence",
-			"headingLevel": 4,
-			"description": "Beginning at 10th level, you can use your action to frighten someone with your menacing presence. When you do so, choose one creature that you can see within 30 feet of you. If the creature can see or hear you, it must succeed on a Wisdom saving throw (DC equal to 8 + your proficiency bonus + your Charisma modifier) or be frightened of you until the end of your next turn. On subsequent turns, you can use your action to extend the duration of this effect on the frightened creature until the end of your next turn. This effect ends if the creature ends its turn out of line of sight or more than 60 feet away from you.\nIf the creature succeeds on its saving throw, you can’t use this feature on that creature again for 24 hours."
-		},
-		{
-			"name": "Retaliation",
-			"headingLevel": 4,
-			"description": "Starting at 14th level, when you take damage from a creature that is within 5 feet of you, you can use your reaction to make a melee weapon attack against that creature."
-		},
-		{
-			"name": "Attributes",
-			"headingLevel": 1,
-			"description": "Hit Die\nd12\nStarting Gold\n2d4 x 10\nSubclass Name\nPrimal Path\nSuggested Abilities\nStrength, Constitution\nfilter-Armor Proficiency\nLight, Medium, Shields\nfilter-Hit Die\nd12\nfilter-Primary Ability\nStrength, Constitution\nfilter-Weapon Proficiency\nSimple Weapons, Martial Weapons\nconst colorMode = \"light\"\nif(colorMode === \"dark\"){\n$(\"#pagecontent\").addClass(\"dark\")\n}\nif ( window.location !== window.parent.location ) {\n// The page is in an iframe\ndocument.getElementById(\"characters-cta\").style.display = \"none\";\n}\nif (!document.body.classList.contains(\"charmancer\")) {\n// Remove the margin-bottom from the page title in web compendium and iframe compendium popout\nconst pageTitle = document.getElementsByClassName(\"page-title\")[0];\nif (pageTitle) {\npageTitle.style.marginBottom = \"0\";\n}\n}\nView All Classes &raquo;"
 		}
 	],
-	"spellcastingAbility": ""
+	"subclasses": [
+		{
+			"name": "Ancestral Guardian",
+			"slug": "ancestral-guardian",
+			"source": "Xanathar's Guide to Everything",
+			"summary": "These tribes teach that the warriors of the past linger in the world as mighty spirits, who can guide and protect the living. When a barbarian who follows this path rages, the barbarian contacts the spirit world and calls on these guardian spirits for aid.\nBarbarians who draw on their ancestral guardians can better fight to protect their tribes and their allies. In order to cement ties to their ancestral guardians, barbarians who follow this path cover themselves in elaborate tattoos that celebrate their ancestors' deeds. These tattoos tell sagas of victories against terrible monsters and other fearsome rivals.",
+			"features": [
+				{
+					"name": "Ancestral Protectors",
+					"level": 3,
+					"description": "Starting when you choose this path at 3rd level, spectral warriors appear when you enter your rage. While you're raging, the first creature you hit with an attack on your turn becomes the target of the warriors, which hinder its attacks. Until the start of your next turn, that target has disadvantage on any attack roll that isn't against you, and when the target hits a creature other than you with an attack, that creature has resistance to the damage dealt by the attack. The effect on the target ends early if your rage ends."
+				},
+				{
+					"name": "Spirit Shield",
+					"level": 6,
+					"description": "Beginning at 6th level, the guardian spirits that aid you can provide supernatural protection to those you defend. If you are raging and another creature you can see within 30 feet of you takes damage, you can use your reaction to reduce that damage by 2d6.\nWhen you reach certain levels in this class, you can reduce the damage by more: by 3d6 at 10th level and by 4d6 at 14th level."
+				},
+				{
+					"name": "Consult the Spirits",
+					"level": 10,
+					"description": "At 10th level, you gain the ability to consult with your ancestral spirits. When you do so, you cast the Augury or Clairvoyance spell, without using a spell slot or material components. Rather than creating a spherical sensor, this use of clairvoyance invisibly summons one of your ancestral spirits to the chosen location. Wisdom is your spellcasting ability for these spells.\nAfter you cast either spell in this way, you can't use this feature again until you finish a short or long rest."
+				},
+				{
+					"name": "Vengeful Ancestors",
+					"level": 14,
+					"description": "At 14th level, your ancestral spirits grow powerful enough to retaliate. When you use your Spirit Shield to reduce the damage of an attack, the attacker takes an amount of force damage that your Spirit Shield prevents."
+				}
+			]
+		},
+		{
+			"name": "Battlerager",
+			"slug": "battlerager",
+			"source": "Sword Coast Adventurer's Guide",
+			"summary": "Known as Kuldjargh (literally \"axe idiot\") in Dwarvish, battleragers are dwarf followers of the gods of war and take the Path of the Battlerager. They specialize in wearing bulky, spiked armor and throwing themselves into combat, striking with their body itself and giving themselves over to the fury of battle.",
+			"features": [
+				{
+					"name": "Restriction: Dwarves Only",
+					"level": 3,
+					"description": "Only dwarves can follow the Path of the Battlerager. The battlerager fills a particular niche in dwarven society and culture.\nYour DM can lift this restriction to better suit the campaign. The restriction exists for the Forgotten Realms. It might not apply to your DM's setting or your DM's version of the Realms."
+				},
+				{
+					"name": "Battlerager Armor",
+					"level": 3,
+					"description": "When you choose this path at 3rd level, you gain the ability to use spiked armor as a weapon.\nWhile you are wearing spiked armor and are raging, you can use a bonus action to make one melee weapon attack with your armor spikes against a target within 5 feet of you. If the attack hits, the spikes deal 1d4 piercing damage. You use your Strength modifier for the attack and damage rolls.\nAdditionally, when you use the Attack action to grapple a creature, the target takes 3 piercing damage if your grapple check succeeds."
+				},
+				{
+					"name": "Reckless Abandon",
+					"level": 6,
+					"description": "Beginning at 6th level, when you use Reckless Attack while raging, you also gain temporary hit points equal to your Constitution modifier (minimum of 1). They vanish if any of them are left when your rage ends."
+				},
+				{
+					"name": "Battlerager Charge",
+					"level": 10,
+					"description": "Beginning at 10th level, you can take the Dash action as a bonus action while you are raging."
+				},
+				{
+					"name": "Spiked Retribution",
+					"level": 14,
+					"description": "Starting at 14th level, when a creature within 5 feet of you hits you with a melee attack, the attacker takes 3 piercing damage if you are raging, aren't incapacitated, and are wearing spiked armor."
+				}
+			]
+		},
+		{
+			"name": "Beast",
+			"slug": "beast",
+			"source": "Tasha's Cauldron of Everything",
+			"summary": "Barbarians who walk the Path of the Beast draw their rage from a bestial spark burning within their souls. That beast bursts forth in the throes of rage, physically transforming the barbarian.\nSuch a barbarian might be inhabited by a primal spirit or be descended from shape-shifters. You can choose the origin of your feral might or determine it by rolling on the Origin of the Beast table.",
+			"features": [
+				{
+					"name": "Origin of the Beast",
+					"level": 3,
+					"description": "1d4 | Origin\n1 | One of your parents is a lycanthrope, and you've inherited some of their curse.\n2 | You are descended from an archdruid and inherited the ability to partially change shape.\n3 | A fey spirit gifted you with the ability to adopt different bestial aspects.\n4 | An ancient animal spirit dwells within you, allowing you to walk this path."
+				},
+				{
+					"name": "Form of the Beast",
+					"level": 3,
+					"description": "Starting when you choose this path at 3rd level, when you enter your rage, you can transform, revealing the bestial power within you. Until the rage ends, you manifest a natural weapon. It counts as a simple melee weapon for you, and you add your Strength modifier to the attack and damage rolls when you attack with it, as normal.\nYou choose the weapon's form each time you rage:\nBite. Your mouth transforms into a bestial muzzle or great mandibles (your choice). It deals 1d8 piercing damage on a hit. Once on each of your turns when you damage a creature with this bite, you regain a number of hit points equal to your proficiency bonus, provided you have less than half your hit points when you hit.\nClaws. Each of your hands transforms into a claw, which you can use as a weapon if it's empty. It deals 1d6 slashing damage on a hit. Once on each of your turns when you attack with a claw using the Attack action, you can make one additional claw attack as part of the same action.\nTail. You grow a lashing, spiny tail, which deals 1d8 piercing damage on a hit and has the reach property. If a creature you can see within 10 feet of you hits you with an attack roll, you can use your reaction to swipe your tail and roll a d8, applying a bonus to your AC equal to the number rolled, potentially causing the attack to miss you.",
+					"options": [
+						{
+							"name": "Bite",
+							"description": "Your mouth transforms into a bestial muzzle or great mandibles (your choice). It deals 1d8 piercing damage on a hit. Once on each of your turns when you damage a creature with this bite, you regain a number of hit points equal to your proficiency bonus, provided you have less than half your hit points when you hit."
+						},
+						{
+							"name": "Claws",
+							"description": "Each of your hands transforms into a claw, which you can use as a weapon if it's empty. It deals 1d6 slashing damage on a hit. Once on each of your turns when you attack with a claw using the Attack action, you can make one additional claw attack as part of the same action."
+						},
+						{
+							"name": "Tail",
+							"description": "You grow a lashing, spiny tail, which deals 1d8 piercing damage on a hit and has the reach property. If a creature you can see within 10 feet of you hits you with an attack roll, you can use your reaction to swipe your tail and roll a d8, applying a bonus to your AC equal to the number rolled, potentially causing the attack to miss you."
+						}
+					]
+				},
+				{
+					"name": "Bestial Soul",
+					"level": 6,
+					"description": "Beginning at 6th level, the feral power within you increases, causing the natural weapons of your Form of the Beast to count as magical for the purpose of overcoming resistance and immunity to nonmagical attacks and damage.\nYou can also alter your form to help you adapt to your surroundings. When you finish a short or long rest, choose one of the following benefits, which lasts until you finish a short or long rest:\n• You gain a swimming speed equal to your walking speed, and you can breathe underwater.\n• You gain a climbing speed equal to your walking speed, and you can climb difficult surfaces, including upside down on ceilings, without needing to make an ability check.\n• When you jump, you can make a Strength (Athletics) check and extend your jump by a number of feet equal to the check's total. You can make this special check only once per turn."
+				},
+				{
+					"name": "Infectious Fury",
+					"level": 10,
+					"description": "At 10th level, when you hit a creature with your natural weapons while you are raging, the beast within you can curse your target with rabid fury. The target must succeed on a Wisdom saving throw (DC equal to 8 + your Constitution modifier + your proficiency bonus) or suffer one of the following effects (your choice):\n• The target must use its reaction to make a melee attack against another creature of your choice that you can see.\n• Target takes 2d12 psychic damage.\nYou can use this feature a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+				},
+				{
+					"name": "Call the Hunt",
+					"level": 14,
+					"description": "At 14th level, the beast within you grows so powerful that you can spread its ferocity to others and gain resilience from them joining your hunt. When you enter your rage, you can choose a number of other willing creatures you can see within 30 feet of you equal to your Constitution modifier (minimum of one creature). You gain 5 temporary hit points for each creature that accepts this feature. Until the rage ends, the chosen creatures can use the following benefit once on each of their turns: when the creature hits a target with an attack roll and deals damage to it, the creature can roll a d6 and gain a bonus to the damage equal to the number rolled.\nYou can use this feature a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+				}
+			]
+		},
+		{
+			"name": "Berserker",
+			"slug": "berserker",
+			"source": "Player's Handbook",
+			"summary": "The Path of the Berserker is a path of untrammeled fury, slick with blood. As you enter the berserker's rage, you thrill in the chaos of battle, heedless of your own health or well-being.",
+			"features": [
+				{
+					"name": "Frenzy",
+					"level": 3,
+					"description": "Starting when you choose this path at 3rd level, you can go into a frenzy when you rage. If you do so, for the duration of your rage you can make a single melee weapon attack as a bonus action on each of your turns after this one. When your rage ends, you suffer one level of exhaustion."
+				},
+				{
+					"name": "Mindless Rage",
+					"level": 6,
+					"description": "Beginning at 6th level, you can't be charmed or frightened while raging. If you are charmed or frightened when you enter your rage, the effect is suspended for the duration of the rage."
+				},
+				{
+					"name": "Intimidating Presence",
+					"level": 10,
+					"description": "Beginning at 10th level, you can use your action to frighten someone with your menacing presence. When you do so, choose one creature that you can see within 30 feet of you. If the creature can see or hear you, it must succeed on a Wisdom saving throw (DC equal to 8 + your proficiency bonus + your Charisma modifier) or be frightened of you until the end of your next turn. On subsequent turns, you can use your action to extend the duration of this effect on the frightened creature until the end of your next turn. This effect ends if the creature ends its turn out of line of sight or more than 60 feet away from you.\nIf the creature succeeds on its saving throw, you can't use this feature on that creature again for 24 hours."
+				},
+				{
+					"name": "Retaliation",
+					"level": 14,
+					"description": "Starting at 14th level, when you take damage from a creature that is within 5 feet of you, you can use your reaction to make a melee weapon attack against that creature."
+				}
+			]
+		},
+		{
+			"name": "Giant",
+			"slug": "giant",
+			"source": "Bigby Presents - Glory of the Giants",
+			"summary": "Barbarians who walk the Path of the Giant draw strength from the same primal forces as giants. As they rage, these barbarians surge with elemental power and grow in size, taking on forms that evoke the glory of giants. Some barbarians look like oversized versions of themselves, perhaps with a hint of elemental energy flaring in their eyes and around their weapons. Others transform more dramatically, taking on the appearance of an actual giant or a form similar to an Elemental, wreathed in fire, frost, or lightning.",
+			"features": [
+				{
+					"name": "Giant's Power",
+					"level": 3,
+					"description": "When you choose this path, you learn to speak, read, and write Giant or one other language of your choice if you already know Giant. Additionally, you learn a cantrip of your choice: either druidcraft or thaumaturgy. Wisdom is your spellcasting ability for this spell."
+				},
+				{
+					"name": "Giant's Havoc",
+					"level": 3,
+					"description": "Your rages pull strength from the primal might of giants, transforming you into a hulking force of destruction. While raging, you gain the following benefits:\n• Crushing Throw. When you make a successful ranged attack with a thrown weapon using Strength, you can add your Rage Damage bonus to the attack's damage roll.\n• Giant Stature. Your reach increases by 5 feet, and if you are smaller than Large, you become Large, along with anything you are wearing. If there isn't enough room for you to increase your size, your size doesn't change."
+				},
+				{
+					"name": "Elemental Cleaver",
+					"level": 6,
+					"description": "Your bond with the elemental might of giants grows, and you learn to infuse weapons with primordial energy.\nWhen you enter your rage, you can choose one weapon that you are holding and infuse it with one of the following damage types: acid, cold, fire, thunder, or lightning. While you wield the infused weapon during your rage, the weapon's damage type changes to the chosen type, it deals an extra 1d6 damage of the chosen type when it hits, and it gains the thrown property, with a normal range of 20 feet and a long range of 60 feet. If you throw the weapon, it reappears in your hand the instant after it hits or misses a target. The infused weapon's benefits are suppressed while a creature other than you wields it.\nWhile raging and holding the infused weapon, you can use a bonus action to change the infused weapon's current damage type to another one from the damage type options above."
+				},
+				{
+					"name": "Mighty Impel",
+					"level": 10,
+					"description": "Your connection to giant strength allows you to hurl both allies and enemies on the battlefield. As a bonus action while raging, you can choose one Medium or smaller creature within your reach and move it to an unoccupied space you can see within 30 feet of yourself. An unwilling creature must succeed on a Strength saving throw (DC equals 8 + your proficiency bonus + your Strength modifier) to avoid the effect.\nIf, at the end of this movement, the thrown creature isn't on a surface or liquid that can support it, the creature falls, taking damage as normal and landing prone."
+				},
+				{
+					"name": "Demiurgic Colossus",
+					"level": 14,
+					"description": "The primordial power of your rage intensifies. When you rage, your reach increases by 10 feet, your size can increase to Large or Huge (your choice), and you can use your Mighty Impel to move creatures that are Large or smaller.\nIn addition, the extra damage dealt by your Elemental Cleaver feature increases to 2d6."
+				}
+			]
+		},
+		{
+			"name": "Storm Herald",
+			"slug": "storm-herald",
+			"source": "Xanathar's Guide to Everything",
+			"summary": "Their rage grants them superior strength, durability, and speed. Barbarians who follow the Path of the Storm Herald learn instead to transform their rage into a mantle of primal magic that swirls around them. When in a fury, a barbarian of this path taps into nature to create powerful, magical effects.\nStorm heralds are typically elite champions who train alongside druids, rangers, and others sworn to protect the natural realm. Other storm heralds hone their craft in elite lodges founded in regions wracked by storms, in the frozen reaches at the world's end, or deep in the hottest deserts.",
+			"features": [
+				{
+					"name": "Storm Aura",
+					"level": 3,
+					"description": "When you select this path at 3rd level, you emanate a stormy, magical aura while you rage. The aura extends 10 feet from you in every direction, but not through total cover.\nYour aura has an effect that activates when you enter your rage, and you can activate the effect again on each of your turns as a bonus action. Choose desert, sea, or tundra. Your aura's effect depends on that chosen environment, as detailed below. You can change your environment choice whenever you gain a level in this class.\nIf your aura's effects require a saving throw, the DC equals 8 + your proficiency bonus + your Constitution modifier.\nDesert. When this effect is activated, all other creatures in your aura take 2 fire damage each. The damage increases when you reach certain levels in this class, increasing to 3 at 5th level, 4 at 10th level, 5 at 15th level, and 6 at 20th level.\nSea. When this effect is activated, you can choose one other creature you can see in your aura. The target must make a Dexterity saving throw. The target takes 1d6 lightning damage on a failed save, or half as much damage on a successful one. The damage increases when you reach certain levels in this class, increasing to 2d6 at 10th level, 3d6 at 15th level, and 4d6 at 20th level.\nTundra. When this effect is activated, each creature of your choice in your aura gains 2 temporary hit points, as icy spirits inure it to suffering. The temporary hit points increase when you reach certain levels in this class, increasing to 3 at 5th level, 4 at 10th level, 5 at 15th level, and 6 at 20th level.",
+					"options": [
+						{
+							"name": "Desert",
+							"description": "When this effect is activated, all other creatures in your aura take 2 fire damage each. The damage increases when you reach certain levels in this class, increasing to 3 at 5th level, 4 at 10th level, 5 at 15th level, and 6 at 20th level."
+						},
+						{
+							"name": "Sea",
+							"description": "When this effect is activated, you can choose one other creature you can see in your aura. The target must make a Dexterity saving throw. The target takes 1d6 lightning damage on a failed save, or half as much damage on a successful one. The damage increases when you reach certain levels in this class, increasing to 2d6 at 10th level, 3d6 at 15th level, and 4d6 at 20th level."
+						},
+						{
+							"name": "Tundra",
+							"description": "When this effect is activated, each creature of your choice in your aura gains 2 temporary hit points, as icy spirits inure it to suffering. The temporary hit points increase when you reach certain levels in this class, increasing to 3 at 5th level, 4 at 10th level, 5 at 15th level, and 6 at 20th level."
+						}
+					]
+				},
+				{
+					"name": "Storm Soul",
+					"level": 6,
+					"description": "At 6th level, the storm grants you benefits even when your aura isn't active. The benefits are based on the environment you chose for your Storm Aura.\nDesert. You gain resistance to fire damage, and you don't suffer the effects of extreme heat, as described in the Dungeon Master's Guide. Moreover, as an action, you can touch a flammable object that isn't being worn or carried by anyone else and set it on fire.\nSea. You gain resistance to lightning damage, and you can breathe underwater. You also gain a swimming speed of 30 feet.\nTundra. You gain resistance to cold damage, and you don't suffer the effects of extreme cold, as described in the Dungeon Master's Guide. Moreover, as an action, you can touch water and turn a 5-foot cube of it into ice, which melts after 1 minute. This action fails if a creature is in the cube.",
+					"options": [
+						{
+							"name": "Desert",
+							"description": "You gain resistance to fire damage, and you don't suffer the effects of extreme heat, as described in the Dungeon Master's Guide. Moreover, as an action, you can touch a flammable object that isn't being worn or carried by anyone else and set it on fire."
+						},
+						{
+							"name": "Sea",
+							"description": "You gain resistance to lightning damage, and you can breathe underwater. You also gain a swimming speed of 30 feet."
+						},
+						{
+							"name": "Tundra",
+							"description": "You gain resistance to cold damage, and you don't suffer the effects of extreme cold, as described in the Dungeon Master's Guide. Moreover, as an action, you can touch water and turn a 5-foot cube of it into ice, which melts after 1 minute. This action fails if a creature is in the cube."
+						}
+					]
+				},
+				{
+					"name": "Shielding Storm",
+					"level": 10,
+					"description": "At 10th level, you learn to use your mastery of the storm to protect others. Each creature of your choice has the damage resistance you gained from the Storm Soul feature while the creature is in your Storm Aura."
+				},
+				{
+					"name": "Raging Storm",
+					"level": 14,
+					"description": "At 14th level, the power of the storm you channel grows mightier, lashing out at your foes. The effect is based on the environment you chose for your Storm Aura.\nDesert. Immediately after a creature in your aura hits you with an attack, you can use your reaction to force that creature to make a Dexterity saving throw. On a failed save, the creature takes fire damage equal to half your Barbarian level.\nSea. When you hit a creature in your aura with an attack, you can use your reaction to force that creature to make a Strength saving throw. On a failed save, the creature is knocked prone, as if struck by a wave.\nTundra. Whenever the effect of your Storm Aura is activated, you can choose one creature you can see in the aura. That creature must succeed on a Strength saving throw, or its speed is reduced to 0 until the start of your next turn, as magical frost covers it.",
+					"options": [
+						{
+							"name": "Desert",
+							"description": "Immediately after a creature in your aura hits you with an attack, you can use your reaction to force that creature to make a Dexterity saving throw. On a failed save, the creature takes fire damage equal to half your Barbarian level."
+						},
+						{
+							"name": "Sea",
+							"description": "When you hit a creature in your aura with an attack, you can use your reaction to force that creature to make a Strength saving throw. On a failed save, the creature is knocked prone, as if struck by a wave."
+						},
+						{
+							"name": "Tundra",
+							"description": "Whenever the effect of your Storm Aura is activated, you can choose one creature you can see in the aura. That creature must succeed on a Strength saving throw, or its speed is reduced to 0 until the start of your next turn, as magical frost covers it."
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Totem Warrior",
+			"slug": "totem-warrior",
+			"source": "Player's Handbook",
+			"summary": "The Path of the Totem Warrior is a spiritual journey, as the barbarian accepts a spirit animal as guide, protector, and inspiration. In battle, your totem spirit fills you with supernatural might, adding magical fuel to your barbarian rage.\nIn such cases, it is unusual for an individual to have more than one totem animal spirit, though exceptions exist.",
+			"features": [
+				{
+					"name": "Spirit Seeker",
+					"level": 3,
+					"description": "Yours is a path that seeks attunement with the natural world, giving you a kinship with beasts. At 3rd level when you adopt this path, you gain the ability to cast the Beast Sense and Speak with Animals spells, but only as rituals."
+				},
+				{
+					"name": "Totem Spirit",
+					"level": 3,
+					"description": "At 3rd level, when you adopt this path, you choose a totem spirit and gain its feature. You must make or acquire a physical totem object – an amulet or similar adornment – that incorporates fur or feathers, claws, teeth, or bones of the totem animal. At your option, you also gain minor physical attributes that are reminiscent of your totem spirit. For example, if you have a bear totem spirit, you might be unusually hairy and thick-skinned, or if your totem is the eagle, your eyes turn bright yellow.\nYour totem animal might be an animal related to those listed here but more appropriate to your homeland. For example, you could choose a hawk or vulture in place of an eagle.\nBear. While raging, you have resistance to all damage except psychic damage. The spirit of the bear makes you tough enough to stand up to any punishment.\nEagle. While you're raging and aren't wearing heavy armor, other creatures have disadvantage on opportunity attack rolls against you, and you can use the Dash action as a bonus action on your turn. The spirit of the eagle makes you into a predator who can weave through the fray with ease.\nElk. While you're raging and aren't wearing heavy armor, your walking speed increases by 15 feet. The spirit of the elk makes you extraordinarily swift.\nTiger. While raging, you can add 10 feet to your long jump distance and 3 feet to your high jump distance. The spirit of the tiger empowers your leaps.\nWolf. While you're raging, your friends have advantage on melee attack rolls against any creature within 5 feet of you that is hostile to you. The spirit of the wolf makes you a leader of hunters.",
+					"options": [
+						{
+							"name": "Bear",
+							"description": "While raging, you have resistance to all damage except psychic damage. The spirit of the bear makes you tough enough to stand up to any punishment."
+						},
+						{
+							"name": "Eagle",
+							"description": "While you're raging and aren't wearing heavy armor, other creatures have disadvantage on opportunity attack rolls against you, and you can use the Dash action as a bonus action on your turn. The spirit of the eagle makes you into a predator who can weave through the fray with ease."
+						},
+						{
+							"name": "Elk",
+							"description": "While you're raging and aren't wearing heavy armor, your walking speed increases by 15 feet. The spirit of the elk makes you extraordinarily swift."
+						},
+						{
+							"name": "Tiger",
+							"description": "While raging, you can add 10 feet to your long jump distance and 3 feet to your high jump distance. The spirit of the tiger empowers your leaps."
+						},
+						{
+							"name": "Wolf",
+							"description": "While you're raging, your friends have advantage on melee attack rolls against any creature within 5 feet of you that is hostile to you. The spirit of the wolf makes you a leader of hunters."
+						}
+					]
+				},
+				{
+					"name": "Aspect of the Beast",
+					"level": 6,
+					"description": "At 6th level, you gain a magical benefit based on the totem animal of your choice. You can choose the same animal you selected at 3rd level or a different one.\nBear. You gain the might of a bear. Your carrying capacity (including maximum load and maximum lift) is doubled, and you have advantage on Strength checks made to push, pull, lift, or break objects.\nEagle. You gain the eyesight of an eagle. You can see up to 1 mile away with no difficulty, able to discern even fine details as though looking at something no more than 100 feet away from you. Additionally, dim light doesn't impose disadvantage on your Wisdom (Perception) checks.\nElk. Whether mounted or on foot, your travel pace is doubled, as is the travel pace of up to ten companions while they're within 60 feet of you and you're not incapacitated. The elk spirit helps you roam far and fast.\nTiger. You gain proficiency in two skills from the following list: Athletics, Acrobatics, Stealth, and Survival. The cat spirit hones your survival instincts.\nWolf. You gain the hunting sensibilities of a wolf. You can track other creatures while traveling at a fast pace, and you can move stealthily while traveling at a normal pace.",
+					"options": [
+						{
+							"name": "Bear",
+							"description": "You gain the might of a bear. Your carrying capacity (including maximum load and maximum lift) is doubled, and you have advantage on Strength checks made to push, pull, lift, or break objects."
+						},
+						{
+							"name": "Eagle",
+							"description": "You gain the eyesight of an eagle. You can see up to 1 mile away with no difficulty, able to discern even fine details as though looking at something no more than 100 feet away from you. Additionally, dim light doesn't impose disadvantage on your Wisdom (Perception) checks."
+						},
+						{
+							"name": "Elk",
+							"description": "Whether mounted or on foot, your travel pace is doubled, as is the travel pace of up to ten companions while they're within 60 feet of you and you're not incapacitated. The elk spirit helps you roam far and fast."
+						},
+						{
+							"name": "Tiger",
+							"description": "You gain proficiency in two skills from the following list: Athletics, Acrobatics, Stealth, and Survival. The cat spirit hones your survival instincts."
+						},
+						{
+							"name": "Wolf",
+							"description": "You gain the hunting sensibilities of a wolf. You can track other creatures while traveling at a fast pace, and you can move stealthily while traveling at a normal pace."
+						}
+					]
+				},
+				{
+					"name": "Spirit Walker",
+					"level": 10,
+					"description": "At 10th level, you can cast the Commune with Nature spell, but only as a ritual. When you do so, a spiritual version of one of the animals you chose for Totem Spirit or Aspect of the Beast appears to you to convey the information you seek."
+				},
+				{
+					"name": "Totemic Attunement",
+					"level": 14,
+					"description": "At 14th level, you gain a magical benefit based on a totem animal of your choice. You can choose the same animal you selected previously or a different one.\nBear. While you're raging, any creature within 5 feet of you that's hostile to you has disadvantage on attack rolls against targets other than you or another character with this feature. An enemy is immune to this effect if it can't see or hear you or if it can't be frightened.\nEagle. While raging, you have a flying speed equal to your current walking speed. This benefit works only in short bursts; you fall if you end your turn in the air and nothing else is holding you aloft.\nElk. While raging, you can use a bonus action during your move to pass through the space of a Large or smaller creature. That creature must succeed on a Strength saving throw (DC 8 + your Strength bonus + your proficiency bonus) or be knocked prone and take bludgeoning damage equal to 1d12 + your Strength modifier.\nTiger. While you're raging, if you move at least 20 feet in a straight line toward a Large or smaller target right before making a melee weapon attack against it, you can use a bonus action to make an additional melee weapon attack against it.\nWolf. While you're raging, you can use a bonus action on your turn to knock a Large or smaller creature prone when you hit it with melee weapon attack.",
+					"options": [
+						{
+							"name": "Bear",
+							"description": "While you're raging, any creature within 5 feet of you that's hostile to you has disadvantage on attack rolls against targets other than you or another character with this feature. An enemy is immune to this effect if it can't see or hear you or if it can't be frightened."
+						},
+						{
+							"name": "Eagle",
+							"description": "While raging, you have a flying speed equal to your current walking speed. This benefit works only in short bursts; you fall if you end your turn in the air and nothing else is holding you aloft."
+						},
+						{
+							"name": "Elk",
+							"description": "While raging, you can use a bonus action during your move to pass through the space of a Large or smaller creature. That creature must succeed on a Strength saving throw (DC 8 + your Strength bonus + your proficiency bonus) or be knocked prone and take bludgeoning damage equal to 1d12 + your Strength modifier."
+						},
+						{
+							"name": "Tiger",
+							"description": "While you're raging, if you move at least 20 feet in a straight line toward a Large or smaller target right before making a melee weapon attack against it, you can use a bonus action to make an additional melee weapon attack against it."
+						},
+						{
+							"name": "Wolf",
+							"description": "While you're raging, you can use a bonus action on your turn to knock a Large or smaller creature prone when you hit it with melee weapon attack."
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Wild Magic",
+			"slug": "wild-magic",
+			"source": "Tasha's Cauldron of Everything",
+			"summary": "Many places in the multiverse abound with beauty, intense emotion, and rampant magic; the Feywild, the Upper Planes, and other realms of supernatural power radiate with such forces and can profoundly influence people. As folk of deep feeling, barbarians are especially susceptible to these wild influences, with some barbarians being transformed by the magic. These magic-suffused barbarians walk the Path of Wild Magic. Elf, tiefling, aasimar, and genasi barbarians often seek this path, eager to manifest the otherworldly magic of their ancestors.",
+			"features": [
+				{
+					"name": "Magic Awareness",
+					"level": 3,
+					"description": "When you choose this path at 3rd level, as an action, you can open your awareness to the presence of concentrated magic. Until the end of your next turn, you know the location of any spell or magic item within 60 feet of you that isn't behind total cover. When you sense a spell, you learn which school of magic it belongs to.\nYou can use this feature a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+				},
+				{
+					"name": "Wild Surge",
+					"level": 3,
+					"description": "Also at 3rd level, the magical energy roiling inside you sometimes erupts from you. When you enter your rage, roll on the Wild Magic table to determine the magical effect produced.\nIf the effect requires a saving throw, the DC equals 8 + your proficiency bonus + your Constitution modifier.\nWild Magic\nd8 | Effect\n1 | Each creature of your choice that you can see within 30 feet of you must succeed on a Constitution saving throw or take 1d12 necrotic damage. You also gain 1d12 temporary hit points.\n2 | You teleport up to 30 feet to an unoccupied space you can see. Until your rage ends, you can use this effect again on each of your turns as a bonus action.\n3 | An intangible spirit, which looks like a flumph or a pixie (your choice), appears within 5 feet of one creature of your choice that you can see within 30 feet of you. At the end of the current turn, the spirit explodes, and each creature within 5 feet of it must succeed on a Dexterity saving throw or take 1d6 force damage. Until your rage ends, you can use this effect again, summoning another spirit, on each of your turns as a bonus action.\n4 | Magic infuses one weapon of your choice that you are holding. Until your rage ends, the weapon's damage type changes to force, and it gains the light and thrown properties, with a normal range of 20 feet and a long range of 60 feet. If the weapon leaves your hand, the weapon reappears in your hand at the end of the current turn.\n5 | Whenever a creature hits you with an attack roll before your rage ends, that creature takes 1d6 force damage, as magic lashes out in retribution.\n6 | Until your rage ends, you are surrounded by multicolored, protective lights; you gain a +1 bonus to AC, and while within 10 feet of you, your allies gain the same bonus.\n7 | Flowers and vines temporarily grow around you; until your rage ends, the ground within 15 feet of you is difficult terrain for your enemies.\n8 | A bolt of light shoots from your chest. Another creature of your choice that you can see within 30 feet of you must succeed on a Constitution saving throw or take 1d6 radiant damage and be blinded until the start of your next turn. Until your rage ends, you can use this effect again on each of your turns as a bonus action."
+				},
+				{
+					"name": "Bolstering Magic",
+					"level": 6,
+					"description": "Beginning at 6th level, you can harness your wild magic to bolster yourself or a companion. As an action, you can touch one creature (which can be yourself) and confer one of the following benefits of your choice to that creature:\n• For 10 minutes, the creature can roll a d3 whenever making an attack roll or an ability check and add the number rolled to the d20 roll.\n• Roll a d3. The creature regains one expended spell slot, the level of which equals the number rolled or lower (the creature's choice). Once a creature receives this benefit, that creature can't receive it again until after a long rest.\nYou can take this action a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+				},
+				{
+					"name": "Unstable Backlash",
+					"level": 10,
+					"description": "At 10th level, when you are imperiled during your rage, the magic within you can lash out; immediately after you take damage or fail a saving throw while raging, you can use your reaction to roll on the Wild Magic table and immediately produce the effect rolled. This effect replaces your current Wild Magic effect."
+				},
+				{
+					"name": "Controlled Surge",
+					"level": 14,
+					"description": "At 14th level, whenever you roll on the Wild Magic table, you can roll the die twice and choose which of the two effects to unleash. If you roll the same number on both dice, you can ignore the number and choose any effect on the table."
+				}
+			]
+		},
+		{
+			"name": "Zealot",
+			"slug": "zealot",
+			"source": "Xanathar's Guide to Everything",
+			"summary": "Some deities inspire their followers to pitch themselves into a ferocious battle fury. These barbarians are zealots – warriors who channel their rage into powerful displays of divine power.\nA variety of gods across the worlds of D&D inspire their followers to embrace this path. Tempus from the Forgotten Realms and Hextor and Erythnul of Greyhawk are all prime examples. In general, the gods who inspire zealots are deities of combat, destruction, and violence. Not all are evil, but few are good.",
+			"features": [
+				{
+					"name": "Divine Fury",
+					"level": 3,
+					"description": "Starting when you choose this path at 3rd level, you can channel divine fury into your weapon strikes. While you're raging, the first creature you hit on each of your turns with a weapon attack takes extra damage equal to 1d6 + half your Barbarian level. The extra damage is necrotic or radiant; you choose the type of damage when you gain this feature."
+				},
+				{
+					"name": "Warrior of the Gods",
+					"level": 3,
+					"description": "At 3rd level, your soul is marked for endless battle. If a spell, such as Raise Dead, has the sole effect of restoring you to life (but not undeath), the caster doesn't need material components to cast the spell on you."
+				},
+				{
+					"name": "Fanatical Focus",
+					"level": 6,
+					"description": "Starting at 6th level, the divine power that fuels your rage can protect you. If you fail a saving throw while raging, you can reroll it, and you must use the new roll. You can use this ability only once per rage."
+				},
+				{
+					"name": "Zealous Presence",
+					"level": 10,
+					"description": "At 10th level, you learn to channel divine power to inspire zealotry in others. As a bonus action, you unleash a battle cry infused with divine energy. Up to ten other creatures of your choice within 60 feet of you that can hear you gain advantage on attack rolls and saving throws until the start of your next turn.\nOnce you use this feature, you can't use it again until you finish a long rest."
+				},
+				{
+					"name": "Rage Beyond Death",
+					"level": 14,
+					"description": "Beginning at 14th level, the divine power that fuels your rage allows you to shrug off fatal blows.\nWhile you're raging, having 0 hit points doesn't knock you unconscious. You still must make death saving throws, and you suffer the normal effects of taking damage while at 0 hit points. However, if you would die due to failing death saving throws, you don't die until your rage ends, and you die then only if you still have 0 hit points."
+				}
+			]
+		}
+	]
 };
 
 export default barbarian;

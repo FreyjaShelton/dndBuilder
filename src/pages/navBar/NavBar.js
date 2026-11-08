@@ -66,7 +66,7 @@ export default function NavBar() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { character } = useCharacter();
-	const pages = getWizardSteps(character.edition);
+	const pages = getWizardSteps(character);
 	const stepLabel = (page) => (page === 'Race' ? getEditionData(character.edition).raceLabel : page);
 
 	const handleOpenNavMenu = (event) => {

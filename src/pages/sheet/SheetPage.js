@@ -16,6 +16,7 @@ import FeaturesTab from './FeaturesTab';
 import NotesTab from './NotesTab';
 import RollLog from './RollLog';
 import DriveMenu from '../../components/DriveMenu';
+import useSpellDetails from '../../utils/useSpellDetails';
 
 const TABS = ['Actions', 'Spells', 'Inventory', 'Features', 'Notes'];
 
@@ -49,7 +50,9 @@ export default function SheetPage() {
 		if (play) persist({ character, play });
 	}, [character, play]);
 
-	const d = React.useMemo(() => derive(character), [character]);
+	const spellDetails = useSpellDetails();
+	// spell text loads on demand, so the sheet recomputes once it arrives
+	const d = React.useMemo(() => derive(character), [character, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!play) {
 		return (
