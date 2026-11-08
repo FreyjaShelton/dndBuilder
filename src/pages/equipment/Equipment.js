@@ -20,7 +20,7 @@ export default function Equipment() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Equipment')}
+				eyebrow={getStepEyebrow('Equipment', character.edition)}
 				title="Equipment"
 				subtitle="Choose your armor, weapons and gear. Armor Class and attacks are calculated for you."
 			/>

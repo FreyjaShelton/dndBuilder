@@ -73,7 +73,7 @@ export default function Abilities() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Abilities')}
+				eyebrow={getStepEyebrow('Abilities', character.edition)}
 				title="Ability Scores"
 				subtitle={is2024(character) ? "Pick a generation method, then assign scores. Background bonuses are applied automatically once you choose them." : "Pick a generation method, then assign scores. Racial bonuses are applied automatically."}
 			/>

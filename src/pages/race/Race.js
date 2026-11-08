@@ -54,7 +54,7 @@ export default function Race() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Race')}
+				eyebrow={getStepEyebrow('Race', character.edition)}
 				title={label}
 				subtitle={is2024(character)
 					? 'Your species sets size, speed, and innate traits.'

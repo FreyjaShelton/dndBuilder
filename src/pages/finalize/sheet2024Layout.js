@@ -93,3 +93,15 @@ export const SLOT_TOTALS = {
 	4: [277, 681], 5: [277, 667], 6: [277, 653],
 	7: [355, 681], 8: [355, 667], 9: [355, 653],
 };
+
+// Cantrips & prepared spells table (page 2): 30 rows, y is each row's text baseline. The
+// C / R / M diamonds mark concentration, ritual and material components.
+export const SPELL_TABLE = {
+	ys: [588, 568, 549, 529, 510, 490, 471, 451, 432, 413, 393, 374, 354, 335, 315, 296, 276, 257, 238, 218, 199, 179, 160, 140, 121, 102, 82, 63, 43, 24],
+	level: { x: 27, size: 7, align: 'center', maxWidth: 14 },
+	name: { x: 42, size: 7, maxWidth: 108 },
+	castingTime: { x: 155, size: 6, maxWidth: 32 },
+	range: { x: 189, size: 6, maxWidth: 42 },
+	notes: { x: 305, size: 6, maxWidth: 92 },
+	dots: { c: 243, r: 265, m: 287, dy: 3, radius: 2.4 },
+};

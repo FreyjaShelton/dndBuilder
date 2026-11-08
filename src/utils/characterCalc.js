@@ -181,6 +181,14 @@ export function getCantripsKnown(character) {
 	return idx >= 0 ? Number(getClassTableRow(cls, getLevel(character))[idx]) || 0 : 0;
 }
 
+// Number of level 1+ spells the class prepares (the 'Prepared Spells' column), or 0.
+export function getPreparedSpellsLimit(character) {
+	const cls = getClass(character);
+	if (!cls) return 0;
+	const idx = columnIndex(cls, /^Prepared Spells$/);
+	return idx >= 0 ? Number(getClassTableRow(cls, getLevel(character))[idx]) || 0 : 0;
+}
+
 export function getSpellcastingStats(character) {
 	const cls = getClass(character);
 	if (!cls || !cls.spellcastingAbility) return null;

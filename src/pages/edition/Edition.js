@@ -35,7 +35,7 @@ export default function Edition() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Edition')}
+				eyebrow={getStepEyebrow('Edition', character.edition)}
 				title="Edition"
 				subtitle="Choose which version of the rules to build with. Race/species, class, background and equipment options follow your choice."
 			/>

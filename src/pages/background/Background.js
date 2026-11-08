@@ -51,7 +51,7 @@ export default function Background() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Background')}
+				eyebrow={getStepEyebrow('Background', character.edition)}
 				title="Background"
 				subtitle={edition2024
 					? 'Where you came from: ability score bonuses, an Origin feat, two skills and a tool.'

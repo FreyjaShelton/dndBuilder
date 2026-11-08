@@ -1,8 +1,13 @@
-const wizardSteps = ["Edition", "Home", "Race", "Class", "Abilities", "Background", "Skills", "Equipment", "Finalize"];
+const allSteps = ["Edition", "Home", "Race", "Class", "Spells", "Abilities", "Background", "Skills", "Equipment", "Finalize"];
 
-export function getStepEyebrow(pageName) {
-	const index = wizardSteps.indexOf(pageName);
-	return `Step ${index + 1} of ${wizardSteps.length}`;
+// Spell selection is only built for the 2024 rules.
+export function getWizardSteps(edition) {
+	return edition === '2014' ? allSteps.filter((s) => s !== 'Spells') : allSteps;
 }
 
-export default wizardSteps;
+export function getStepEyebrow(pageName, edition) {
+	const steps = getWizardSteps(edition);
+	return `Step ${steps.indexOf(pageName) + 1} of ${steps.length}`;
+}
+
+export default allSteps;

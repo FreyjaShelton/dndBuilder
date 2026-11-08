@@ -4,6 +4,8 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import characterSheet from './5E_CharacterSheet_Fillable.pdf';
 import characterSheet2024 from './DnD_2024_Character_Sheet.pdf';
 import { fillSheet2024 } from './fillSheet2024';
+import { SPELL_FIELDS_2014 } from './spellFields2014';
+import { getSelectedSpells } from '../../utils/spells';
 import { useCharacter } from '../../context/CharacterContext';
 import PageHeader from '../../components/PageHeader';
 import { getStepEyebrow } from '../../data/wizardSteps';
@@ -198,6 +200,14 @@ const PdfEditor = () => {
 				SLOT_TOTAL_FIELDS.forEach((field, i) => setText(field, i + 1 === slots.level ? slots.count : ''));
 			}
 		}
+		// Spell names, listed under their spell level on the sheet's spell page.
+		const chosenSpells = getSelectedSpells(character);
+		if (chosenSpells.length) {
+			Object.entries(SPELL_FIELDS_2014).forEach(([lvl, fields]) => {
+				const names = chosenSpells.filter((sp) => sp.level === Number(lvl)).map((sp) => sp.name);
+				fields.forEach((field, i) => setText(field, names[i] || '', 8));
+			});
+		}
 		// #endregion Spellcasting
 
 		const pdfBytes = await pdfDoc.save();
@@ -224,7 +234,7 @@ const PdfEditor = () => {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Finalize')}
+				eyebrow={getStepEyebrow('Finalize', character.edition)}
 				title="Finalize"
 				subtitle="Your character sheet, filled out automatically from everything you've entered."
 			/>

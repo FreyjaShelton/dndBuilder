@@ -47,7 +47,7 @@ function ClassTable({ cls, level }) {
 }
 
 export default function Class() {
-	const { character, updateClass, updateSkills } = useCharacter();
+	const { character, updateClass, updateSkills, updateSpells } = useCharacter();
 	const { className, level } = character.classInfo;
 	const classes = getEditionData(character.edition).classes;
 	const cls = classes[className];
@@ -55,12 +55,13 @@ export default function Class() {
 	const handleClassChange = (event) => {
 		updateClass({ className: event.target.value });
 		updateSkills({ classChoices: [] });
+		updateSpells({ cantrips: [], prepared: [], spellbook: [] });
 	};
 
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Class')}
+				eyebrow={getStepEyebrow('Class', character.edition)}
 				title="Class"
 				subtitle="Your class defines your hit points, proficiencies, and what you can do."
 			/>

@@ -5,12 +5,18 @@ import {
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus,
 	getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats,
 } from '../../utils/characterCalc';
+import { getSelectedSpells } from '../../utils/spells';
 import {
 	TEXT, ABILITIES, SAVES, SKILLS, PROFICIENCY_DOT, ROW_VALUE, WEAPON_ROWS, BOXES,
-	ARMOR_TRAINING_DOTS, COINS, SPELLCASTING, SLOT_TOTALS,
+	ARMOR_TRAINING_DOTS, COINS, SPELLCASTING, SLOT_TOTALS, SPELL_TABLE,
 } from './sheet2024Layout';
 
 const INK = rgb(0.1, 0.1, 0.12);
+
+const short = (text, rules) => rules.reduce((t, [re, to]) => t.replace(re, to), text || '');
+const shortTime = (t) => short((t || '').split(',')[0], [[/Bonus Action/g, 'Bonus'], [/ minutes?/g, ' min'], [/ hours?/g, ' hr'], [/ or Ritual/g, '']]);
+const shortRange = (r) => short(r, [[/ feet/g, ' ft'], [/-foot/g, '-ft'], [/ miles?/g, ' mi'], [/Touch/g, 'Touch']]);
+const shortDuration = (d) => short(d, [[/Concentration, up to /, 'Conc. '], [/Instantaneous/, 'Instant'], [/ minutes?/g, ' min'], [/ hours?/g, ' hr'], [/ rounds?/g, ' rd']]);
 
 // Draws one line of text, shrinking the font until it fits maxWidth.
 function drawLine(page, font, text, { x, y, size, align = 'left', maxWidth }) {
@@ -179,5 +185,20 @@ export function fillSheet2024(pdfDoc, character, font) {
 			drawLine(p2, font, slots.count, { x: SLOT_TOTALS[slots.level][0], y: SLOT_TOTALS[slots.level][1], size: 9, align: 'center', maxWidth: 14 });
 		}
 	}
+
+	// Cantrips & prepared spells table
+	const T = SPELL_TABLE;
+	getSelectedSpells(character).slice(0, T.ys.length).forEach((sp, i) => {
+		const y = T.ys[i];
+		const comps = sp.components.replace(/\s*\(.*\)/, '').replace(/, /g, ',');
+		drawLine(p2, font, sp.level, { ...T.level, y });
+		drawLine(p2, font, sp.name, { ...T.name, y });
+		drawLine(p2, font, shortTime(sp.castingTime), { ...T.castingTime, y });
+		drawLine(p2, font, shortRange(sp.range), { ...T.range, y });
+		drawLine(p2, font, `${comps} · ${shortDuration(sp.duration)}`, { ...T.notes, y });
+		if (sp.concentration) dot(p2, T.dots.c, y + T.dots.dy, T.dots.radius);
+		if (sp.ritual) dot(p2, T.dots.r, y + T.dots.dy, T.dots.radius);
+		if (sp.material) dot(p2, T.dots.m, y + T.dots.dy, T.dots.radius);
+	});
 	void ABILITY_NAMES;
 }

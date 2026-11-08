@@ -10,6 +10,7 @@ import Footer from './pages/footer/FooterComp';
 import Class from './pages/class/Class';
 import Race from './pages/race/Race';
 import Skills from './pages/skills/Skills';
+import Spells from './pages/spells/Spells';
 import Abilities from './pages/abilities/Abilities';
 import Background from './pages/background/Background';
 import Equipment from './pages/equipment/Equipment';
@@ -52,6 +53,10 @@ const router = createHashRouter([
 			{
 				path: "abilities",
 				element: <Abilities />
+			},
+			{
+				path: "spells",
+				element: <Spells />
 			},
 			{
 				path: "skills",

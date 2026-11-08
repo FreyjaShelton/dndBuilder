@@ -7,6 +7,7 @@ import races2024 from './2024/races';
 import backgrounds2024 from './2024/backgrounds';
 import * as equipment2024 from './2024/equipment';
 import feats2024 from './2024/feats';
+import spells2024 from './2024/spells';
 
 export const DEFAULT_EDITION = '2024';
 
@@ -21,6 +22,7 @@ const editions = {
 		backgrounds: backgrounds2024,
 		equipment: equipment2024,
 		feats: feats2024,
+		spells: spells2024,
 	},
 	'2014': {
 		id: '2014',
@@ -31,6 +33,7 @@ const editions = {
 		backgrounds: backgrounds2014,
 		equipment: equipment2014,
 		feats: [],
+		spells: [],
 	},
 };
 

@@ -33,7 +33,7 @@ export default function Skills() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Skills')}
+				eyebrow={getStepEyebrow('Skills', character.edition)}
 				title="Skills"
 				subtitle="Choose your class skill proficiencies. Background and racial skills are added automatically."
 			/>

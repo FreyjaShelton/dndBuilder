@@ -15,6 +15,7 @@ const editionDependentDefaults = {
 	},
 	skills: { classChoices: [] },
 	equipment: { armor: '', shield: false, weapons: [], gear: [], gold: '' },
+	spells: { cantrips: [], prepared: [], spellbook: [] },
 };
 
 const initialCharacter = {
@@ -49,6 +50,7 @@ export function CharacterProvider({ children }) {
 		updateBackground: updateSection('background'),
 		updateSkills: updateSection('skills'),
 		updateEquipment: updateSection('equipment'),
+		updateSpells: updateSection('spells'),
 	};
 
 	return (

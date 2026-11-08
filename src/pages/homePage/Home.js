@@ -32,7 +32,7 @@ export default function Home() {
 	return (
 		<>
 			<PageHeader
-				eyebrow={getStepEyebrow('Home')}
+				eyebrow={getStepEyebrow('Home', character.edition)}
 				title="Basic Info"
 				subtitle="Start with who your character is — these details appear on the finished sheet."
 			/>

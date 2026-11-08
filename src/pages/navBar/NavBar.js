@@ -7,7 +7,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import pages from '../../data/wizardSteps';
+import { getWizardSteps } from '../../data/wizardSteps';
 import { useCharacter } from '../../context/CharacterContext';
 import { getEditionData } from '../../data';
 
@@ -16,6 +16,7 @@ export default function NavBar() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { character } = useCharacter();
+	const pages = getWizardSteps(character.edition);
 	const stepLabel = (page) => (page === 'Race' ? getEditionData(character.edition).raceLabel : page);
 
 	const handleOpenNavMenu = (event) => {
