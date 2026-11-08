@@ -10,6 +10,8 @@ import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { getEditionData } from '../../data';
 import { is2024 } from '../../utils/characterCalc';
+import { fillHpRolls, rollAllHitDice } from '../../utils/hitPoints';
+import HitPointControls from './HitPointControls';
 import ClassLevels from './ClassLevels';
 
 const norm = (s) => s.replace(/\s+/g, ' ');
@@ -54,7 +56,12 @@ export default function Class() {
 	const cls = classes[className];
 
 	const handleClassChange = (event) => {
-		updateClass({ className: event.target.value, subclass: '', optionalFeatures: [], choices: {} });
+		const next = classes[event.target.value];
+		// rolls belong to the old class's hit die, so roll again for the new one
+		updateClass((ci) => ({
+			className: event.target.value, subclass: '', optionalFeatures: [], choices: {}, hpOverride: '',
+			hpRolls: ci.hpMethod === 'roll' && next ? rollAllHitDice(next.hitDie, ci.level) : [],
+		}));
 		updateSkills({ classChoices: [] });
 		updateSpells({ cantrips: [], prepared: [], spellbook: [] });
 	};
@@ -72,15 +79,25 @@ export default function Class() {
 				))}
 				{cls && (
 					<span>
-						<FormControl sx={{ minWidth: 140, marginBottom: 2 }} size="small">
+						<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, marginBottom: 2 }}>
+							<FormControl sx={{ minWidth: 140 }} size="small">
 							<InputLabel>Level</InputLabel>
-							<Select label="Level" value={level} onChange={(e) => updateClass({ level: e.target.value })}>
+							<Select
+									label="Level"
+									value={level}
+									onChange={(e) => {
+										const newLevel = e.target.value;
+										updateClass((ci) => ({ level: newLevel, hpOverride: '', hpRolls: ci.hpMethod === 'roll' ? fillHpRolls(ci.hpRolls, cls.hitDie, newLevel) : ci.hpRolls }));
+									}}
+								>
 								{Array.from({ length: 20 }, (_, i) => i + 1).map((l) => (
 									<MenuItem key={l} value={l}>{l}</MenuItem>
 								))}
 							</Select>
 						</FormControl>
-						<Box sx={{ padding: 2, backgroundColor: 'action.hover', borderRadius: 2 }}>
+								<HitPointControls character={character} cls={cls} updateClass={updateClass} />
+							</Box>
+							<Box sx={{ padding: 2, backgroundColor: 'action.hover', borderRadius: 2 }}>
 							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 1 }}>
 								<Chip label={`Hit Die: d${cls.hitDie}`} size="small" />
 								<Chip label={`Saves: ${cls.savingThrows.join(', ')}`} size="small" />

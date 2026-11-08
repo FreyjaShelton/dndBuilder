@@ -2,8 +2,11 @@ import * as React from 'react';
 import {
 	Alert, Box, Button, Chip, Collapse, IconButton, Menu, MenuItem, Typography,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { signed } from './dice';
+import { getPreparedLimit2014, getPreparedSpells } from '../../utils/spells2014';
+import PreparedSpellsEditor from './PreparedSpellsEditor';
 
 function SlotBubbles({ total, used, onChange }) {
 	return (
@@ -91,10 +94,14 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 	);
 }
 
-export default function SpellsTab({ d, play, setPlay, onCast, onAttack, onDamage }) {
+export default function SpellsTab({ character, updateClass, d, play, setPlay, onCast, onAttack, onDamage }) {
+	const [editing, setEditing] = React.useState(false);
 	if (!d.spellStats) {
 		return <Typography color="text.secondary">{d.cls ? `${d.cls.name}s don't cast spells.` : 'No class selected.'}</Typography>;
 	}
+	// clerics, druids, paladins and wizards prepare spells and can change them (after a long rest)
+	const preparedLimit = character.edition === '2014' ? getPreparedLimit2014(character) : 0;
+	if (editing && preparedLimit > 0) return <PreparedSpellsEditor character={character} updateClass={updateClass} onDone={() => setEditing(false)} />;
 	const slots = d.slots;
 	const levels = slots.type === 'standard' ? Object.entries(slots.slots).filter(([, n]) => n > 0).map(([l, n]) => [Number(l), n]) : [];
 	const available = (lvl) => {
@@ -115,6 +122,12 @@ export default function SpellsTab({ d, play, setPlay, onCast, onAttack, onDamage
 				<Chip size="small" label={`${d.spellStats.ability} casting`} />
 				<Chip size="small" label={`Save DC ${d.spellStats.saveDc}`} />
 				<Chip size="small" label={`Spell attack ${signed(d.spellStats.attackBonus)}`} />
+				{preparedLimit > 0 && <Chip size="small" label={`Prepared ${getPreparedSpells(character).length} / ${preparedLimit}`} />}
+				{preparedLimit > 0 && (
+					<Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(true)} sx={{ marginLeft: 'auto' }}>
+						Edit prepared spells
+					</Button>
+				)}
 			</Box>
 
 			{play.concentration && (

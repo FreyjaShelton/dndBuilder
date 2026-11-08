@@ -135,7 +135,7 @@ export function getLevelEntries(character) {
 				description: f.description,
 				kind: 'subclass',
 				level,
-				source: sub.name,
+				source: sub.homebrew ? `Homebrew: ${sub.name}` : sub.name, homebrew: !!sub.homebrew,
 				options: f.options,
 				choices: choicesFor(character, level, f.name), spellChoices: spellChoicesFor(character, level, f.name),
 			}));
@@ -217,6 +217,10 @@ export function getChoiceOptions(def, entry, character) {
 		list = getEditionData(character.edition).equipment.weapons
 			.filter((w) => /^(Simple|Martial)$/.test(w.category) && w.name !== 'Net' && (w.name === 'Longbow' || !(w.properties || []).some((p) => /^(Heavy|Special)/i.test(p))))
 			.map((w) => ({ name: w.name, description: `${w.category} ${w.kind} weapon` }));
+	} else if (def.options === 'list:martial-weapons') {
+		list = getEditionData(character.edition).equipment.weapons
+			.filter((w) => w.category === 'Martial')
+			.map((w) => ({ name: w.name, description: `Martial ${w.kind.toLowerCase()} weapon` }));
 	} else if (def.options === 'list:invocations') {
 		const pact = getChoiceValues(character).pactBoon;
 		list = invocations.filter((i) => (!i.minLevel || i.minLevel <= level) && (!i.pact || pact === `Pact of the ${i.pact}`));
@@ -297,6 +301,19 @@ export function getActiveChoiceDefs(character) {
 	return getChoiceDefs(character).filter((d) => d.level <= lv && (!d.optionalFeature || enabled.has(d.optionalFeature)) && isVisible(d, values));
 }
 
+// Weapons the character is proficient with because of a choice (a subclass that lets you pick a martial weapon).
+export function getChoiceWeaponProficiencies(character) {
+	if (character.edition !== '2014') return [];
+	const values = getChoiceValues(character);
+	return getActiveChoiceDefs(character).filter((d) => d.grantsWeaponProficiency).map((d) => values[d.id]).filter(Boolean);
+}
+
+// Armor and weapon proficiencies the chosen subclass adds on top of the class's, as text ('' when none).
+export function getSubclassProficiencyText(character) {
+	const sub = character.edition === '2014' ? getSubclass(character) : null;
+	return { armor: sub?.grants?.armor || '', weapons: getChoiceWeaponProficiencies(character).join(', ') };
+}
+
 export function getChoiceSkills(character) {
 	const values = getChoiceValues(character);
 	const out = [];
@@ -326,7 +343,7 @@ export function getChoiceSummaries(character) {
 	const values = getChoiceValues(character);
 	const lines = [];
 	const sub = info(character).subclass;
-	if (sub && getSubclass(character)) lines.push(`${getClass2014(character).subclassName}: ${sub}`);
+	if (sub && getSubclass(character)) lines.push(`${getClass2014(character).subclassName}: ${sub}${getSubclass(character).homebrew ? ' (Homebrew)' : ''}`);
 	getActiveChoiceDefs(character).forEach((d) => {
 		const v = values[d.id];
 		if (!v || (Array.isArray(v) && !v.length)) return;
@@ -347,7 +364,7 @@ export function getSheetFeatures(character) {
 	const values = getChoiceValues(character);
 	const sub = getSubclass(character);
 	const out = new Map();
-	if (sub) out.set(cls.subclassName, { name: cls.subclassName, label: `${cls.subclassName}: ${sub.name}`, description: sub.summary });
+	if (sub) out.set(cls.subclassName, { name: cls.subclassName, label: `${cls.subclassName}: ${sub.name}${sub.homebrew ? ' (Homebrew)' : ''}`, description: `${sub.homebrew ? 'HOMEBREW (not official D&D content). ' : ''}${sub.summary}` });
 	getLevelEntries(character).forEach((lv) => lv.entries.forEach((e) => {
 		if (e.kind === 'asi' || e.kind === 'subclassPick' || e.enabled === false) return;
 		const picked = (e.choices || []).map((def) => {

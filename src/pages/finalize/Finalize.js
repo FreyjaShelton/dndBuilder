@@ -17,9 +17,10 @@ import {
 	getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getProficiencyBonus, getRace,
 	getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getSubrace,
-	getAbilityMods, getCarriedGold, getOriginFeats, is2024,
+	getAbilityMods, getArmorProficiencies, getCarriedGold, getOriginFeats, getWeaponProficiencies, is2024,
 } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
+import { getEquipmentLines } from '../../utils/equipment';
 import { getRaceChoiceSummaries, getRaceTools } from '../../utils/raceChoices';
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 
@@ -97,7 +98,7 @@ const PdfEditor = () => {
 			}
 		};
 
-		const { info, equipment } = character;
+		const { info } = character;
 		const cls = getClass(character);
 		const race = getRace(character);
 		const subrace = getSubrace(character);
@@ -170,8 +171,8 @@ const PdfEditor = () => {
 		// #region Proficiencies, features and equipment
 		const proficiencyLines = [];
 		if (cls) {
-			proficiencyLines.push(`Armor: ${cls.armorProficiencies}`);
-			proficiencyLines.push(`Weapons: ${cls.weaponProficiencies}`);
+			proficiencyLines.push(`Armor: ${getArmorProficiencies(character)}`);
+			proficiencyLines.push(`Weapons: ${getWeaponProficiencies(character)}`);
 			proficiencyLines.push(`Tools: ${cls.toolProficiencies}`);
 		}
 		if (bg?.name === 'Custom' && character.background.customProficiency) {
@@ -204,11 +205,7 @@ const PdfEditor = () => {
 		if (!is2024(character)) getBackgroundChoiceSummaries(character).forEach((l) => featureLines.push(l));
 		setText('Features and Traits', featureLines.join(', '), 8);
 
-		const equipmentLines = [];
-		if (equipment.armor) equipmentLines.push(equipment.armor);
-		if (equipment.shield) equipmentLines.push('Shield');
-		equipmentLines.push(...equipment.weapons, ...equipment.gear);
-		setText('Equipment', equipmentLines.join(', '), 8);
+		setText('Equipment', getEquipmentLines(character).join(', '), 8);
 		setText('GP', getCarriedGold(character));
 		// #endregion Proficiencies, features and equipment
 

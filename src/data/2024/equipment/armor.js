@@ -1,43 +1,48 @@
+// Generated from 5e.tools item data. Do not edit by hand.
 const armor = [
 	{
-		"name": "Padded",
+		"name": "Leather Armor",
+		"type": "Light",
+		"cost": "10 gp",
+		"ac": 11,
+		"dexCap": null,
+		"strengthRequirement": 0,
+		"stealthDisadvantage": false,
+		"weight": 10,
+		"group": "Armor"
+	},
+	{
+		"name": "Padded Armor",
 		"type": "Light",
 		"cost": "5 gp",
 		"ac": 11,
 		"dexCap": null,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": true,
-		"weight": 8
+		"weight": 8,
+		"group": "Armor"
 	},
 	{
-		"name": "Leather",
-		"type": "Light",
-		"cost": "10 gp",
-		"ac": 11,
-		"dexCap": null,
-		"strengthRequirement": 0,
-		"stealthDisadvantage": false,
-		"weight": 10
-	},
-	{
-		"name": "Studded Leather",
+		"name": "Studded Leather Armor",
 		"type": "Light",
 		"cost": "45 gp",
 		"ac": 12,
 		"dexCap": null,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": false,
-		"weight": 13
+		"weight": 13,
+		"group": "Armor"
 	},
 	{
-		"name": "Hide",
+		"name": "Hide Armor",
 		"type": "Medium",
 		"cost": "10 gp",
 		"ac": 12,
 		"dexCap": 2,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": false,
-		"weight": 12
+		"weight": 12,
+		"group": "Armor"
 	},
 	{
 		"name": "Chain Shirt",
@@ -47,17 +52,8 @@ const armor = [
 		"dexCap": 2,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": false,
-		"weight": 20
-	},
-	{
-		"name": "Scale Mail",
-		"type": "Medium",
-		"cost": "50 gp",
-		"ac": 14,
-		"dexCap": 2,
-		"strengthRequirement": 0,
-		"stealthDisadvantage": true,
-		"weight": 45
+		"weight": 20,
+		"group": "Armor"
 	},
 	{
 		"name": "Breastplate",
@@ -67,17 +63,30 @@ const armor = [
 		"dexCap": 2,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": false,
-		"weight": 20
+		"weight": 20,
+		"group": "Armor"
 	},
 	{
-		"name": "Half Plate",
+		"name": "Scale Mail",
+		"type": "Medium",
+		"cost": "50 gp",
+		"ac": 14,
+		"dexCap": 2,
+		"strengthRequirement": 0,
+		"stealthDisadvantage": true,
+		"weight": 45,
+		"group": "Armor"
+	},
+	{
+		"name": "Half Plate Armor",
 		"type": "Medium",
 		"cost": "750 gp",
 		"ac": 15,
 		"dexCap": 2,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": true,
-		"weight": 40
+		"weight": 40,
+		"group": "Armor"
 	},
 	{
 		"name": "Ring Mail",
@@ -87,7 +96,8 @@ const armor = [
 		"dexCap": 0,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": true,
-		"weight": 40
+		"weight": 40,
+		"group": "Armor"
 	},
 	{
 		"name": "Chain Mail",
@@ -97,27 +107,30 @@ const armor = [
 		"dexCap": 0,
 		"strengthRequirement": 13,
 		"stealthDisadvantage": true,
-		"weight": 55
+		"weight": 55,
+		"group": "Armor"
 	},
 	{
-		"name": "Splint",
+		"name": "Splint Armor",
 		"type": "Heavy",
 		"cost": "200 gp",
 		"ac": 17,
 		"dexCap": 0,
 		"strengthRequirement": 15,
 		"stealthDisadvantage": true,
-		"weight": 60
+		"weight": 60,
+		"group": "Armor"
 	},
 	{
-		"name": "Plate",
+		"name": "Plate Armor",
 		"type": "Heavy",
-		"cost": "1,500 gp",
+		"cost": "1500 gp",
 		"ac": 18,
 		"dexCap": 0,
 		"strengthRequirement": 15,
 		"stealthDisadvantage": true,
-		"weight": 65
+		"weight": 65,
+		"group": "Armor"
 	},
 	{
 		"name": "Shield",
@@ -127,7 +140,8 @@ const armor = [
 		"dexCap": null,
 		"strengthRequirement": 0,
 		"stealthDisadvantage": false,
-		"weight": 6
+		"weight": 6,
+		"group": "Armor"
 	}
 ];
 

@@ -11,6 +11,7 @@ const INITIAL_ROWS = 150;
 
 function SpellDetails({ spell, details }) {
 	if (!details) return <Typography variant="body2" color="text.secondary">Loading spell text…</Typography>;
+	if (Object.keys(details).length === 0) return <Typography variant="body2" color="text.secondary">Spell text could not be loaded. Reload the page to try again.</Typography>;
 	const d = details[spell.name];
 	if (!d) return <Typography variant="body2" color="text.secondary">No details available.</Typography>;
 	return (

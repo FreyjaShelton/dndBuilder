@@ -14,13 +14,14 @@
 //             'expertise' skills (or `extra`) that get double proficiency
 //             'languages' / 'tools'  languages or tool proficiencies
 //   options   names, [{ name, description }], 'feature' (parsed from the feature text), or a list id
-//             ('list:maneuvers', 'list:disciplines', 'list:invocations', 'list:kensei-weapons')
+//             ('list:maneuvers', 'list:disciplines', 'list:invocations', 'list:kensei-weapons', 'list:martial-weapons')
 //   optionsFrom  read the options from another feature of the class or subclass
 //   from      for skills/languages/tools: 'class' (the class skill list), 'any', or a list of names
 //   count     a number, a step map { 3: 2, 10: 3 } (value at the highest level reached), or { column } from the class table
 //   showIf    { id, value } show only when an earlier choice has that value
 //   group     choices sharing a group are either-or (a skill or a language)
 //   optionalFeature  only offered when that Tasha's optional feature is switched on
+//   grantsWeaponProficiency  true: the picked weapon is a weapon the character is proficient with
 //
 // `optional` holds the metadata for Tasha's optional class features: `replaces` names features swapped out.
 
@@ -263,6 +264,16 @@ const classChoices = {
 					{ name: 'Green', description: 'Poison damage' }, { name: 'Red', description: 'Fire damage' }, { name: 'Silver', description: 'Cold damage' },
 					{ name: 'White', description: 'Cold damage' },
 				] },
+			],
+			'Elemental Bloodline': [
+				{ id: 'elementalAncestor', level: 1, feature: 'Elemental Ancestor', label: 'Elemental ancestor', kind: 'option', options: [
+					{ name: 'Water', description: 'Spells: Healing Word, Lesser Restoration, Sleet Storm, Control Water, Cone of Cold.' },
+					{ name: 'Earth', description: "Spells: Mage Armor, Hold Person, Slow, Otiluke's Resilient Sphere, Creation." },
+					{ name: 'Fire', description: 'Spells: Faerie Fire, Flame Blade, Fireball, Fire Shield, Flame Strike.' },
+					{ name: 'Air', description: 'Spells: Shield, Invisibility, Fly, Freedom of Movement, Telekinesis.' },
+					{ name: 'Lightning', description: 'Spells: Color Spray, Misty Step, Blink, Dimension Door, Mislead.' },
+				] },
+				{ id: 'elementalWeapon', level: 1, feature: 'Elemental Warrior', label: 'Martial weapon proficiency', kind: 'option', options: 'list:martial-weapons', grantsWeaponProficiency: true },
 			],
 			'Divine Soul': [
 				{ id: 'divineAffinity', level: 1, feature: 'Divine Magic', label: 'Affinity', kind: 'option', options: [

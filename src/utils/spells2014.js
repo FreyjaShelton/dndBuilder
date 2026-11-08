@@ -4,6 +4,7 @@
 import spellIndex from '../data/2014/spellIndex';
 import { getAbilityMods, getClass, getLevel, getSpellcastingStats } from './characterCalc';
 import { getRaceChoices, getRaceSpellInfo } from './raceChoices';
+import { getFeatGrantedSpells } from './featSpells';
 import {
 	getActiveChoiceDefs, getChoiceOptions, getChoiceValues, getMaxCastableLevel, getSubclass, resolveCount,
 } from './classChoices';
@@ -18,7 +19,10 @@ let detailsCache = null;
 let detailsPromise = null;
 export function loadSpellDetails() {
 	if (!detailsPromise) {
-		detailsPromise = import('../data/2014/spellDetails').then((m) => { detailsCache = m.default; return detailsCache; });
+		detailsPromise = import('../data/2014/spellDetails')
+			.then((m) => { detailsCache = m.default; return detailsCache; })
+			// a failed chunk load (offline, or a stale page after a new deploy) must not be cached: the next visit retries
+			.catch((error) => { detailsPromise = null; throw error; });
 	}
 	return detailsPromise;
 }
@@ -33,7 +37,7 @@ export function hasSpellsPage2014(character) {
 	const cls = getClass(character);
 	if (!cls) return false;
 	const race = getRaceSpellInfo(character);
-	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0) || race.fixed.length > 0 || race.pickDefs.length > 0;
+	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0) || race.fixed.length > 0 || getFeatGrantedSpells(character).length > 0;
 }
 
 // ---- Prepared spells (cleric, druid, paladin, wizard) ------------------------------------------
@@ -104,6 +108,13 @@ export function getAlwaysPrepared(character) {
 			if (m && Number(m[1]) <= level) parseSpellNames(m[2]).forEach((name) => results.push({ name, from: sub.name }));
 		});
 	});
+	// subclasses whose spells depend on a choice (Elemental Bloodline's ancestor): { choice, byChoice: { option: { level: [spells] } } }
+	if (sub.bonusSpells) {
+		const table = sub.bonusSpells.byChoice[getChoiceValues(character)[sub.bonusSpells.choice]];
+		Object.entries(table || {}).forEach(([lv, names]) => {
+			if (Number(lv) <= level) names.forEach((n) => { const s = findSpell(n); if (s) results.push({ name: s.name, from: sub.name }); });
+		});
+	}
 	return results.filter((r, i) => results.findIndex((x) => x.name === r.name) === i);
 }
 
@@ -140,22 +151,22 @@ export function getSpellSections(character) {
 			prepared: true,
 		});
 	}
-	// cantrips granted by the character's race (High Elf, Fairy...) are picked here too
-	const raceValues = getRaceChoices(character);
-	getRaceSpellInfo(character).pickDefs.forEach((def) => {
-		sections.push({
-			id: def.id,
-			store: 'race',
-			title: def.label,
-			subtitle: 'Racial trait',
-			note: '',
-			count: def.count,
-			options: spellIndex.filter((sp) => sp.level === 0 && (def.classes === 'any' || sp.classes.some((c) => def.classes.includes(c)))).map(optionOf),
-			value: raceValues[def.id] || [],
-			order: 2.5,
-		});
-	});
 	return sections.sort((a, b) => a.order - b.order);
+}
+
+// Cantrips granted by the character's race (High Elf, Fairy...): picked on the Race page, stored with the race's choices.
+// Same shape as the sections above so the same spell picker can show them.
+export function getRaceSpellSections(character) {
+	const raceValues = getRaceChoices(character);
+	return getRaceSpellInfo(character).pickDefs.map((def) => ({
+		id: def.id,
+		title: def.trait || def.label,
+		subtitle: `Racial cantrip${def.count > 1 ? 's' : ''}`,
+		note: '',
+		count: def.count,
+		options: spellIndex.filter((sp) => sp.level === 0 && (def.classes === 'any' || sp.classes.some((c) => def.classes.includes(c)))).map(optionOf),
+		value: raceValues[def.id] || [],
+	}));
 }
 
 // ---- What the character has, for the sheet and PDF -------------------------------------------------------
@@ -165,6 +176,8 @@ export function getChosenSpellNames(character) {
 	const names = new Set();
 	// a wizard's spellbook is reference, not what they can cast today: the sheet lists cantrips and prepared spells
 	getSpellSections(character).filter((s) => s.id !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => names.add(n)));
+	getFeatGrantedSpells(character).forEach((s) => names.add(s.name));
+	getRaceSpellSections(character).forEach((s) => (s.value || []).forEach((n) => { if (s.options.some((o) => o.name === n)) names.add(n); }));
 	getAlwaysPrepared(character).forEach((s) => names.add(s.name));
 	getRaceSpellInfo(character).fixed.forEach((s) => names.add(s.name));
 	return [...names];

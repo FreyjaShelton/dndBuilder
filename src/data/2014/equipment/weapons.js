@@ -1,3 +1,4 @@
+// Generated from 5e.tools item data. Do not edit by hand.
 const weapons = [
 	{
 		"name": "Club",
@@ -9,7 +10,8 @@ const weapons = [
 		"weight": 2,
 		"properties": [
 			"Light"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Dagger",
@@ -22,9 +24,9 @@ const weapons = [
 		"properties": [
 			"Finesse",
 			"Light",
-			"Range",
 			"Thrown"
 		],
+		"group": "Weapons",
 		"range": "20/60"
 	},
 	{
@@ -37,7 +39,8 @@ const weapons = [
 		"weight": 10,
 		"properties": [
 			"Two-Handed"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Handaxe",
@@ -51,6 +54,7 @@ const weapons = [
 			"Light",
 			"Thrown"
 		],
+		"group": "Weapons",
 		"range": "20/60"
 	},
 	{
@@ -64,6 +68,7 @@ const weapons = [
 		"properties": [
 			"Thrown"
 		],
+		"group": "Weapons",
 		"range": "30/120"
 	},
 	{
@@ -78,6 +83,7 @@ const weapons = [
 			"Light",
 			"Thrown"
 		],
+		"group": "Weapons",
 		"range": "20/60"
 	},
 	{
@@ -88,7 +94,8 @@ const weapons = [
 		"damage": "1d6",
 		"damageType": "Bludgeoning",
 		"weight": 4,
-		"properties": []
+		"properties": [],
+		"group": "Weapons"
 	},
 	{
 		"name": "Quarterstaff",
@@ -101,6 +108,7 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d8"
 	},
 	{
@@ -113,7 +121,8 @@ const weapons = [
 		"weight": 2,
 		"properties": [
 			"Light"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Spear",
@@ -124,27 +133,12 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 3,
 		"properties": [
-			"Versatile",
-			"Thrown"
+			"Thrown",
+			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d8",
 		"range": "20/60"
-	},
-	{
-		"name": "Light Crossbow",
-		"category": "Simple",
-		"kind": "Ranged",
-		"cost": "25 gp",
-		"damage": "1d8",
-		"damageType": "Piercing",
-		"weight": 5,
-		"properties": [
-			"Two-Handed",
-			"Range",
-			"Loading",
-			"Ammunition"
-		],
-		"range": "80/320"
 	},
 	{
 		"name": "Dart",
@@ -156,10 +150,26 @@ const weapons = [
 		"weight": 0.25,
 		"properties": [
 			"Finesse",
-			"Range",
 			"Thrown"
 		],
+		"group": "Weapons",
 		"range": "20/60"
+	},
+	{
+		"name": "Light Crossbow",
+		"category": "Simple",
+		"kind": "Ranged",
+		"cost": "25 gp",
+		"damage": "1d8",
+		"damageType": "Piercing",
+		"weight": 5,
+		"properties": [
+			"Ammunition",
+			"Loading",
+			"Two-Handed"
+		],
+		"group": "Weapons",
+		"range": "80/320"
 	},
 	{
 		"name": "Shortbow",
@@ -170,10 +180,10 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 2,
 		"properties": [
-			"Two-Handed",
-			"Range",
-			"Ammunition"
+			"Ammunition",
+			"Two-Handed"
 		],
+		"group": "Weapons",
 		"range": "80/320"
 	},
 	{
@@ -185,9 +195,9 @@ const weapons = [
 		"damageType": "Bludgeoning",
 		"weight": 0,
 		"properties": [
-			"Ammunition",
-			"Range"
+			"Ammunition"
 		],
+		"group": "Weapons",
 		"range": "30/120"
 	},
 	{
@@ -201,6 +211,7 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d10"
 	},
 	{
@@ -211,7 +222,8 @@ const weapons = [
 		"damage": "1d8",
 		"damageType": "Bludgeoning",
 		"weight": 2,
-		"properties": []
+		"properties": [],
+		"group": "Weapons"
 	},
 	{
 		"name": "Glaive",
@@ -222,10 +234,11 @@ const weapons = [
 		"damageType": "Slashing",
 		"weight": 6,
 		"properties": [
-			"Two-Handed",
 			"Heavy",
-			"Reach"
-		]
+			"Reach",
+			"Two-Handed"
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Greataxe",
@@ -236,9 +249,10 @@ const weapons = [
 		"damageType": "Slashing",
 		"weight": 7,
 		"properties": [
-			"Two-Handed",
-			"Heavy"
-		]
+			"Heavy",
+			"Two-Handed"
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Greatsword",
@@ -249,9 +263,10 @@ const weapons = [
 		"damageType": "Slashing",
 		"weight": 6,
 		"properties": [
-			"Two-Handed",
-			"Heavy"
-		]
+			"Heavy",
+			"Two-Handed"
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Halberd",
@@ -262,10 +277,11 @@ const weapons = [
 		"damageType": "Slashing",
 		"weight": 6,
 		"properties": [
-			"Two-Handed",
 			"Heavy",
-			"Reach"
-		]
+			"Reach",
+			"Two-Handed"
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Lance",
@@ -278,7 +294,9 @@ const weapons = [
 		"properties": [
 			"Reach",
 			"Special"
-		]
+		],
+		"group": "Weapons",
+		"description": "Special. You have disadvantage when you use a lance to attack a target within 5 feet of you. Also, a lance requires two hands to wield when you aren't mounted."
 	},
 	{
 		"name": "Longsword",
@@ -291,6 +309,7 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d10"
 	},
 	{
@@ -304,7 +323,8 @@ const weapons = [
 		"properties": [
 			"Heavy",
 			"Two-Handed"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Morningstar",
@@ -314,7 +334,8 @@ const weapons = [
 		"damage": "1d8",
 		"damageType": "Piercing",
 		"weight": 4,
-		"properties": []
+		"properties": [],
+		"group": "Weapons"
 	},
 	{
 		"name": "Pike",
@@ -325,10 +346,11 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 18,
 		"properties": [
-			"Two-Handed",
 			"Heavy",
-			"Reach"
-		]
+			"Reach",
+			"Two-Handed"
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Rapier",
@@ -340,7 +362,8 @@ const weapons = [
 		"weight": 2,
 		"properties": [
 			"Finesse"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Scimitar",
@@ -353,7 +376,8 @@ const weapons = [
 		"properties": [
 			"Finesse",
 			"Light"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Shortsword",
@@ -366,7 +390,8 @@ const weapons = [
 		"properties": [
 			"Finesse",
 			"Light"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Trident",
@@ -377,9 +402,10 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 4,
 		"properties": [
-			"Versatile",
-			"Thrown"
+			"Thrown",
+			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d8",
 		"range": "20/60"
 	},
@@ -391,7 +417,8 @@ const weapons = [
 		"damage": "1d8",
 		"damageType": "Piercing",
 		"weight": 2,
-		"properties": []
+		"properties": [],
+		"group": "Weapons"
 	},
 	{
 		"name": "Warhammer",
@@ -404,6 +431,7 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
+		"group": "Weapons",
 		"versatileDamage": "1d10"
 	},
 	{
@@ -417,7 +445,8 @@ const weapons = [
 		"properties": [
 			"Finesse",
 			"Reach"
-		]
+		],
+		"group": "Weapons"
 	},
 	{
 		"name": "Blowgun",
@@ -429,9 +458,9 @@ const weapons = [
 		"weight": 1,
 		"properties": [
 			"Ammunition",
-			"Loading",
-			"Range"
+			"Loading"
 		],
+		"group": "Weapons",
 		"range": "25/100"
 	},
 	{
@@ -443,11 +472,11 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 3,
 		"properties": [
+			"Ammunition",
 			"Light",
-			"Range",
-			"Loading",
-			"Ammunition"
+			"Loading"
 		],
+		"group": "Weapons",
 		"range": "30/120"
 	},
 	{
@@ -459,12 +488,12 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 18,
 		"properties": [
-			"Two-Handed",
-			"Range",
-			"Loading",
+			"Ammunition",
 			"Heavy",
-			"Ammunition"
+			"Loading",
+			"Two-Handed"
 		],
+		"group": "Weapons",
 		"range": "100/400"
 	},
 	{
@@ -476,11 +505,11 @@ const weapons = [
 		"damageType": "Piercing",
 		"weight": 2,
 		"properties": [
-			"Two-Handed",
-			"Range",
+			"Ammunition",
 			"Heavy",
-			"Ammunition"
+			"Two-Handed"
 		],
+		"group": "Weapons",
 		"range": "150/600"
 	},
 	{
@@ -492,9 +521,12 @@ const weapons = [
 		"damageType": "",
 		"weight": 3,
 		"properties": [
+			"Special",
 			"Thrown"
 		],
-		"range": "5/15"
+		"group": "Weapons",
+		"range": "5/15",
+		"description": "Special. A Large or smaller creature hit by a net is restrained until it is freed. A net has no effect on creatures that are formless, or creatures that are Huge or larger. A creature can use its action to make a DC 10 Strength check, freeing itself or another creature within its reach on a success. Dealing 5 slashing damage to the net (AC 10) also frees the creature without harming it, ending the effect and destroying the net. When you use an action, bonus action, or reaction to attack with a net, you can make only one attack regardless of the number of attacks you can normally make."
 	}
 ];
 

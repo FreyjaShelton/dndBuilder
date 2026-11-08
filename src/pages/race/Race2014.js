@@ -12,6 +12,9 @@ import {
 	getBaseTraits, getEffectiveAsi, getRaceCategories, getRaceChoiceDefs, getRaceChoices, getRaceLanguages, getRacePending,
 	getRaceRecord, getRaceSize, getRaceSpeeds, getSubraceRecord, getSubraceTraits, getVersion,
 } from '../../utils/raceChoices';
+import { getRaceSpellSections } from '../../utils/spells2014';
+import useSpellDetails from '../../utils/useSpellDetails';
+import SpellPicker2014 from '../spells/SpellPicker2014';
 import RaceChoice from './RaceChoices2014';
 
 const RESET = { subrace: '', version: '', abilityChoices: [], skillChoices: [], lineage: '', originFeat: '', choices: {} };
@@ -63,6 +66,20 @@ function Tables({ tables }) {
 	});
 }
 
+// Cantrips the race grants (High Elf, Fairy...) are picked here with the same picker as the Spells step.
+// A separate component so the spell text only loads when there is a pick to make.
+function RaceSpellPickers({ character, updateRace }) {
+	const details = useSpellDetails();
+	return getRaceSpellSections(character).map((section) => (
+		<SpellPicker2014
+			key={section.id}
+			section={section}
+			details={details}
+			onChange={(updater) => updateRace((race) => ({ choices: { ...(race.choices || {}), [section.id]: updater((race.choices || {})[section.id] || []) } }))}
+		/>
+	));
+}
+
 export default function Race2014() {
 	const { character, updateRace } = useCharacter();
 	const rec = getRaceRecord(character);
@@ -74,7 +91,7 @@ export default function Race2014() {
 	const categories = React.useMemo(() => getRaceCategories(), []);
 	const raceOptions = React.useMemo(() => Object.entries(categories).flatMap(([category, names]) => names.map((name) => ({ name, category }))), [categories]);
 
-	const setChoice = (id, value) => updateRace((race) => ({ choices: { ...(race.choices || {}), [id]: value } }));
+	const setChoice = (id, value) => updateRace((race) => ({ choices: { ...(race.choices || {}), [id]: typeof value === 'function' ? value((race.choices || {})[id]) : value } }));
 	const pickRace = (name) => updateRace({ name: name || '', ...RESET });
 	const asi = rec ? getEffectiveAsi(character) : null;
 	const langs = rec ? getRaceLanguages(character) : null;
@@ -163,14 +180,14 @@ export default function Race2014() {
 						</CardContent>
 					</Card>
 
-					{defs.length > 0 && (
+					{defs.some((d) => d.kind !== 'spells') && (
 						<Card sx={{ backgroundColor: 'background.paper', marginBottom: 2 }}>
 							<CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 									<Typography variant="h6" sx={{ fontWeight: 700 }}>Your choices</Typography>
 									{pending > 0 && <Chip size="small" color="warning" variant="outlined" label={`${pending} to choose`} />}
 								</Box>
-								{defs.map((def) => (
+								{defs.filter((d) => d.kind !== 'spells').map((def) => (
 									<Box key={def.id}>
 										{def.kind !== 'option' && def.kind !== 'skills' && def.kind !== 'tools' && def.kind !== 'languages' && def.kind !== 'feat' && def.kind !== 'spells' && (
 											<Typography variant="subtitle2" sx={{ marginBottom: 1, color: 'primary.main' }}>{def.label}</Typography>
@@ -183,7 +200,9 @@ export default function Race2014() {
 						</Card>
 					)}
 
-					<Typography variant="h6" sx={{ fontWeight: 700, marginBottom: 1 }}>Traits</Typography>
+					{defs.some((d) => d.kind === 'spells') && <RaceSpellPickers character={character} updateRace={updateRace} />}
+
+						<Typography variant="h6" sx={{ fontWeight: 700, marginBottom: 1 }}>Traits</Typography>
 					<TraitList traits={getBaseTraits(character)} source="" />
 					{sub && <TraitList traits={getSubraceTraits(character)} source={sub.name} />}
 					{(version.age || version.alignment) && (

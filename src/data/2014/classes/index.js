@@ -10,6 +10,7 @@ import rogue from './rogue';
 import sorcerer from './sorcerer';
 import warlock from './warlock';
 import wizard from './wizard';
+import homebrewSubclasses from '../homebrew';
 
 const classes = {
 	Barbarian: barbarian,
@@ -25,5 +26,10 @@ const classes = {
 	Warlock: warlock,
 	Wizard: wizard,
 };
+
+// Homebrew subclasses are added to the end of their class's list (they carry homebrew: true).
+homebrewSubclasses.forEach(({ className, subclass }) => {
+	classes[className] = { ...classes[className], subclasses: [...classes[className].subclasses, subclass] };
+});
 
 export default classes;

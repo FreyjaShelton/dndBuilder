@@ -5,11 +5,22 @@ import {
 import { getEditionData } from '../../data';
 import { ABILITY_KEYS, ABILITY_NAMES } from '../../utils/abilityScore';
 import { getProficientSkills } from '../../utils/characterCalc';
+import FeatSpellChoices from '../spells/FeatSpellChoices';
 import {
 	allLanguages, getChoiceOptions, getClassSkillPool, getOptionDescription, resolveCount,
 } from '../../utils/classChoices';
 
 const abilityName = (k) => ABILITY_NAMES[k];
+
+// "+1 Intelligence, Wisdom or Charisma", "+1 Strength", "+1 to any ability score": what a feat does to the ability scores.
+function abilityIncreaseText(feat) {
+	const inc = feat && feat.abilityIncrease;
+	if (!inc || !inc.options.length) return '';
+	const amount = '+' + (inc.amount || 1);
+	if (inc.options.length === ABILITY_KEYS.length) return amount + ' to any ability score';
+	const names = inc.options.map(abilityName);
+	return amount + ' ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1] : names[0]);
+}
 const LONG_LIST = 12;
 
 // One of a list, as a plain dropdown. `options`: [{ name, label?, group? }].
@@ -116,7 +127,8 @@ function FeatPicker({ edition, value, onChange }) {
 					<li key={key} {...rest}>
 						<Box>
 							<Typography variant="body2">{f.name}</Typography>
-							{f.prerequisite && <Typography variant="caption" sx={{ color: 'text.secondary' }}>Prerequisite: {f.prerequisite}</Typography>}
+							{f.prerequisite && <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Prerequisite: {f.prerequisite}</Typography>}
+								{edition === '2014' && abilityIncreaseText(f) && <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Ability score increase: {abilityIncreaseText(f)}</Typography>}
 						</Box>
 					</li>
 				);
@@ -171,6 +183,14 @@ function AsiControl({ character, value, onChange }) {
 						<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>
 							{feat.prerequisite ? `Prerequisite: ${feat.prerequisite}\n` : ''}{feat.description}
 						</Typography>
+					)}
+					{feat && (
+						<FeatSpellChoices
+							featName={feat.name}
+							edition={character.edition}
+							state={v.spells}
+							onChange={(update) => onChange((prev) => ({ ...(prev || {}), spells: update((prev || {}).spells) }))}
+						/>
 					)}
 				</>
 			)}
@@ -227,4 +247,4 @@ export default function ChoiceControl({ def, entry, character, value, onChange }
 	return null;
 }
 
-export { AsiControl, FeatPicker };
+export { AsiControl, FeatPicker, abilityIncreaseText };

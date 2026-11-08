@@ -1,11 +1,13 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
+import { getRemainingGold, getWeaponNames, getWornArmorName, hasShield } from './equipment';
+import { averageHitDie, parseHpOverride } from './hitPoints';
 import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
 import {
 	getRaceAbilityBonuses, getRaceArmor, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts, getSubraceRecord, resolveRace,
 } from './raceChoices';
-import { getChoiceLanguages, getChoiceSkills, getChosenFeats, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
+import { getChoiceLanguages, getChoiceSkills, getChoiceWeaponProficiencies, getChosenFeats, getSubclassProficiencyText, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
 const abilityKeyByName = Object.fromEntries(Object.entries(ABILITY_NAMES).map(([k, v]) => [v, k]));
 const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
@@ -211,15 +213,29 @@ export function getSpellcastingStats(character) {
 	};
 }
 
+// The maximum hit points: a total typed in by hand if there is one, otherwise the calculated total.
 export function getHitPoints(character) {
+	if (!getClass(character)) return null;
+	return parseHpOverride(character.classInfo.hpOverride) ?? getCalculatedHitPoints(character);
+}
+
+// Hit points worked out from the hit die, the chosen method (average or rolled), Constitution, race and feats.
+export function getCalculatedHitPoints(character) {
 	const cls = getClass(character);
 	if (!cls) return null;
 	const level = getLevel(character);
 	const conMod = getAbilityMods(character).con;
 	const racialHp = is2024(character) ? (character.race.name === 'Dwarf' ? level : 0) : getRaceHpPerLevel(character) * level;
-	const average = Math.floor(cls.hitDie / 2) + 1;
+	const average = averageHitDie(cls.hitDie);
+	const { hpMethod, hpRolls } = character.classInfo;
 	const toughFeat = !is2024(character) && getChosenFeats(character).includes('Tough') ? 2 * level : 0;
-	return cls.hitDie + conMod + (level - 1) * (average + conMod) + racialHp + toughFeat;
+	// level 1 is the hit die maximum; later levels use the average or the rolled value (missing rolls fall back to the average)
+	let base = Math.max(1, cls.hitDie + conMod);
+	for (let l = 2; l <= level; l += 1) {
+		const gain = hpMethod === 'roll' && Array.isArray(hpRolls) && hpRolls[l - 2] ? hpRolls[l - 2] : average;
+		base += Math.max(1, gain + conMod);
+	}
+	return base + racialHp + toughFeat;
 }
 
 export function getSpeed(character) {
@@ -229,7 +245,8 @@ export function getSpeed(character) {
 export function getArmorClass(character) {
 	const armorData = rules(character).equipment.armor;
 	const mods = getAbilityMods(character);
-	const { armor: armorName, shield } = character.equipment;
+	const armorName = getWornArmorName(character);
+	const shield = hasShield(character);
 	const worn = armorData.find((a) => a.name === armorName && a.type !== 'Shield');
 	const shieldBonus = shield ? (armorData.find((a) => a.type === 'Shield')?.ac || 2) : 0;
 	let ac;
@@ -287,6 +304,7 @@ function isWeaponProficient(character, weapon) {
 			return true;
 		}
 	}
+	if (getChoiceWeaponProficiencies(character).includes(weapon.name)) return true;
 	const singular = (w) => w.replace(/s$/, '');
 	if (classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname)) return true;
 	const raceText = (is2024(character) ? (race?.traits || []).map((t) => t.description) : getRaceTraitTexts(character))
@@ -298,7 +316,7 @@ export function getAttacks(character) {
 	const weaponData = rules(character).equipment.weapons;
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
-	return character.equipment.weapons.map((name) => {
+	return getWeaponNames(character).map((name) => {
 		const w = weaponData.find((x) => x.name === name);
 		if (!w) return null;
 		const finesse = w.properties.includes('Finesse');
@@ -309,8 +327,18 @@ export function getAttacks(character) {
 	}).filter(Boolean);
 }
 
+// The class's armor proficiencies, plus anything the subclass adds (Elemental Bloodline's light armor and shields).
 export function getArmorProficiencies(character) {
-	return getClass(character)?.armorProficiencies || '';
+	const base = getClass(character)?.armorProficiencies || '';
+	const extra = getSubclassProficiencyText(character).armor;
+	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
+}
+
+// Weapon proficiencies as text: the class's, plus weapons picked through choices.
+export function getWeaponProficiencies(character) {
+	const base = getClass(character)?.weaponProficiencies || '';
+	const extra = getSubclassProficiencyText(character).weapons;
+	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
 }
 
 export function getLanguages(character) {
@@ -337,6 +365,7 @@ export function getLanguages(character) {
 }
 
 export function getCarriedGold(character) {
-	const g = character.equipment.gold;
-	return g === '' ? '' : String(g);
+	// whatever is left of the starting gold after buying gear
+	const left = getRemainingGold(character);
+	return left === '' ? '' : String(Math.max(0, left));
 }

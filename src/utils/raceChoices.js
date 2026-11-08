@@ -6,6 +6,7 @@ import raceData from '../data/2014/races';
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS } from './abilityScore';
+import { getRaceFeatSpellPending } from './featSpells';
 import { allLanguages } from '../data/languages';
 import { artisanTools, gamingSets, musicalInstruments } from '../data/toolLists';
 
@@ -300,7 +301,7 @@ export function getRaceChoiceSummaries(character) {
 // How many picks are still missing, for a "to choose" badge.
 export function getRacePending(character) {
 	const values = getRaceChoices(character);
-	return getRaceChoiceDefs(character).filter((d) => {
+	return getRaceFeatSpellPending(character) + getRaceChoiceDefs(character).filter((d) => {
 		const v = values[d.id];
 		if (d.kind === 'abilities') return (Array.isArray(v) ? v.filter(Boolean).length : 0) < d.groups.reduce((n, g) => n + g.count, 0);
 		if (d.kind === 'flex') return !(v && ((v.mode === 'twoOne' && v.plus2 && v.plus1) || (v.mode === 'oneOneOne' && (v.picks || []).filter(Boolean).length === 3)));

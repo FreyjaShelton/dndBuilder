@@ -1,3 +1,4 @@
+// Generated from 5e.tools item data. Do not edit by hand.
 const weapons = [
 	{
 		"name": "Club",
@@ -10,6 +11,7 @@ const weapons = [
 		"properties": [
 			"Light"
 		],
+		"group": "Weapons",
 		"mastery": "Slow"
 	},
 	{
@@ -25,8 +27,9 @@ const weapons = [
 			"Light",
 			"Thrown"
 		],
-		"mastery": "Nick",
-		"range": "20/60"
+		"group": "Weapons",
+		"range": "20/60",
+		"mastery": "Nick"
 	},
 	{
 		"name": "Greatclub",
@@ -39,6 +42,7 @@ const weapons = [
 		"properties": [
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Push"
 	},
 	{
@@ -53,8 +57,9 @@ const weapons = [
 			"Light",
 			"Thrown"
 		],
-		"mastery": "Vex",
-		"range": "20/60"
+		"group": "Weapons",
+		"range": "20/60",
+		"mastery": "Vex"
 	},
 	{
 		"name": "Javelin",
@@ -67,8 +72,9 @@ const weapons = [
 		"properties": [
 			"Thrown"
 		],
-		"mastery": "Slow",
-		"range": "30/120"
+		"group": "Weapons",
+		"range": "30/120",
+		"mastery": "Slow"
 	},
 	{
 		"name": "Light Hammer",
@@ -82,8 +88,9 @@ const weapons = [
 			"Light",
 			"Thrown"
 		],
-		"mastery": "Nick",
-		"range": "20/60"
+		"group": "Weapons",
+		"range": "20/60",
+		"mastery": "Nick"
 	},
 	{
 		"name": "Mace",
@@ -93,9 +100,8 @@ const weapons = [
 		"damage": "1d6",
 		"damageType": "Bludgeoning",
 		"weight": 4,
-		"properties": [
-			"—"
-		],
+		"properties": [],
+		"group": "Weapons",
 		"mastery": "Sap"
 	},
 	{
@@ -109,8 +115,9 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
-		"mastery": "Topple",
-		"versatileDamage": "1d8"
+		"group": "Weapons",
+		"versatileDamage": "1d8",
+		"mastery": "Topple"
 	},
 	{
 		"name": "Sickle",
@@ -123,6 +130,7 @@ const weapons = [
 		"properties": [
 			"Light"
 		],
+		"group": "Weapons",
 		"mastery": "Nick"
 	},
 	{
@@ -137,9 +145,26 @@ const weapons = [
 			"Thrown",
 			"Versatile"
 		],
-		"mastery": "Sap",
+		"group": "Weapons",
 		"versatileDamage": "1d8",
-		"range": "20/60"
+		"range": "20/60",
+		"mastery": "Sap"
+	},
+	{
+		"name": "Dart",
+		"category": "Simple",
+		"kind": "Ranged",
+		"cost": "5 cp",
+		"damage": "1d4",
+		"damageType": "Piercing",
+		"weight": 0.25,
+		"properties": [
+			"Finesse",
+			"Thrown"
+		],
+		"group": "Weapons",
+		"range": "20/60",
+		"mastery": "Vex"
 	},
 	{
 		"name": "Light Crossbow",
@@ -154,23 +179,9 @@ const weapons = [
 			"Loading",
 			"Two-Handed"
 		],
-		"mastery": "Slow",
-		"range": "80/320"
-	},
-	{
-		"name": "Dart",
-		"category": "Simple",
-		"kind": "Ranged",
-		"cost": "5 cp",
-		"damage": "1d4",
-		"damageType": "Piercing",
-		"weight": 14,
-		"properties": [
-			"Finesse",
-			"Thrown"
-		],
-		"mastery": "Vex",
-		"range": "20/60"
+		"group": "Weapons",
+		"range": "80/320",
+		"mastery": "Slow"
 	},
 	{
 		"name": "Shortbow",
@@ -184,8 +195,9 @@ const weapons = [
 			"Ammunition",
 			"Two-Handed"
 		],
-		"mastery": "Vex",
-		"range": "80/320"
+		"group": "Weapons",
+		"range": "80/320",
+		"mastery": "Vex"
 	},
 	{
 		"name": "Sling",
@@ -198,8 +210,9 @@ const weapons = [
 		"properties": [
 			"Ammunition"
 		],
-		"mastery": "Slow",
-		"range": "30/120"
+		"group": "Weapons",
+		"range": "30/120",
+		"mastery": "Slow"
 	},
 	{
 		"name": "Battleaxe",
@@ -212,8 +225,9 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
-		"mastery": "Topple",
-		"versatileDamage": "1d10"
+		"group": "Weapons",
+		"versatileDamage": "1d10",
+		"mastery": "Topple"
 	},
 	{
 		"name": "Flail",
@@ -223,9 +237,8 @@ const weapons = [
 		"damage": "1d8",
 		"damageType": "Bludgeoning",
 		"weight": 2,
-		"properties": [
-			"—"
-		],
+		"properties": [],
+		"group": "Weapons",
 		"mastery": "Sap"
 	},
 	{
@@ -241,6 +254,7 @@ const weapons = [
 			"Reach",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Graze"
 	},
 	{
@@ -255,6 +269,7 @@ const weapons = [
 			"Heavy",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Cleave"
 	},
 	{
@@ -269,6 +284,7 @@ const weapons = [
 			"Heavy",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Graze"
 	},
 	{
@@ -284,6 +300,7 @@ const weapons = [
 			"Reach",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Cleave"
 	},
 	{
@@ -297,9 +314,11 @@ const weapons = [
 		"properties": [
 			"Heavy",
 			"Reach",
-			"Two-Handed"
+			"Two-Handed (unless mounted)"
 		],
-		"mastery": "Topple"
+		"group": "Weapons",
+		"mastery": "Topple",
+		"description": "A Lance requires two hands to wield when you aren't mounted."
 	},
 	{
 		"name": "Longsword",
@@ -312,8 +331,9 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
-		"mastery": "Sap",
-		"versatileDamage": "1d10"
+		"group": "Weapons",
+		"versatileDamage": "1d10",
+		"mastery": "Sap"
 	},
 	{
 		"name": "Maul",
@@ -327,6 +347,7 @@ const weapons = [
 			"Heavy",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Topple"
 	},
 	{
@@ -337,9 +358,8 @@ const weapons = [
 		"damage": "1d8",
 		"damageType": "Piercing",
 		"weight": 4,
-		"properties": [
-			"—"
-		],
+		"properties": [],
+		"group": "Weapons",
 		"mastery": "Sap"
 	},
 	{
@@ -355,6 +375,7 @@ const weapons = [
 			"Reach",
 			"Two-Handed"
 		],
+		"group": "Weapons",
 		"mastery": "Push"
 	},
 	{
@@ -368,6 +389,7 @@ const weapons = [
 		"properties": [
 			"Finesse"
 		],
+		"group": "Weapons",
 		"mastery": "Vex"
 	},
 	{
@@ -382,6 +404,7 @@ const weapons = [
 			"Finesse",
 			"Light"
 		],
+		"group": "Weapons",
 		"mastery": "Nick"
 	},
 	{
@@ -396,6 +419,7 @@ const weapons = [
 			"Finesse",
 			"Light"
 		],
+		"group": "Weapons",
 		"mastery": "Vex"
 	},
 	{
@@ -410,9 +434,10 @@ const weapons = [
 			"Thrown",
 			"Versatile"
 		],
-		"mastery": "Topple",
+		"group": "Weapons",
 		"versatileDamage": "1d10",
-		"range": "20/60"
+		"range": "20/60",
+		"mastery": "Topple"
 	},
 	{
 		"name": "War Pick",
@@ -425,8 +450,9 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
-		"mastery": "Sap",
-		"versatileDamage": "1d10"
+		"group": "Weapons",
+		"versatileDamage": "1d10",
+		"mastery": "Sap"
 	},
 	{
 		"name": "Warhammer",
@@ -439,8 +465,9 @@ const weapons = [
 		"properties": [
 			"Versatile"
 		],
-		"mastery": "Push",
-		"versatileDamage": "1d10"
+		"group": "Weapons",
+		"versatileDamage": "1d10",
+		"mastery": "Push"
 	},
 	{
 		"name": "Whip",
@@ -454,6 +481,7 @@ const weapons = [
 			"Finesse",
 			"Reach"
 		],
+		"group": "Weapons",
 		"mastery": "Slow"
 	},
 	{
@@ -468,8 +496,9 @@ const weapons = [
 			"Ammunition",
 			"Loading"
 		],
-		"mastery": "Vex",
-		"range": "25/100"
+		"group": "Weapons",
+		"range": "25/100",
+		"mastery": "Vex"
 	},
 	{
 		"name": "Hand Crossbow",
@@ -484,8 +513,9 @@ const weapons = [
 			"Light",
 			"Loading"
 		],
-		"mastery": "Vex",
-		"range": "30/120"
+		"group": "Weapons",
+		"range": "30/120",
+		"mastery": "Vex"
 	},
 	{
 		"name": "Heavy Crossbow",
@@ -501,8 +531,9 @@ const weapons = [
 			"Loading",
 			"Two-Handed"
 		],
-		"mastery": "Push",
-		"range": "100/400"
+		"group": "Weapons",
+		"range": "100/400",
+		"mastery": "Push"
 	},
 	{
 		"name": "Longbow",
@@ -517,8 +548,42 @@ const weapons = [
 			"Heavy",
 			"Two-Handed"
 		],
-		"mastery": "Slow",
-		"range": "150/600"
+		"group": "Weapons",
+		"range": "150/600",
+		"mastery": "Slow"
+	},
+	{
+		"name": "Musket",
+		"category": "Martial",
+		"kind": "Ranged",
+		"cost": "500 gp",
+		"damage": "1d12",
+		"damageType": "Piercing",
+		"weight": 10,
+		"properties": [
+			"Ammunition",
+			"Loading",
+			"Two-Handed"
+		],
+		"group": "Weapons",
+		"range": "40/120",
+		"mastery": "Slow"
+	},
+	{
+		"name": "Pistol",
+		"category": "Martial",
+		"kind": "Ranged",
+		"cost": "250 gp",
+		"damage": "1d10",
+		"damageType": "Piercing",
+		"weight": 3,
+		"properties": [
+			"Ammunition",
+			"Loading"
+		],
+		"group": "Weapons",
+		"range": "30/90",
+		"mastery": "Vex"
 	}
 ];
 

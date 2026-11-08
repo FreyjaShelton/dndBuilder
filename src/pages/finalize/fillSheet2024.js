@@ -3,8 +3,9 @@ import { ABILITY_KEYS, ABILITY_NAMES, formatSigned } from '../../utils/abilitySc
 import {
 	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus,
-	getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats,
+	getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getCarriedGold, getArmorProficiencies, getWeaponProficiencies,
 } from '../../utils/characterCalc';
+import { getEquipmentLines } from '../../utils/equipment';
 import { getSelectedSpells } from '../../utils/spells';
 import {
 	TEXT, ABILITIES, SAVES, SKILLS, PROFICIENCY_DOT, ROW_VALUE, WEAPON_ROWS, BOXES,
@@ -69,7 +70,7 @@ export function fillSheet2024(pdfDoc, character, font) {
 	const pages = [p1, p2];
 	const put = (key, text) => drawLine(pages[TEXT[key].page], font, text, TEXT[key]);
 
-	const { info, equipment } = character;
+	const { info } = character;
 	const cls = getClass(character);
 	const race = getRace(character);
 	const bg = getBackground(character);
@@ -139,9 +140,9 @@ export function fillSheet2024(pdfDoc, character, font) {
 
 	if (cls) {
 		ARMOR_TRAINING_DOTS && Object.entries(ARMOR_TRAINING_DOTS).forEach(([name, [x, y]]) => {
-			if (new RegExp(name === 'Shields' ? 'Shield' : name, 'i').test(cls.armorProficiencies)) dot(p1, x, y);
+			if (new RegExp(name === 'Shields' ? 'Shield' : name, 'i').test(getArmorProficiencies(character))) dot(p1, x, y);
 		});
-		box('weaponTraining', cls.weaponProficiencies);
+		box('weaponTraining', getWeaponProficiencies(character));
 		const tools = [];
 		if (cls.toolProficiencies && !/^none$/i.test(cls.toolProficiencies)) tools.push(cls.toolProficiencies);
 		if (bg?.name === 'Custom' && character.background.customProficiency) tools.push(character.background.customProficiency);
@@ -162,12 +163,8 @@ export function fillSheet2024(pdfDoc, character, font) {
 		.map((f) => (info[f.toLowerCase()] ? `${f}: ${info[f.toLowerCase()]}` : '')).filter(Boolean).join('   '));
 	box('alignment', info.alignment);
 	box('languages', getLanguages(character).join('; '));
-	const gear = [];
-	if (equipment.armor) gear.push(equipment.armor);
-	if (equipment.shield) gear.push('Shield');
-	gear.push(...equipment.weapons, ...equipment.gear);
-	box('equipment', gear.join(', '));
-	if (equipment.gold !== '') drawLine(p2, font, equipment.gold, { x: COINS.gp[0], y: COINS.gp[1], size: 9, align: 'center', maxWidth: 30 });
+	box('equipment', getEquipmentLines(character).join(', '));
+	drawLine(p2, font, getCarriedGold(character), { x: COINS.gp[0], y: COINS.gp[1], size: 9, align: 'center', maxWidth: 30 });
 
 	const casting = getSpellcastingStats(character);
 	if (casting) {

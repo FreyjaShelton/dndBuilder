@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {
-	Accordion, AccordionDetails, AccordionSummary, Box, Button, Chip, Collapse, FormControl, FormControlLabel, InputLabel,
+	Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Chip, Collapse, FormControl, FormControlLabel, InputLabel,
 	Link, ListSubheader, MenuItem, Select, Switch, Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -34,8 +34,8 @@ function SubclassPicker({ cls, character, updateClass }) {
 	let lastSource = null;
 	grouped.forEach((s) => {
 		const source = s.source || 'Other';
-		if (source !== lastSource) { items.push(<ListSubheader key={`h-${source}`}>{source}</ListSubheader>); lastSource = source; }
-		items.push(<MenuItem key={s.slug} value={s.name}>{s.name}</MenuItem>);
+		if (source !== lastSource) { items.push(<ListSubheader key={`h-${source}`}>{s.homebrew ? 'Homebrew (not official D&D content)' : source}</ListSubheader>); lastSource = source; }
+		items.push(<MenuItem key={s.slug} value={s.name}>{s.name}{s.homebrew ? ' (Homebrew)' : ''}</MenuItem>);
 	});
 	return (
 		<Box sx={{ marginTop: 1.5 }}>
@@ -52,7 +52,13 @@ function SubclassPicker({ cls, character, updateClass }) {
 			</FormControl>
 			{sub && (
 				<Box sx={{ marginTop: 1 }}>
-					<Typography variant="caption" sx={{ color: 'text.secondary' }}>{sub.source}</Typography>
+					{sub.homebrew && (
+							<Alert severity="warning" sx={{ marginBottom: 1 }}>
+								<strong>Homebrew.</strong> {sub.name} is custom content, not official D&amp;D material. Check with your DM before using it.
+								{sub.sourceUrl && <> <Link href={sub.sourceUrl} target="_blank" rel="noopener noreferrer">View the original</Link>.</>}
+							</Alert>
+						)}
+						<Typography variant="caption" sx={{ color: 'text.secondary' }}>{sub.homebrew ? 'Homebrew' : sub.source}</Typography>
 					<Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{sub.summary}</Typography>
 				</Box>
 			)}
@@ -62,7 +68,7 @@ function SubclassPicker({ cls, character, updateClass }) {
 
 function FeatureCard({ entry, character, cls, updateClass }) {
 	const values = getChoiceValues(character);
-	const setChoice = (id, value) => updateClass((ci) => ({ choices: { ...(ci.choices || {}), [id]: value } }));
+	const setChoice = (id, value) => updateClass((ci) => ({ choices: { ...(ci.choices || {}), [id]: typeof value === 'function' ? value((ci.choices || {})[id]) : value } }));
 	const toggleOptional = (on) => updateClass((ci) => {
 		const current = ci.optionalFeatures || [];
 		return { optionalFeatures: on ? [...current.filter((n) => n !== entry.name), entry.name] : current.filter((n) => n !== entry.name) };
@@ -72,7 +78,7 @@ function FeatureCard({ entry, character, cls, updateClass }) {
 		<Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1.5, padding: 1.5, marginBottom: 1, opacity: dimmed ? 0.65 : 1 }}>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
 				<Typography sx={{ fontWeight: 600 }}>{entry.label}</Typography>
-				{entry.kind === 'subclass' && <Chip size="small" color="primary" variant="outlined" label={entry.source} />}
+				{entry.kind === 'subclass' && <Chip size="small" color={entry.homebrew ? 'warning' : 'primary'} variant="outlined" label={entry.source} />}
 				{entry.optional && <Chip size="small" variant="outlined" label="Optional" />}
 				{entry.repeat && <Chip size="small" variant="outlined" label="Continues" />}
 			</Box>

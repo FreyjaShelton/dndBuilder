@@ -58,7 +58,18 @@ const feats = [
 		"name": "Agent of Order",
 		"source": "Planescape - Adventures in the Multiverse.",
 		"prerequisite": "4th Level, Scion of the Outer Planes (Lawful Outer Plane) Feat",
-		"description": "You can channel cosmic forces of order to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nStasis Strike. Once per turn when you damage a creature you can see within 60 feet of yourself, you can deal an extra 1d8 force damage to the target, and it must succeed on a Wisdom saving throw (DC equal to 8 + your proficiency bonus + the modifier of the spellcasting ability you chose for the Scion of the Outer Planes feat) as spectral bindings try to ensnare it. On a successful save, the target escapes. On a failed save, the target has the restrained condition until the start of your next turn. These bindings manifest as chains or some other symbol of stasis. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+		"description": "You can channel cosmic forces of order to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nStasis Strike. Once per turn when you damage a creature you can see within 60 feet of yourself, you can deal an extra 1d8 force damage to the target, and it must succeed on a Wisdom saving throw (DC equal to 8 + your proficiency bonus + the modifier of the spellcasting ability you chose for the Scion of the Outer Planes feat) as spectral bindings try to ensnare it. On a successful save, the target escapes. On a failed save, the target has the restrained condition until the start of your next turn. These bindings manifest as chains or some other symbol of stasis. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Alert",
@@ -89,7 +100,18 @@ const feats = [
 		"name": "Baleful Scion",
 		"source": "Planescape - Adventures in the Multiverse",
 		"prerequisite": "4th Level, Scion of the Outer Planes (Evil Outer Plane) Feat.",
-		"description": "You can channel cosmic forces of evil to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nGrasp of Avarice. Once per turn, when you damage a creature you can see within 60 feet of yourself, you can also deal necrotic damage to it. The necrotic damage equals 1d6 + your proficiency bonus, and you regain a number of hit points equal to this necrotic damage dealt. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+		"description": "You can channel cosmic forces of evil to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nGrasp of Avarice. Once per turn, when you damage a creature you can see within 60 feet of yourself, you can also deal necrotic damage to it. The necrotic damage equals 1d6 + your proficiency bonus, and you regain a number of hit points equal to this necrotic damage dealt. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Bountiful Luck",
@@ -126,7 +148,18 @@ const feats = [
 		"name": "Cohort of Chaos",
 		"source": "Planescape - Adventures in the Multiverse",
 		"prerequisite": "4th Level, Scion of the Outer Planes (Chaotic Outer Plane) Feat.",
-		"description": "You can channel cosmic forces of chaos to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nChaotic Flare. When you roll a 1 or a 20 on an attack roll or a saving throw, the magic of chaos flows through you. Roll a d4 and consult the Chaotic Flares table to determine what happens. A flare lasts until the end of your next turn, and a new flare can't occur until after the first flare ends."
+		"description": "You can channel cosmic forces of chaos to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nChaotic Flare. When you roll a 1 or a 20 on an attack roll or a saving throw, the magic of chaos flows through you. Roll a d4 and consult the Chaotic Flares table to determine what happens. A flare lasts until the end of your next turn, and a new flare can't occur until after the first flare ends.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Crossbow Expert",
@@ -138,7 +171,14 @@ const feats = [
 		"name": "Crusher",
 		"source": "Tasha's Cauldron of Everything",
 		"prerequisite": "",
-		"description": "You are practiced in the art of crushing your enemies, granting you the following benefits:\n• Increase your Strength or Constitution by 1, to a maximum of 20.\n• Once per turn, when you hit a creature with an attack that deals bludgeoning damage, you can move it 5 feet to an unoccupied space, provided the target is no more than one size larger than you.\n• When you score a critical hit that deals bludgeoning damage to a creature, attack rolls against that creature are made with advantage until the start of your next turn."
+		"description": "You are practiced in the art of crushing your enemies, granting you the following benefits:\n• Increase your Strength or Constitution by 1, to a maximum of 20.\n• Once per turn, when you hit a creature with an attack that deals bludgeoning damage, you can move it 5 feet to an unoccupied space, provided the target is no more than one size larger than you.\n• When you score a critical hit that deals bludgeoning damage to a creature, attack rolls against that creature are made with advantage until the start of your next turn.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"con"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Defensive Duelist",
@@ -160,7 +200,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -173,7 +214,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -241,7 +283,8 @@ const feats = [
 			"options": [
 				"dex",
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -254,7 +297,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"wis"
 			],
 			"amount": 1
 		}
@@ -293,7 +337,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -325,7 +370,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"wis"
 			],
 			"amount": 1
 		}
@@ -344,7 +390,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -375,7 +422,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -466,7 +514,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"wis"
 			],
 			"amount": 1
 		}
@@ -479,7 +528,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"dex"
+				"dex",
+				"con"
 			],
 			"amount": 1
 		}
@@ -492,7 +542,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"con",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -505,7 +556,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -626,13 +678,31 @@ const feats = [
 		"name": "Outlands Envoy",
 		"source": "Planescape - Adventures in the Multiverse",
 		"prerequisite": "4th Level, Scion of the Outer Planes (The Outlands) Feat.",
-		"description": "You have spent significant time in Sigil or the Outlands, the crossroads of the multiverse. Being steeped in converging planar energies grants you these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nCrossroads Emissary. You learn the misty step and tongues spells. You can cast each spell once using this feat without a spell slot, and you must finish a long rest before you can cast that spell in this way again. When you cast tongues using this feat, you require no material components. You can also cast these spells using spell slots you have of the appropriate level. The spells' spellcasting ability is the one chosen when you gained the Scion of the Outer Planes feat."
+		"description": "You have spent significant time in Sigil or the Outlands, the crossroads of the multiverse. Being steeped in converging planar energies grants you these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nCrossroads Emissary. You learn the misty step and tongues spells. You can cast each spell once using this feat without a spell slot, and you must finish a long rest before you can cast that spell in this way again. When you cast tongues using this feat, you require no material components. You can also cast these spells using spell slots you have of the appropriate level. The spells' spellcasting ability is the one chosen when you gained the Scion of the Outer Planes feat.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Piercer",
 		"source": "Tasha's Cauldron of Everything",
 		"prerequisite": "",
-		"description": "You have achieved a penetrating precision in combat, granting you the following benefits:\n• Increase your Strength or Dexterity by 1, to a maximum of 20.\n• Once per turn, when you hit a creature with an attack that deals piercing damage, you can re-roll one of the attack's damage dice, and you must use the new roll.\n• When you score a critical hit that deals piercing damage to a creature, you can roll one additional damage die when determining the extra piercing damage the target takes."
+		"description": "You have achieved a penetrating precision in combat, granting you the following benefits:\n• Increase your Strength or Dexterity by 1, to a maximum of 20.\n• Once per turn, when you hit a creature with an attack that deals piercing damage, you can re-roll one of the attack's damage dice, and you must use the new roll.\n• When you score a critical hit that deals piercing damage to a creature, you can roll one additional damage die when determining the extra piercing damage the target takes.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Planar Wanderer",
@@ -682,8 +752,8 @@ const feats = [
 		"description": "You are descended from a master of the double-bladed scimitar, and some of that mastery has passed on to you. You gain the following benefits:\n• Increase your Dexterity or Strength score by 1, to a maximum of 20.\n• While you are holding a double-bladed scimitar with two hands, you gain a +1 bonus to Armor Class.\n• A double-bladed scimitar has the finesse property when you wield it.",
 		"abilityIncrease": {
 			"options": [
-				"dex",
-				"str"
+				"str",
+				"dex"
 			],
 			"amount": 1
 		}
@@ -692,7 +762,18 @@ const feats = [
 		"name": "Righteous Heritor",
 		"source": "Planescape - Adventures in the Multiverse",
 		"prerequisite": "4th Level, Scion of the Outer Planes (Good Outer Plane) Feat.",
-		"description": "You can channel cosmic forces of good to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nSoothe Pain. When you or a creature within 30 feet of you takes damage, you can use your reaction to reduce that damage by 1d10 + your proficiency bonus. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest."
+		"description": "You can channel cosmic forces of good to gain these benefits:\nAbility Score Increase. Increase an ability score of your choice by 1, to a maximum of 20.\nSoothe Pain. When you or a creature within 30 feet of you takes damage, you can use your reaction to reduce that damage by 1d10 + your proficiency bonus. You can use this benefit a number of times equal to your proficiency bonus, and you regain all expended uses when you finish a long rest.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Ritual Caster",
@@ -726,7 +807,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"dex",
-				"con"
+				"con",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -745,7 +827,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -766,7 +849,18 @@ const feats = [
 		"name": "Skill Expert",
 		"source": "Tasha's Cauldron of Everything",
 		"prerequisite": "",
-		"description": "You have honed your proficiency with particular skills, granting you the following benefits:\n• Increase one ability score of your choice by 1, to a maximum of 20.\n• You gain proficiency in one skill of your choice.\n• Choose one skill in which you have proficiency. You gain expertise with that skill, which means your proficiency bonus is doubled for any ability check you make with it. The skill you choose must be one that isn't already benefiting from a feature, such as Expertise, that doubles your proficiency bonus."
+		"description": "You have honed your proficiency with particular skills, granting you the following benefits:\n• Increase one ability score of your choice by 1, to a maximum of 20.\n• You gain proficiency in one skill of your choice.\n• Choose one skill in which you have proficiency. You gain expertise with that skill, which means your proficiency bonus is doubled for any ability check you make with it. The skill you choose must be one that isn't already benefiting from a feature, such as Expertise, that doubles your proficiency bonus.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex",
+				"con",
+				"int",
+				"wis",
+				"cha"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Skilled",
@@ -784,7 +878,14 @@ const feats = [
 		"name": "Slasher",
 		"source": "Tasha's Cauldron of Everything",
 		"prerequisite": "",
-		"description": "You've learned where to cut to have the greatest results, granting you the following benefits:\n• Increase your Strength or Dexterity by 1, to a maximum of 20.\n• Once per turn when you hit a creature with an attack that deals slashing damage, you can reduce the speed of the target by 10 feet until the start of your next turn.\n• When you score a critical hit that deals slashing damage to a creature, you grievously wound it. Until the start of your next turn, the target has disadvantage on all attack rolls."
+		"description": "You've learned where to cut to have the greatest results, granting you the following benefits:\n• Increase your Strength or Dexterity by 1, to a maximum of 20.\n• Once per turn when you hit a creature with an attack that deals slashing damage, you can reduce the speed of the target by 10 feet until the start of your next turn.\n• When you score a critical hit that deals slashing damage to a creature, you grievously wound it. Until the start of your next turn, the target has disadvantage on all attack rolls.",
+		"abilityIncrease": {
+			"options": [
+				"str",
+				"dex"
+			],
+			"amount": 1
+		}
 	},
 	{
 		"name": "Soul of the Storm Giant",
@@ -794,7 +895,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -869,7 +971,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -882,7 +985,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"int",
-				"wis"
+				"wis",
+				"cha"
 			],
 			"amount": 1
 		}
@@ -901,7 +1005,8 @@ const feats = [
 		"abilityIncrease": {
 			"options": [
 				"str",
-				"con"
+				"con",
+				"wis"
 			],
 			"amount": 1
 		}

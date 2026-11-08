@@ -21,7 +21,7 @@ import useSpellDetails from '../../utils/useSpellDetails';
 const TABS = ['Actions', 'Spells', 'Inventory', 'Features', 'Notes'];
 
 export default function SheetPage() {
-	const { character, loadCharacter } = useCharacter();
+	const { character, loadCharacter, updateClass } = useCharacter();
 	const [play, setPlayState] = React.useState(null);
 	const [log, setLog] = React.useState([]);
 	const [tabName, setTabName] = React.useState(null);
@@ -205,7 +205,7 @@ export default function SheetPage() {
 						</Tabs>
 						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
 						{activeTab === 'Actions' && <ActionsTab d={d} onAttack={roll} onDamage={damage} />}
-						{activeTab === 'Spells' && <SpellsTab d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Spells' && <SpellsTab character={character} updateClass={updateClass} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
 						{activeTab === 'Features' && <FeaturesTab character={character} d={d} />}
 						{activeTab === 'Notes' && <NotesTab character={character} play={play} setPlay={setPlay} />}

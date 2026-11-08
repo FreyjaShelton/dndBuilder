@@ -1,4 +1,5 @@
-import { getClass, getHitPoints } from '../../utils/characterCalc';
+import { getCarriedGold, getClass, getHitPoints } from '../../utils/characterCalc';
+import { splitGold } from '../../utils/currency';
 import { seedItems } from './inventory';
 
 const KEY = 'dndBuilder.sheet.v1';
@@ -33,7 +34,7 @@ export function defaultPlay(character) {
 		concentration: '',
 		conditions: [],
 		notes: '',
-		currency: { cp: 0, sp: 0, ep: 0, gp: Number(character.equipment.gold) || 0, pp: 0 },
+		currency: { cp: 0, sp: 0, ep: 0, ...splitGold(getCarriedGold(character)), pp: 0 },
 		rollMode: 'normal',
 		items: seedItems(character),
 	};

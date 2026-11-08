@@ -1,12 +1,13 @@
 import * as React from 'react';
 import {
-	Autocomplete, Box, Chip, FormControl, InputLabel, Link, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup, Typography,
+	Autocomplete, Box, Chip, FormControl, InputLabel, MenuItem, Select, TextField, ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material';
 import { ABILITY_KEYS, ABILITY_NAMES } from '../../utils/abilityScore';
 import { getProficientSkills } from '../../utils/characterCalc';
 import { getEditionData } from '../../data';
 import { allLanguages, getRaceChoices, getRaceLanguages } from '../../utils/raceChoices';
 import { FeatPicker } from '../class/ChoiceControls';
+import FeatSpellChoices from '../spells/FeatSpellChoices';
 
 const toOptions = (names) => names.map((name) => ({ name }));
 
@@ -123,14 +124,7 @@ export default function RaceChoice({ def, character, value, onChange }) {
 		const fixed = new Set(getRaceLanguages(character).fixed);
 		return <MultiPicker label="Languages" value={value} options={toOptions(allLanguages.filter((l) => !fixed.has(l)))} count={def.count} onChange={(v) => onChange(def.id, v)} />;
 	}
-	if (def.kind === 'spells') {
-		const picked = Array.isArray(value) ? value : [];
-		return (
-			<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-				{def.label}: {picked.length ? <strong>{picked.join(', ')}</strong> : 'not chosen yet'}. Pick {def.count === 1 ? 'it' : 'them'} on the <Link href="#/spells">Spells</Link> step.
-			</Typography>
-		);
-	}
+	// racial cantrips (def.kind "spells") are picked with the spell picker, see Race2014.js
 	if (def.kind === 'feat') {
 		const feats = getEditionData(character.edition).feats;
 		const feat = feats.find((f) => f.name === value);
@@ -138,7 +132,7 @@ export default function RaceChoice({ def, character, value, onChange }) {
 		const values = getRaceChoices(character);
 		return (
 			<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-				<FeatPicker edition={character.edition} value={value} onChange={(name) => { onChange('feat', name); onChange('featAbility', ''); }} />
+				<FeatPicker edition={character.edition} value={value} onChange={(name) => { onChange('feat', name); onChange('featAbility', ''); onChange('feat:spells', undefined); }} />
 				{inc && inc.options.length > 1 && (
 					<FormControl size="small" sx={{ maxWidth: 260 }}>
 						<InputLabel>Ability score +1</InputLabel>
@@ -149,6 +143,7 @@ export default function RaceChoice({ def, character, value, onChange }) {
 				)}
 				{inc && inc.options.length === 1 && <Typography variant="body2" color="text.secondary">This feat also raises {ABILITY_NAMES[inc.options[0]]} by 1.</Typography>}
 				{feat && <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{feat.prerequisite ? `Prerequisite: ${feat.prerequisite}\n` : ''}{feat.description}</Typography>}
+					{feat && <FeatSpellChoices featName={feat.name} edition={character.edition} state={values['feat:spells']} onChange={(update) => onChange('feat:spells', update)} />}
 			</Box>
 		);
 	}
