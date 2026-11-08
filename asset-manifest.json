@@ -1,0 +1,18 @@
+{
+  "files": {
+    "main.css": "/dndBuilder/static/css/main.e6c13ad2.css",
+    "main.js": "/dndBuilder/static/js/main.e7cf6ef2.js",
+    "static/js/488.df49a06e.chunk.js": "/dndBuilder/static/js/488.df49a06e.chunk.js",
+    "static/media/DnD_2024_Character_Sheet.pdf": "/dndBuilder/static/media/DnD_2024_Character_Sheet.60f3ffda0f6f2bddffa7.pdf",
+    "static/media/5E_CharacterSheet_Fillable.pdf": "/dndBuilder/static/media/5E_CharacterSheet_Fillable.590e6efefdd47d54a8a5.pdf",
+    "static/media/profilePic.png": "/dndBuilder/static/media/profilePic.9e3f9dca865f7f370dfc.png",
+    "index.html": "/dndBuilder/index.html",
+    "main.e6c13ad2.css.map": "/dndBuilder/static/css/main.e6c13ad2.css.map",
+    "main.e7cf6ef2.js.map": "/dndBuilder/static/js/main.e7cf6ef2.js.map",
+    "488.df49a06e.chunk.js.map": "/dndBuilder/static/js/488.df49a06e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.e7cf6ef2.js"
+  ]
+}
