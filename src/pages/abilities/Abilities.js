@@ -13,15 +13,17 @@ import { getAbilityBonuses, is2024 } from '../../utils/characterCalc';
 function AbilityRow({ label, baseScore, bonus, control, extra, source }) {
 	const total = baseScore === '' ? '' : Number(baseScore) + bonus;
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 1 }}>
-			<Typography sx={{ width: 120 }}>{label}</Typography>
+		<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: { xs: 1.5, sm: 2 }, rowGap: 0.5, marginTop: 1 }}>
+			<Typography sx={{ width: { xs: 96, sm: 120 } }}>{label}</Typography>
 			{control}
-			<Typography sx={{ width: 70 }} variant="body2" color="text.secondary">
-				{bonus !== 0 ? `${bonus >= 0 ? '+' : ''}${bonus} ${source}` : ''}
-			</Typography>
-			<Typography sx={{ width: 30 }} variant="body2">{total}</Typography>
-			<Typography sx={{ width: 40 }} variant="body2">{formatModifier(total)}</Typography>
-			{extra}
+			<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
+				<Typography sx={{ width: { xs: 'auto', sm: 70 } }} variant="body2" color="text.secondary">
+					{bonus !== 0 ? `${bonus >= 0 ? '+' : ''}${bonus} ${source}` : ''}
+				</Typography>
+				<Typography sx={{ width: { xs: 'auto', sm: 30 } }} variant="body2">{total}</Typography>
+				<Typography sx={{ width: { xs: 'auto', sm: 40 } }} variant="body2">{formatModifier(total)}</Typography>
+				{extra}
+			</Box>
 		</Box>
 	);
 }

@@ -24,12 +24,12 @@ function Stat({ label, children }) {
 function ClassTable({ cls, level }) {
 	return (
 		<TableContainer sx={{ maxHeight: 360, marginTop: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-			<Table size="small" stickyHeader>
+			<Table size="small" stickyHeader sx={{ '& .MuiTableCell-root': { padding: { xs: '6px 8px', sm: '6px 16px' }, fontSize: { xs: 12, sm: 14 } } }}>
 				<TableHead>
 					<TableRow>
 						{cls.table.columns.map((c, i) => (
-							<TableCell key={i} sx={{ backgroundColor: 'background.paper', whiteSpace: 'nowrap' }}>
-								{norm(c).replace('Spell Slots per Spell Level ', '')}
+							<TableCell key={i} sx={{ backgroundColor: 'background.paper', whiteSpace: { xs: 'normal', sm: 'nowrap' }, minWidth: norm(c) === 'Features' ? 170 : undefined }}>
+								{norm(c).replace('Spell Slots per Spell Level ', '').replace('Proficiency Bonus', 'Prof.')}
 							</TableCell>
 						))}
 					</TableRow>

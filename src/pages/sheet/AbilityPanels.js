@@ -8,7 +8,7 @@ function Row({ proficient, label, hint, bonus, onRoll }) {
 		<Box
 			onClick={onRoll}
 			sx={{
-				display: 'flex', alignItems: 'center', gap: 1, padding: '3px 6px', borderRadius: 1, cursor: 'pointer',
+				display: 'flex', alignItems: 'center', gap: 1, padding: { xs: '8px 6px', sm: '3px 6px' }, borderRadius: 1, cursor: 'pointer',
 				'&:hover': { backgroundColor: 'action.hover' },
 			}}
 		>
@@ -25,20 +25,26 @@ function Row({ proficient, label, hint, bonus, onRoll }) {
 	);
 }
 
-export default function AbilityPanels({ d, play, setPlay, onRoll }) {
+export function RollModeToggle({ play, setPlay }) {
+	return (
+		<ToggleButtonGroup
+			exclusive
+			fullWidth
+			size="small"
+			value={play.rollMode}
+			onChange={(_, v) => { if (v) setPlay({ rollMode: v }); }}
+		>
+			<ToggleButton value="disadvantage">Disadv.</ToggleButton>
+			<ToggleButton value="normal">Normal</ToggleButton>
+			<ToggleButton value="advantage">Adv.</ToggleButton>
+		</ToggleButtonGroup>
+	);
+}
+
+export default function AbilityPanels({ d, play, setPlay, onRoll, showRollMode = true }) {
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-			<ToggleButtonGroup
-				exclusive
-				fullWidth
-				size="small"
-				value={play.rollMode}
-				onChange={(_, v) => { if (v) setPlay({ rollMode: v }); }}
-			>
-				<ToggleButton value="disadvantage">Disadvantage</ToggleButton>
-				<ToggleButton value="normal">Normal</ToggleButton>
-				<ToggleButton value="advantage">Advantage</ToggleButton>
-			</ToggleButtonGroup>
+			{showRollMode && <RollModeToggle play={play} setPlay={setPlay} />}
 
 			<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
 				{ABILITY_KEYS.map((k) => (

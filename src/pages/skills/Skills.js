@@ -78,7 +78,7 @@ export default function Skills() {
 					<TableHead>
 						<TableRow>
 							<TableCell>Skill</TableCell>
-							<TableCell>Ability</TableCell>
+							<TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Ability</TableCell>
 							<TableCell align="center">Proficient</TableCell>
 							<TableCell align="right">Bonus</TableCell>
 						</TableRow>
@@ -86,8 +86,8 @@ export default function Skills() {
 					<TableBody>
 						{bonuses.map((s) => (
 							<TableRow key={s.key}>
-								<TableCell>{s.name}</TableCell>
-								<TableCell>{ABILITY_NAMES[s.ability]}</TableCell>
+								<TableCell>{s.name}<Typography component="span" variant="caption" sx={{ display: { xs: "inline", sm: "none" }, color: "text.secondary", marginLeft: 0.75 }}>{s.ability.toUpperCase()}</Typography></TableCell>
+								<TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>{ABILITY_NAMES[s.ability]}</TableCell>
 								<TableCell align="center">{s.proficient ? '●' : ''}</TableCell>
 								<TableCell align="right">{formatSigned(s.bonus)}</TableCell>
 							</TableRow>

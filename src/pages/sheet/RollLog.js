@@ -23,8 +23,8 @@ export default function RollLog({ entries, onFreeRoll }) {
 		<Paper
 			elevation={6}
 			sx={{
-				position: 'fixed', right: 16, bottom: 16, width: { xs: 'calc(100% - 32px)', sm: 340 }, zIndex: 1300,
-				border: 1, borderColor: 'divider', padding: 1.5,
+				position: 'fixed', right: { xs: 8, sm: 16 }, bottom: { xs: 8, sm: 16 }, width: { xs: 'calc(100% - 16px)', sm: 340 }, zIndex: 1300,
+				border: 1, borderColor: 'divider', padding: { xs: 1, sm: 1.5 },
 			}}
 		>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -56,18 +56,18 @@ export default function RollLog({ entries, onFreeRoll }) {
 					))}
 					{entries.length <= 1 && <Typography variant="caption" sx={{ color: 'text.secondary' }}>No earlier rolls.</Typography>}
 				</Box>
+				<form onSubmit={submit}>
+					<TextField
+						size="small"
+						fullWidth
+						placeholder="Roll dice, e.g. 2d6+3"
+						value={expr}
+						onChange={(e) => setExpr(e.target.value)}
+						sx={{ marginTop: 1 }}
+						InputProps={{ endAdornment: <InputAdornment position="end"><IconButton type="submit" size="small"><CasinoIcon fontSize="small" /></IconButton></InputAdornment> }}
+					/>
+				</form>
 			</Collapse>
-			<form onSubmit={submit}>
-				<TextField
-					size="small"
-					fullWidth
-					placeholder="Roll dice, e.g. 2d6+3"
-					value={expr}
-					onChange={(e) => setExpr(e.target.value)}
-					sx={{ marginTop: 1 }}
-					InputProps={{ endAdornment: <InputAdornment position="end"><IconButton type="submit" size="small"><CasinoIcon fontSize="small" /></IconButton></InputAdornment> }}
-				/>
-			</form>
 		</Paper>
 	);
 }

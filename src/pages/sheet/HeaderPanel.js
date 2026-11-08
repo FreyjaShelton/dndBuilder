@@ -14,7 +14,7 @@ function Stat({ label, value, onClick }) {
 		<Box
 			onClick={onClick}
 			sx={{
-				textAlign: 'center', minWidth: 78, padding: 1, border: 1, borderColor: 'divider', borderRadius: 2,
+				textAlign: 'center', minWidth: { xs: 0, sm: 78 }, padding: 1, border: 1, borderColor: 'divider', borderRadius: 2,
 				cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { borderColor: 'primary.main' } : {},
 			}}
 		>
@@ -43,13 +43,13 @@ export default function HeaderPanel({ character, d, play, setPlay, hp, onRoll, o
 					</Typography>
 				</Box>
 
-				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, marginBottom: 2 }}>
+				<Box sx={{ display: { xs: 'grid', sm: 'flex' }, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', flexWrap: 'wrap', gap: 1.5, marginBottom: 2 }}>
 					<Stat label="Armor Class" value={d.ac} />
 					<Stat label="Initiative" value={signed(d.initiative)} onClick={() => onRoll('Initiative', d.initiative)} />
 					<Stat label="Speed" value={`${d.speed} ft`} />
 					<Stat label="Proficiency" value={signed(d.prof)} />
 					<Stat label="Passive Perc." value={d.passivePerception} />
-					<Box sx={{ textAlign: 'center', minWidth: 78, padding: 1, border: 1, borderColor: play.inspiration ? 'primary.main' : 'divider', borderRadius: 2 }}>
+					<Box sx={{ textAlign: 'center', minWidth: { xs: 0, sm: 78 }, padding: 1, border: 1, borderColor: play.inspiration ? 'primary.main' : 'divider', borderRadius: 2 }}>
 						<Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Inspiration</Typography>
 						<Box><Checkbox size="small" checked={play.inspiration} onChange={(e) => setPlay({ inspiration: e.target.checked })} sx={{ padding: 0.5 }} /></Box>
 					</Box>

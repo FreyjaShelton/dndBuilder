@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Button, Container, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Button, Container, Tab, Tabs, Typography, useMediaQuery, useTheme } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
@@ -8,13 +8,14 @@ import { rollD20, rollExpression, describeD20 } from './dice';
 import { defaultPlay, loadSaved, persist } from './storage';
 import { derive } from './derive';
 import HeaderPanel from './HeaderPanel';
-import AbilityPanels from './AbilityPanels';
+import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
 import SpellsTab from './SpellsTab';
 import InventoryTab from './InventoryTab';
 import FeaturesTab from './FeaturesTab';
 import NotesTab from './NotesTab';
 import RollLog from './RollLog';
+import DriveMenu from '../../components/DriveMenu';
 
 const TABS = ['Actions', 'Spells', 'Inventory', 'Features', 'Notes'];
 
@@ -22,7 +23,10 @@ export default function SheetPage() {
 	const { character, loadCharacter } = useCharacter();
 	const [play, setPlayState] = React.useState(null);
 	const [log, setLog] = React.useState([]);
-	const [tab, setTab] = React.useState(0);
+	const [tabName, setTabName] = React.useState(null);
+	const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
+	const tabNames = isMobile ? ['Stats', ...TABS] : TABS;
+	const activeTab = tabName && tabNames.includes(tabName) ? tabName : tabNames[0];
 	const initialized = React.useRef(false);
 	const fileInput = React.useRef(null);
 	const built = !!character.classInfo.className;
@@ -151,14 +155,17 @@ export default function SheetPage() {
 		a.click();
 		URL.revokeObjectURL(a.href);
 	};
+	const applyImport = (data) => {
+		loadCharacter(data.character);
+		setPlayState({ ...defaultPlay(data.character), ...(data.play || {}) });
+	};
 	const importJson = (file) => {
 		const reader = new FileReader();
 		reader.onload = () => {
 			try {
 				const data = JSON.parse(reader.result);
 				if (!data.character?.classInfo) throw new Error('not a character file');
-				loadCharacter(data.character);
-				setPlayState({ ...defaultPlay(data.character), ...(data.play || {}) });
+				applyImport(data);
 			} catch (e) {
 				window.alert('That file is not a saved dndBuilder character.');
 			}
@@ -172,6 +179,7 @@ export default function SheetPage() {
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
 					<Button startIcon={<ArrowBackIcon />} href="#/finalize">Back to builder</Button>
 					<Box sx={{ flex: 1 }} />
+					<DriveMenu getPayload={() => ({ character, play })} onImport={applyImport} />
 					<Button startIcon={<DownloadIcon />} onClick={exportJson}>Export</Button>
 					<Button startIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>Import</Button>
 					<input
@@ -185,17 +193,19 @@ export default function SheetPage() {
 
 				<HeaderPanel character={character} d={d} play={play} setPlay={setPlay} hp={hp} onRoll={roll} onRest={rest} />
 
-				<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '340px 1fr' }, gap: 2, marginTop: 2, alignItems: 'start' }}>
-					<AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} />
+				<Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '340px minmax(0, 1fr)' }, gap: 2, marginTop: 2, alignItems: 'start' }}>
+					{!isMobile && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} />}
 					<Box>
-						<Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 2 }}>
-							{TABS.map((t) => <Tab key={t} label={t} />)}
+						{isMobile && <Box sx={{ marginBottom: 1.5 }}><RollModeToggle play={play} setPlay={setPlay} /></Box>}
+						<Tabs value={activeTab} onChange={(_, v) => setTabName(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 2 }}>
+							{tabNames.map((t) => <Tab key={t} label={t} value={t} />)}
 						</Tabs>
-						{tab === 0 && <ActionsTab d={d} onAttack={roll} onDamage={damage} />}
-						{tab === 1 && <SpellsTab d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
-						{tab === 2 && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
-						{tab === 3 && <FeaturesTab character={character} d={d} />}
-						{tab === 4 && <NotesTab character={character} play={play} setPlay={setPlay} />}
+						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
+						{activeTab === 'Actions' && <ActionsTab d={d} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Spells' && <SpellsTab d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
+						{activeTab === 'Features' && <FeaturesTab character={character} d={d} />}
+						{activeTab === 'Notes' && <NotesTab character={character} play={play} setPlay={setPlay} />}
 					</Box>
 				</Box>
 			</Container>

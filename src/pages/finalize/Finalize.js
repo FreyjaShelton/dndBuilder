@@ -7,6 +7,8 @@ import characterSheet2024 from './DnD_2024_Character_Sheet.pdf';
 import { fillSheet2024 } from './fillSheet2024';
 import { SPELL_FIELDS_2014 } from './spellFields2014';
 import { getSelectedSpells } from '../../utils/spells';
+import DriveMenu from '../../components/DriveMenu';
+import { loadSaved, persist } from '../sheet/storage';
 import { useCharacter } from '../../context/CharacterContext';
 import PageHeader from '../../components/PageHeader';
 import { getStepEyebrow } from '../../data/wizardSteps';
@@ -39,7 +41,18 @@ const PdfEditor = () => {
 	const [pdfUrl, setPdfUrl] = useState(null);
 	// The 2014 sheet is the default for both editions; either sheet can be filled from any character.
 	const [sheet, setSheet] = useState('2014');
-	const { character } = useCharacter();
+	const { character, loadCharacter } = useCharacter();
+
+	// Carry sheet progress (HP, slots...) along when this exact character was last played.
+	const getDrivePayload = () => {
+		const saved = loadSaved();
+		const same = saved && JSON.stringify(saved.character) === JSON.stringify(character);
+		return same ? { character, play: saved.play } : { character };
+	};
+	const importFromDrive = (data) => {
+		loadCharacter(data.character);
+		persist({ character: data.character, play: data.play });
+	};
 
 	const fillPdf = async () => {
 		if (sheet === '2024') {
@@ -230,7 +243,7 @@ const PdfEditor = () => {
 			if (url) URL.revokeObjectURL(url);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [sheet]);
+	}, [sheet, character]);
 
 	return (
 		<>
@@ -243,6 +256,7 @@ const PdfEditor = () => {
 				<CardContent sx={{ padding: 3 }}>
 					<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', marginBottom: 2 }}>
 						<Button variant="contained" href="#/sheet" endIcon={<OpenInNewIcon />}>Open interactive sheet</Button>
+						<DriveMenu getPayload={getDrivePayload} onImport={importFromDrive} />
 						<Typography variant="body2" sx={{ color: 'text.secondary' }}>or a printable PDF:</Typography>
 						<ToggleButtonGroup
 							exclusive
@@ -254,8 +268,14 @@ const PdfEditor = () => {
 							<ToggleButton value="2024">2024 sheet</ToggleButton>
 						</ToggleButtonGroup>
 					</Box>
+					{pdfUrl && (
+						<Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', marginBottom: 2 }}>
+							<Button variant="outlined" size="small" href={pdfUrl} target="_blank" rel="noreferrer">Open PDF</Button>
+							<Button variant="outlined" size="small" href={pdfUrl} download="character-sheet.pdf">Download PDF</Button>
+						</Box>
+					)}
 					{pdfUrl ? (
-						<Box sx={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2, overflow: 'hidden' }}>
+						<Box sx={{ display: { xs: 'none', sm: 'block' }, border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2, overflow: 'hidden' }}>
 							<iframe
 								src={pdfUrl}
 								width="100%"

@@ -17,7 +17,7 @@ function SlotBubbles({ total, used, onChange }) {
 						role="checkbox"
 						aria-checked={available}
 						sx={{
-							width: 18, height: 18, borderRadius: '50%', border: 2, borderColor: 'primary.main', cursor: 'pointer',
+							width: { xs: 26, sm: 18 }, height: { xs: 26, sm: 18 }, borderRadius: '50%', border: 2, borderColor: 'primary.main', cursor: 'pointer',
 							backgroundColor: available ? 'primary.main' : 'transparent',
 						}}
 					/>

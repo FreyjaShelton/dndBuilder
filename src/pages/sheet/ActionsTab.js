@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { signed } from './dice';
 
 export default function ActionsTab({ d, onAttack, onDamage }) {
@@ -14,7 +14,8 @@ export default function ActionsTab({ d, onAttack, onDamage }) {
 
 	return (
 		<Box>
-			<Table size="small">
+			<TableContainer>
+			<Table size="small" sx={{ '& .MuiTableCell-root': { padding: { xs: '6px 4px', sm: '6px 16px' } }, '& .MuiButton-root': { fontSize: { xs: 11, sm: 13 }, padding: { xs: '2px 6px', sm: '4px 10px' } } }}>
 				<TableHead>
 					<TableRow>
 						<TableCell>Attack</TableCell>
@@ -42,6 +43,7 @@ export default function ActionsTab({ d, onAttack, onDamage }) {
 					})}
 				</TableBody>
 			</Table>
+			</TableContainer>
 			{d.spellStats && (
 				<Typography variant="body2" sx={{ marginTop: 2, color: 'text.secondary' }}>
 					Spell attack {signed(d.spellStats.attackBonus)} · Spell save DC {d.spellStats.saveDc} — open the Spells tab to cast.
