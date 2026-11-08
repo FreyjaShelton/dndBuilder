@@ -1,6 +1,9 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
+import {
+	getRaceAbilityBonuses, getRaceArmor, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts, getSubraceRecord, resolveRace,
+} from './raceChoices';
 import { getChoiceLanguages, getChoiceSkills, getChosenFeats, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
 const abilityKeyByName = Object.fromEntries(Object.entries(ABILITY_NAMES).map(([k, v]) => [v, k]));
@@ -10,10 +13,12 @@ export const is2024 = (character) => character.edition === '2024';
 const rules = (character) => getEditionData(character.edition);
 
 export function getRace(character) {
+	if (!is2024(character)) return resolveRace(character);
 	return rules(character).races[character.race.name] || null;
 }
 
 export function getSubrace(character) {
+	if (!is2024(character)) return getSubraceRecord(character);
 	const race = getRace(character);
 	return race?.subraces.find((s) => s.name === character.race.subrace) || null;
 }
@@ -64,19 +69,7 @@ function getBaseAbilityBonuses(character) {
 		}
 		return bonuses;
 	}
-	const race = getRace(character);
-	if (!race) return bonuses;
-	const apply = (asi) => {
-		Object.entries(asi.fixed).forEach(([k, v]) => { bonuses[k] += v; });
-	};
-	apply(race.abilityScoreIncrease);
-	const sub = getSubrace(character);
-	if (sub) apply(sub.abilityScoreIncrease);
-	const choose = race.abilityScoreIncrease.choose;
-	if (choose) {
-		character.race.abilityChoices.slice(0, choose.count).forEach((k) => { bonuses[k] += choose.amount; });
-	}
-	return bonuses;
+	return getRaceAbilityBonuses(character);
 }
 
 export function getFinalAbilities(character) {
@@ -95,6 +88,7 @@ export function getAbilityMods(character) {
 
 // Skills the species grants outright or lets the player pick.
 export function getRacialSkills(character) {
+	if (!is2024(character)) return getRaceSkills(character);
 	const race = getRace(character);
 	if (!race) return [];
 	const picked = character.race.skillChoices;
@@ -219,11 +213,10 @@ export function getHitPoints(character) {
 	if (!cls) return null;
 	const level = getLevel(character);
 	const conMod = getAbilityMods(character).con;
-	const sub = getSubrace(character);
-	const dwarvenToughness = (sub?.name === 'Hill Dwarf') || (is2024(character) && character.race.name === 'Dwarf');
+	const racialHp = is2024(character) ? (character.race.name === 'Dwarf' ? level : 0) : getRaceHpPerLevel(character) * level;
 	const average = Math.floor(cls.hitDie / 2) + 1;
 	const toughFeat = !is2024(character) && getChosenFeats(character).includes('Tough') ? 2 * level : 0;
-	return cls.hitDie + conMod + (level - 1) * (average + conMod) + (dwarvenToughness ? level : 0) + toughFeat;
+	return cls.hitDie + conMod + (level - 1) * (average + conMod) + racialHp + toughFeat;
 }
 
 export function getSpeed(character) {
@@ -246,6 +239,12 @@ export function getArmorClass(character) {
 		ac = 10 + mods.dex + mods.wis;
 	} else {
 		ac = 10 + mods.dex;
+	}
+	if (!is2024(character)) {
+		// natural armor (lizardfolk, tortle...) applies only while no armor is worn; flat bonuses always apply
+		const { naturalArmor, acBonus } = getRaceArmor(character);
+		if (naturalArmor && !worn) ac = Math.max(ac, naturalArmor.base + (naturalArmor.ability ? mods[naturalArmor.ability] : 0));
+		ac += acBonus;
 	}
 	return ac + shieldBonus;
 }
@@ -287,7 +286,8 @@ function isWeaponProficient(character, weapon) {
 	}
 	const singular = (w) => w.replace(/s$/, '');
 	if (classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname)) return true;
-	const raceText = (race?.traits || []).filter((t) => /proficiency with/i.test(t.description)).map((t) => t.description.toLowerCase()).join(' ');
+	const raceText = (is2024(character) ? (race?.traits || []).map((t) => t.description) : getRaceTraitTexts(character))
+		.filter((d) => /proficiency with/i.test(d)).map((d) => d.toLowerCase()).join(' ');
 	return raceText.includes(lname) || raceText.includes(`${lname}s`);
 }
 
@@ -318,7 +318,11 @@ export function getLanguages(character) {
 		parts.push('Common and two other languages of your choice');
 		return parts;
 	}
-	if (race) parts.push(race.languages.replace(/^You can speak, read, and write /, '').split(/\.(\s|$)/)[0]);
+	if (race) {
+		const l = getRaceLanguages(character);
+		const open = l.pickCount - l.picked.length;
+		parts.push([...l.fixed, ...l.picked].join(', ') + (open > 0 ? ` (+${open} to choose)` : ''));
+	}
 	if (bg?.languages) parts.push(`Background: ${bg.languages}`);
 	const fromClass = getChoiceLanguages(character);
 	if (fromClass.length) parts.push(`Class: ${fromClass.join(', ')}`);

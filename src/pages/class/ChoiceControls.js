@@ -227,4 +227,4 @@ export default function ChoiceControl({ def, entry, character, value, onChange }
 	return null;
 }
 
-export { AsiControl };
+export { AsiControl, FeatPicker };

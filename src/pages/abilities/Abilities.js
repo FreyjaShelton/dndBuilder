@@ -77,7 +77,7 @@ export default function Abilities() {
 			<PageHeader
 				eyebrow={getStepEyebrow('Abilities', character)}
 				title="Ability Scores"
-				subtitle={is2024(character) ? "Pick a generation method, then assign scores. Background bonuses are applied automatically once you choose them." : "Pick a generation method, then assign scores. Racial bonuses are applied automatically."}
+				subtitle={is2024(character) ? "Pick a generation method, then assign scores. Background bonuses are added automatically once you choose a background later on." : "Pick a generation method, then assign scores. Racial bonuses are added automatically once you choose your race on the next step."}
 			/>
 			<CardSelector title="Choose a generation method" value={abilities.generationMethod} onChange={handleMethodChange}>
 				<MenuItem value="Standard Array">Standard Array</MenuItem>

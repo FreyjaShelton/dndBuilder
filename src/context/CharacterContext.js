@@ -6,7 +6,7 @@ const CharacterContext = React.createContext(null);
 // Everything that depends on the edition's rules data. Switching edition resets these so a
 // 2014 race/class/background can't leak into a 2024 character (or vice versa).
 const editionDependentDefaults = {
-	race: { name: '', subrace: '', abilityChoices: [], skillChoices: [], lineage: '', originFeat: '' },
+	race: { name: '', subrace: '', version: '', abilityChoices: [], skillChoices: [], lineage: '', originFeat: '', choices: {} },
 	classInfo: { className: '', level: 1, subclass: '', optionalFeatures: [], choices: {} },
 	background: {
 		name: '', customName: '', customSkills: [], customProficiency: '',

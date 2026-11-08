@@ -20,6 +20,7 @@ import {
 	getAbilityMods, getCarriedGold, getOriginFeats, is2024,
 } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
+import { getRaceChoiceSummaries, getRaceTools } from '../../utils/raceChoices';
 
 const SHEET_ABILITY_FIELDS = {
 	str: ['STR', 'STRmod'], dex: ['DEX', 'DEXmod '], con: ['CON', 'CONmod'],
@@ -175,6 +176,10 @@ const PdfEditor = () => {
 		if (bg?.name === 'Custom' && character.background.customProficiency) {
 			proficiencyLines.push(`Background: ${character.background.customProficiency}`);
 		}
+		if (!is2024(character)) {
+			const racialTools = [...new Set(getRaceTools(character))];
+			if (racialTools.length) proficiencyLines.push(`Racial tools: ${racialTools.join(', ')}`);
+		}
 		proficiencyLines.push(...getLanguages(character).map((l) => `Languages: ${l}`));
 		setText('ProficienciesLang', proficiencyLines.join('\n'), 7);
 
@@ -189,6 +194,7 @@ const PdfEditor = () => {
 		if (race?.lineage && character.race.lineage) {
 			featureLines.push(`${race.lineage.label}: ${character.race.lineage}`);
 		}
+		if (!is2024(character)) getRaceChoiceSummaries(character).forEach((l) => featureLines.push(l));
 		getOriginFeats(character).forEach((f) => featureLines.push(`${f} (feat)`));
 		if (bg?.feature?.name) featureLines.push(`${bg.feature.name} (${bg.name})`);
 		setText('Features and Traits', featureLines.join(', '), 8);

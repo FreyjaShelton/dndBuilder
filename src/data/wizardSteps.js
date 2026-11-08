@@ -1,6 +1,6 @@
 import { hasSpellsPage2014 } from '../utils/spells2014';
 
-const allSteps = ["Edition", "Home", "Race", "Class", "Spells", "Abilities", "Background", "Skills", "Equipment", "Finalize"];
+const allSteps = ["Edition", "Home", "Abilities", "Race", "Class", "Spells", "Background", "Skills", "Equipment", "Finalize"];
 
 // The steps for a character (or, for a bare edition string, the steps before a class is known).
 // 2024 always has a Spells step. 2014 has one only for characters that cast spells, which can

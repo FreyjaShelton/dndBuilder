@@ -1,23 +1,9 @@
-import dragonborn from './dragonborn';
-import dwarf from './dwarf';
-import elf from './elf';
-import gnome from './gnome';
-import halfElf from './halfElf';
-import halfOrc from './halfOrc';
-import halfling from './halfling';
-import human from './human';
-import tiefling from './tiefling';
+// Every official 2014 lineage from the rules reference, generated from dnd5e.wikidot.com.
+// Each race has one or more versions (the original book and sometimes the Monsters of the Multiverse
+// rewrite), subraces (including setting add-ons like the Eberron dragonmarks), and traits with
+// the mechanical effects detected from their text. See utils/raceChoices.js for how they are used.
+import generated from './data.generated.json';
 
-const races = {
-	'Dragonborn': dragonborn,
-	'Dwarf': dwarf,
-	'Elf': elf,
-	'Gnome': gnome,
-	'Half-Elf': halfElf,
-	'Half-Orc': halfOrc,
-	'Halfling': halfling,
-	'Human': human,
-	'Tiefling': tiefling,
-};
+const races = Object.fromEntries(generated.map((race) => [race.name, race]));
 
 export default races;

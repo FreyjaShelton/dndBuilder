@@ -3,6 +3,7 @@
 // store as the other class choices); this module only reads them.
 import spellIndex from '../data/2014/spellIndex';
 import { getAbilityMods, getClass, getLevel, getSpellcastingStats } from './characterCalc';
+import { getRaceChoices, getRaceSpellInfo } from './raceChoices';
 import {
 	getActiveChoiceDefs, getChoiceOptions, getChoiceValues, getMaxCastableLevel, getSubclass, resolveCount,
 } from './classChoices';
@@ -31,7 +32,8 @@ export function hasSpellsPage2014(character) {
 	if (!character || character.edition !== '2014') return false;
 	const cls = getClass(character);
 	if (!cls) return false;
-	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0);
+	const race = getRaceSpellInfo(character);
+	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0) || race.fixed.length > 0 || race.pickDefs.length > 0;
 }
 
 // ---- Prepared spells (cleric, druid, paladin, wizard) ------------------------------------------
@@ -138,6 +140,21 @@ export function getSpellSections(character) {
 			prepared: true,
 		});
 	}
+	// cantrips granted by the character's race (High Elf, Fairy...) are picked here too
+	const raceValues = getRaceChoices(character);
+	getRaceSpellInfo(character).pickDefs.forEach((def) => {
+		sections.push({
+			id: def.id,
+			store: 'race',
+			title: def.label,
+			subtitle: 'Racial trait',
+			note: '',
+			count: def.count,
+			options: spellIndex.filter((sp) => sp.level === 0 && (def.classes === 'any' || sp.classes.some((c) => def.classes.includes(c)))).map(optionOf),
+			value: raceValues[def.id] || [],
+			order: 2.5,
+		});
+	});
 	return sections.sort((a, b) => a.order - b.order);
 }
 
@@ -149,6 +166,7 @@ export function getChosenSpellNames(character) {
 	// a wizard's spellbook is reference, not what they can cast today: the sheet lists cantrips and prepared spells
 	getSpellSections(character).filter((s) => s.id !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => names.add(n)));
 	getAlwaysPrepared(character).forEach((s) => names.add(s.name));
+	getRaceSpellInfo(character).fixed.forEach((s) => names.add(s.name));
 	return [...names];
 }
 

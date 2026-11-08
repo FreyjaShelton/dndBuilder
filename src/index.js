@@ -8,7 +8,7 @@ import Navbar from './pages/navBar/NavBar';
 import reportWebVitals from './reportWebVitals';
 import Footer from './pages/footer/FooterComp';
 import Class from './pages/class/Class';
-import Race from './pages/race/Race';
+import Race from './pages/race/RaceRoute';
 import Skills from './pages/skills/Skills';
 import Spells from './pages/spells/SpellsRoute';
 import Abilities from './pages/abilities/Abilities';

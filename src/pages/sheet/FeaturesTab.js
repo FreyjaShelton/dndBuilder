@@ -4,6 +4,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getEditionData } from '../../data';
 import { getClassFeatureNames, getOriginFeats } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
+import { getRaceChoiceSummaries } from '../../utils/raceChoices';
 
 const baseName = (n) => n.replace(/\s*\(.*\)\s*$/, '').trim();
 
@@ -60,6 +61,9 @@ export default function FeaturesTab({ character, d }) {
 					{character.race.lineage && (
 						<Typography variant="body2" sx={{ marginBottom: 0.5 }}>{d.race.lineage?.label}: <strong>{character.race.lineage}</strong></Typography>
 					)}
+					{character.edition === '2014' && getRaceChoiceSummaries(character).map((line) => (
+						<Typography key={line} variant="body2" sx={{ marginBottom: 0.5 }}>{line}</Typography>
+					))}
 					{traits.map((t) => <Entry key={t.name} title={t.name}>{t.description}</Entry>)}
 				</Section>
 			)}
