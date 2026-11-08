@@ -1,4 +1,5 @@
 import { getClass, getHitPoints } from '../../utils/characterCalc';
+import { seedItems } from './inventory';
 
 const KEY = 'dndBuilder.sheet.v1';
 
@@ -34,5 +35,6 @@ export function defaultPlay(character) {
 		notes: '',
 		currency: { cp: 0, sp: 0, ep: 0, gp: Number(character.equipment.gold) || 0, pp: 0 },
 		rollMode: 'normal',
+		items: seedItems(character),
 	};
 }

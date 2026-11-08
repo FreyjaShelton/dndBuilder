@@ -12,7 +12,7 @@ export default function FooterComp() {
 				display: "flex",
 				flexDirection: "column",
 				alignItems: "center",
-				paddingBottom: { xs: '72px', md: 0 },
+				paddingBottom: 0,
 			}}>
 				<Box sx={{ textAlign: "center" }}>
 					<a
