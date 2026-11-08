@@ -15,51 +15,52 @@ import InventoryTab from './InventoryTab';
 import FeaturesTab from './FeaturesTab';
 import NotesTab from './NotesTab';
 import RollLog from './RollLog';
-import DriveMenu from '../../components/DriveMenu';
+import CharacterLibrary from '../../components/CharacterLibrary';
 import useSpellDetails from '../../utils/useSpellDetails';
 
 const TABS = ['Actions', 'Spells', 'Inventory', 'Features', 'Notes'];
 
 export default function SheetPage() {
-	const { character, loadCharacter, updateClass } = useCharacter();
+	const { character, characterId, playRevision, updateClass, importCharacter } = useCharacter();
 	const [play, setPlayState] = React.useState(null);
+	// which character (and revision of it) `play` belongs to, so a stale play state is never saved onto another character
+	const [playKey, setPlayKey] = React.useState(null);
 	const [log, setLog] = React.useState([]);
 	const [tabName, setTabName] = React.useState(null);
 	const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
 	const tabNames = isMobile ? ['Stats', ...TABS] : TABS;
 	const activeTab = tabName && tabNames.includes(tabName) ? tabName : tabNames[0];
-	const initialized = React.useRef(false);
 	const fileInput = React.useRef(null);
 	const built = !!character.classInfo.className;
+	const currentKey = `${characterId}:${playRevision}`;
 
-	// Start from the character just built (keeping saved play state if it is the same character),
-	// or restore the last saved character after a reload.
+	// Load the in-play state saved with this character (HP, spent slots...) when the sheet opens or the open
+	// character changes. If the build has changed since it was saved, start fresh.
 	React.useEffect(() => {
-		if (initialized.current) return;
+		if (!built || playKey === currentKey) return;
 		const saved = loadSaved();
-		if (built) {
-			const same = saved && JSON.stringify(saved.character) === JSON.stringify(character);
-			setPlayState(same ? { ...defaultPlay(character), ...saved.play } : defaultPlay(character));
-			initialized.current = true;
-		} else if (saved?.character) {
-			loadCharacter(saved.character);
-		}
-	}, [built, character, loadCharacter]);
+		const same = saved?.play && saved.playBase === JSON.stringify(character);
+		setPlayState(same ? { ...defaultPlay(character), ...saved.play } : defaultPlay(character));
+		setPlayKey(currentKey);
+	}, [built, character, currentKey, playKey]);
 
 	React.useEffect(() => {
-		if (play) persist({ character, play });
-	}, [character, play]);
+		if (play && playKey === currentKey) persist({ character, play });
+	}, [character, play, playKey, currentKey]);
 
 	const spellDetails = useSpellDetails();
 	// spell text loads on demand, so the sheet recomputes once it arrives
 	const d = React.useMemo(() => derive(character), [character, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	if (!play) {
+	if (!play || playKey !== currentKey) {
 		return (
 			<Container maxWidth="sm" sx={{ paddingTop: 8, textAlign: 'center' }}>
 				<Typography variant="h5" sx={{ marginBottom: 1 }}>No character yet</Typography>
 				<Typography color="text.secondary" sx={{ marginBottom: 3 }}>Build a character first, then open the interactive sheet from the Finalize step.</Typography>
-				<Button variant="contained" href="#/">Go to the builder</Button>
+				<Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+					<Button variant="contained" href="#/">Go to the builder</Button>
+					<CharacterLibrary />
+				</Box>
 			</Container>
 		);
 	}
@@ -158,17 +159,13 @@ export default function SheetPage() {
 		a.click();
 		URL.revokeObjectURL(a.href);
 	};
-	const applyImport = (data) => {
-		loadCharacter(data.character);
-		setPlayState({ ...defaultPlay(data.character), ...(data.play || {}) });
-	};
 	const importJson = (file) => {
 		const reader = new FileReader();
 		reader.onload = () => {
 			try {
 				const data = JSON.parse(reader.result);
 				if (!data.character?.classInfo) throw new Error('not a character file');
-				applyImport(data);
+				importCharacter(data);
 			} catch (e) {
 				window.alert('That file is not a saved dndBuilder character.');
 			}
@@ -182,7 +179,7 @@ export default function SheetPage() {
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
 					<Button startIcon={<ArrowBackIcon />} href="#/finalize">Back to builder</Button>
 					<Box sx={{ flex: 1 }} />
-					<DriveMenu getPayload={() => ({ character, play })} onImport={applyImport} />
+					<CharacterLibrary />
 					<Button startIcon={<DownloadIcon />} onClick={exportJson}>Export</Button>
 					<Button startIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>Import</Button>
 					<input

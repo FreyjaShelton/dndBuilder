@@ -10,6 +10,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getWizardSteps } from '../../data/wizardSteps';
 import { useCharacter } from '../../context/CharacterContext';
 import { getEditionData } from '../../data';
+import CharacterLibrary from '../../components/CharacterLibrary';
 
 const BORDER = '1px solid rgba(255, 255, 255, 0.08)';
 
@@ -131,6 +132,7 @@ export default function NavBar() {
 						<Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', lg: 'block' }, marginRight: 1 }}>
 							Step {currentIndex + 1} of {pages.length}
 						</Typography>
+						<CharacterLibrary compact />
 						<Button
 							variant="outlined"
 							color="primary"
