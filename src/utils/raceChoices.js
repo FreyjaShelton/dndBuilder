@@ -10,6 +10,7 @@ import { getRaceFeatSpellPending } from './featSpells';
 import { allLanguages } from '../data/languages';
 import { artisanTools, gamingSets, musicalInstruments } from '../data/toolLists';
 import { applySwaps, parseRacialArmor, parseRacialWeapons } from './customOrigin';
+import { getTotalLevel } from './multiclass';
 
 const raceOf = (character) => character.race || {};
 export const getRaceChoices = (character) => raceOf(character).choices || {};
@@ -244,7 +245,8 @@ function getAllEffects(character) {
 	return out;
 }
 
-const level = (character) => Math.min(20, Math.max(1, Number(character.classInfo?.level) || 1));
+// the character level (all classes added together), which racial features such as the Tiefling's spells are unlocked by
+const level = (character) => getTotalLevel(character);
 
 // The text of every trait the character has, including the option picked for a trait that offers a list
 // (used to find weapon proficiencies such as "Elf Weapon Training").

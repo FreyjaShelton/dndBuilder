@@ -169,19 +169,14 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 		getState: () => state,
 		isConnected,
 
-		// Call once when the app starts: reconnect quietly if the user signed in before.
+		// Call once when the app starts: reconnect if the user signed in before and the sign-in is still valid. When it has expired
+		// nothing is opened (Google's sign-in window can only come from a click): the sync window offers a "Sign in with Google" button.
 		async init() {
 			if (!isConnected()) return set({ status: 'off' });
 			drive.preloadGoogle().catch(() => {});
 			const lastSyncAt = Number(getFlag(LAST_SYNC_KEY)) || undefined;
 			if (drive.currentToken()) { set({ status: 'idle', lastSyncAt }); return engine.syncNow(); }
-			set({ status: 'syncing', lastSyncAt });
-			try {
-				await drive.silentSignIn();
-				return engine.syncNow();
-			} catch (e) {
-				return set({ status: 'needsAuth', error: undefined });
-			}
+			return set({ status: 'needsAuth', lastSyncAt, error: undefined });
 		},
 
 		// From a click: sign in with Google (the only step the user does) and start syncing.
@@ -211,18 +206,12 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 			sheetTimer = setTimeout(() => engine.syncIfReady(), sheetDelay);
 		},
 
-		// Sync now if signed in, or try to renew the sign-in quietly (no popup). Used on startup and when the tab regains focus.
-		async syncIfReady({ retry = false } = {}) {
+		// Sync now if signed in. If the sign-in has expired, just say so: Google's sign-in window is only ever opened by a click on
+		// the sign-in button in the sync window (connect), never by the app on its own.
+		async syncIfReady() {
 			if (!isConnected()) return;
-			if (state.status === 'needsAuth' && !retry && !drive.currentToken()) return; // already asked; wait for a click or a refocus
 			if (drive.currentToken()) return engine.syncNow();
-			if (running) return;
-			try {
-				await drive.silentSignIn();
-				return engine.syncNow();
-			} catch (e) {
-				return set({ status: 'needsAuth' });
-			}
+			if (state.status !== 'needsAuth') set({ status: 'needsAuth' });
 		},
 
 		async syncNow() {

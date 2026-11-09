@@ -1,7 +1,7 @@
 import { getEditionData } from '../data';
 import { getSelectedSpells2014 } from './spells2014';
 import {
-	getCantripsKnown, getClass, getLevel, getPreparedSpellsLimit, getSpellSlots,
+	getCantripsKnown, getClass, getClassLevel, getPreparedSpellsLimit, getSpellSlots,
 } from './characterCalc';
 
 export function isSpellcaster(character) {
@@ -37,7 +37,7 @@ export function usesSpellbook(character) {
 }
 
 export function getSpellbookLimit(character) {
-	return usesSpellbook(character) ? 6 + 2 * (getLevel(character) - 1) : 0;
+	return usesSpellbook(character) ? 6 + 2 * (getClassLevel(character) - 1) : 0;
 }
 
 const byName = (character) => {

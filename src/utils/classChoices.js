@@ -8,6 +8,10 @@ import { allLanguages } from '../data/languages';
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS } from './abilityScore';
+import { getClassViews } from './multiclass';
+
+// Most functions here describe ONE class: the one in character.classInfo (for a multiclassed character, pass the class's view
+// from getClassViews). The ones that say so in their comment cover every class the character has.
 
 const baseName = (s) => String(s).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/[⁠​]/g, '').replace(/\s+/g, ' ').trim();
 const ASI = 'Ability Score Improvement';
@@ -256,16 +260,29 @@ export function getAsiLevels(character) {
 	return cls.table.rows.map((_, i) => i + 1).filter((l) => l <= lv && tableCells(cls, l).some((c) => c.base === ASI));
 }
 
+// Feats taken in place of an Ability Score Improvement, in every class.
 export function getChosenFeats(character) {
-	const values = getChoiceValues(character);
-	return getAsiLevels(character).map((l) => values[`asi-${l}`]).filter((v) => v?.type === 'feat' && v.feat).map((v) => v.feat);
+	return getClassViews(character).flatMap((view) => {
+		const values = getChoiceValues(view);
+		return getAsiLevels(view).map((l) => values[`asi-${l}`]).filter((v) => v?.type === 'feat' && v.feat).map((v) => v.feat);
+	});
 }
 
-// { bonuses: {str: n...}, cap: {str: 20...} } from ASI picks, half-feats, and fixed class features.
+// { bonuses: {str: n...}, cap: {str: 20...} } from ASI picks, half-feats, and fixed class features, in every class.
 export function getClassAbilityEffects(character) {
 	const bonuses = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
 	const cap = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 20]));
 	if (character.edition !== '2014') return { bonuses, cap };
+	getClassViews(character).forEach((view) => {
+		const one = classAbilityEffectsOf(view);
+		ABILITY_KEYS.forEach((k) => { bonuses[k] += one.bonuses[k]; cap[k] = Math.max(cap[k], one.cap[k]); });
+	});
+	return { bonuses, cap };
+}
+
+function classAbilityEffectsOf(character) {
+	const bonuses = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
+	const cap = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 20]));
 	const values = getChoiceValues(character);
 	getAsiLevels(character).forEach((l) => {
 		const v = values[`asi-${l}`];
@@ -304,45 +321,61 @@ export function getActiveChoiceDefs(character) {
 	return getChoiceDefs(character).filter((d) => d.level <= lv && (!d.optionalFeature || enabled.has(d.optionalFeature)) && isVisible(d, values));
 }
 
-// Weapons the character is proficient with because of a choice (a subclass that lets you pick a martial weapon).
+// Weapons the character is proficient with because of a choice (a subclass that lets you pick a martial weapon), in every class.
 export function getChoiceWeaponProficiencies(character) {
 	if (character.edition !== '2014') return [];
-	const values = getChoiceValues(character);
-	return getActiveChoiceDefs(character).filter((d) => d.grantsWeaponProficiency).map((d) => values[d.id]).filter(Boolean);
+	return getClassViews(character).flatMap((view) => {
+		const values = getChoiceValues(view);
+		return getActiveChoiceDefs(view).filter((d) => d.grantsWeaponProficiency).map((d) => values[d.id]).filter(Boolean);
+	});
 }
 
-// Armor and weapon proficiencies the chosen subclass adds on top of the class's, as text ('' when none).
+// Armor and weapon proficiencies the chosen subclasses add on top of the classes', as text ('' when none).
 export function getSubclassProficiencyText(character) {
-	const sub = character.edition === '2014' ? getSubclass(character) : null;
-	return { armor: sub?.grants?.armor || '', weapons: getChoiceWeaponProficiencies(character).join(', ') };
+	if (character.edition !== '2014') return { armor: '', weapons: '' };
+	const armor = [...new Set(getClassViews(character).map((view) => getSubclass(view)?.grants?.armor).filter(Boolean))];
+	return { armor: armor.join(', '), weapons: getChoiceWeaponProficiencies(character).join(', ') };
 }
 
+// Skills picked in class choices, in every class.
 export function getChoiceSkills(character) {
-	const values = getChoiceValues(character);
 	const out = [];
-	getActiveChoiceDefs(character).filter((d) => d.kind === 'skill' || d.kind === 'skills').forEach((d) => {
-		const v = values[d.id];
-		(Array.isArray(v) ? v : [v]).filter(Boolean).forEach((s) => out.push(s));
+	getClassViews(character).forEach((view) => {
+		const values = getChoiceValues(view);
+		getActiveChoiceDefs(view).filter((d) => d.kind === 'skill' || d.kind === 'skills').forEach((d) => {
+			const v = values[d.id];
+			(Array.isArray(v) ? v : [v]).filter(Boolean).forEach((s) => out.push(s));
+		});
 	});
 	return out;
 }
 
 export function getChoiceLanguages(character) {
-	const values = getChoiceValues(character);
-	return getActiveChoiceDefs(character).filter((d) => d.kind === 'languages').flatMap((d) => values[d.id] || []);
+	return getClassViews(character).flatMap((view) => {
+		const values = getChoiceValues(view);
+		return getActiveChoiceDefs(view).filter((d) => d.kind === 'languages').flatMap((d) => values[d.id] || []);
+	});
 }
 
 export { allLanguages };
 
 export function getExpertiseSkills(character) {
-	const values = getChoiceValues(character);
 	const out = [];
-	getActiveChoiceDefs(character).filter((d) => d.kind === 'expertise').forEach((d) => { (values[d.id] || []).forEach((s) => out.push(s)); });
+	getClassViews(character).forEach((view) => {
+		const values = getChoiceValues(view);
+		getActiveChoiceDefs(view).filter((d) => d.kind === 'expertise').forEach((d) => { (values[d.id] || []).forEach((sk) => out.push(sk)); });
+	});
 	return out;
 }
 
-// Names of everything the character has picked in dropdowns, as "Feature: choice" lines for the sheet.
+// Names of everything the character has picked in dropdowns, as "Feature: choice" lines for the sheet (every class; a
+// multiclassed character's lines say which class they belong to).
 export function getChoiceSummaries(character) {
+	const views = getClassViews(character);
+	return views.flatMap((view) => choiceSummariesOf(view).map((line) => (views.length > 1 ? `${view.classInfo.className}: ${line}` : line)));
+}
+
+function choiceSummariesOf(character) {
 	const values = getChoiceValues(character);
 	const lines = [];
 	const sub = info(character).subclass;
@@ -359,9 +392,16 @@ export function getChoiceSummaries(character) {
 	return lines;
 }
 
-// Everything the class has given the character so far, for the sheet's feature list:
+// Everything the classes have given the character so far, for the sheet's feature list:
 // [{ name, label, description }] with the subclass first, then features by level (repeats merged), then ASI feats.
+// A multiclassed character gets each class's list in turn, the entries marked with their class.
 export function getSheetFeatures(character) {
+	const views = getClassViews(character);
+	if (views.length === 1) return sheetFeaturesOf(character);
+	return views.flatMap((view) => sheetFeaturesOf(view).map((f) => ({ ...f, name: `${view.classInfo.className}:${f.name}`, label: `${f.label} (${view.classInfo.className})` })));
+}
+
+function sheetFeaturesOf(character) {
 	const cls = getClass2014(character);
 	if (!cls) return [];
 	const values = getChoiceValues(character);

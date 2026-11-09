@@ -7,12 +7,13 @@ import useSpellDetails from '../../utils/useSpellDetails';
 
 // The sheet's Spells tab while editing: the same spell picker the builder uses, for the prepared list only.
 // Changes are kept on the sheet while playing; they reach the builder when the player goes back to it (see sheetSync.js).
-export default function PreparedSpellsEditor({ character, setPrepared, onDone }) {
+// classIndex says which class's list this is (0 is the first class; a multiclassed character has one list per class that prepares).
+export default function PreparedSpellsEditor({ character, setPrepared, classIndex = 0, onDone }) {
 	const details = useSpellDetails();
-	const section = getSpellSections(character).find((s) => s.id === 'prepared');
+	const section = getSpellSections(character).find((s) => s.prepared && s.classIndex === classIndex);
 	const always = getAlwaysPrepared(character);
 	if (!section) return null;
-	const isWizard = character.classInfo.className === 'Wizard';
+	const isWizard = section.className === 'Wizard';
 
 	return (
 		<Box>
@@ -23,12 +24,12 @@ export default function PreparedSpellsEditor({ character, setPrepared, onDone })
 			<Typography variant="body2" sx={{ color: 'text.secondary', marginBottom: 2 }}>
 				{isWizard
 					? 'Choose which spells from your spellbook you have prepared. You can change this after a long rest.'
-					: `Choose which ${character.classInfo.className} spells you have prepared. You can change this after a long rest.`}
+					: `Choose which ${section.className} spells you have prepared. You can change this after a long rest.`}
 			</Typography>
 			<SpellPicker2014
 				section={section}
 				details={details}
-				onChange={(update) => setPrepared(update)}
+				onChange={(update) => setPrepared(update, classIndex)}
 			/>
 			{always.length > 0 && (
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>

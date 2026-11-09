@@ -339,7 +339,7 @@ const classChoices = {
 		optional: { 'Cantrip Formulas': {} },
 		choices: [
 			cantrips('Wizard'),
-			{ id: 'spellbook', level: 1, feature: 'Spellcasting', label: 'Spellbook', kind: 'spells', count: wizardBook, spells: { classes: ['Wizard'], levels: 'leveled' }, countNote: 'You start with six spells and add two for each level you gain.' },
+			{ id: 'spellbook', level: 1, feature: 'Spellcasting', label: 'Spellbook', kind: 'spells', count: wizardBook, spells: { classes: ['Wizard'], levels: 'leveled' }, countNote: 'You start with six spells and add two for each level you gain. You can keep adding more beyond that: copy spells you find into your spellbook (see the Wizard class description).' },
 			{ id: 'masteryFirst', level: 18, feature: 'Spell Mastery', label: '1st-level wizard spell', kind: 'spells', count: 1, spells: { classes: ['Wizard'], levels: [1] } },
 			{ id: 'masterySecond', level: 18, feature: 'Spell Mastery', label: '2nd-level wizard spell', kind: 'spells', count: 1, spells: { classes: ['Wizard'], levels: [2] } },
 			{ id: 'signatureSpells', level: 20, feature: 'Signature Spells', label: '3rd-level wizard spells', kind: 'spells', count: 2, spells: { classes: ['Wizard'], levels: [3] } },

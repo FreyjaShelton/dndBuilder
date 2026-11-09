@@ -11,6 +11,7 @@ import {
 	getBackgroundSkills, getClass, getProficientSkills, getRacialSkills, getSkillBonuses, is2024, isSkillOverride,
 } from '../../utils/characterCalc';
 import { getExpertiseSkills } from '../../utils/classChoices';
+import { getExtraClassViews } from '../../utils/multiclass';
 
 export default function Skills() {
 	const { character, updateSkills } = useCharacter();
@@ -18,7 +19,9 @@ export default function Skills() {
 	const chosen = character.skills.classChoices;
 	const fromBackground = getBackgroundSkills(character);
 	const fromRace = getRacialSkills(character);
-	const locked = [...fromBackground, ...fromRace];
+	// the skill a later class (bard, ranger, rogue) added when multiclassing is picked on the Class step
+	const fromLaterClasses = getExtraClassViews(character).filter((v) => v.classInfo.skill).map((v) => ({ name: v.classInfo.skill, className: v.classInfo.className }));
+	const locked = [...fromBackground, ...fromRace, ...fromLaterClasses.map((x) => x.name)];
 	const options = cls
 		? (cls.skillChoices.from === 'any' ? skills.map((s) => s.name) : cls.skillChoices.from)
 		: [];
@@ -106,6 +109,7 @@ export default function Skills() {
 					{!override && <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginTop: 2 }}>
 						{fromBackground.map((n) => <Chip key={`bg-${n}`} size="small" label={`${n} (background)`} />)}
 						{fromRace.map((n) => <Chip key={`race-${n}`} size="small" label={`${n} (race)`} />)}
+						{fromLaterClasses.map((x) => <Chip key={`mc-${x.name}`} size="small" label={`${x.name} (${x.className})`} />)}
 					</Box>}
 				</CardContent>
 			</Card>

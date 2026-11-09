@@ -9,6 +9,7 @@ import {
 	getChoiceValues, getLevelEntries, getSubclass, resolveCount,
 } from '../../utils/classChoices';
 import { getClass } from '../../utils/characterCalc';
+import { getClassViews } from '../../utils/multiclass';
 
 const SOURCE_ORDER = ["Player's Handbook", "Xanathar's Guide to Everything", "Tasha's Cauldron of Everything"];
 const rank = (s) => { const i = SOURCE_ORDER.indexOf(s); return i < 0 ? SOURCE_ORDER.length : i; };
@@ -148,6 +149,8 @@ function isAsiDone(v) {
 export default function ClassLevels({ character, updateClass }) {
 	const cls = getClass(character);
 	const levels = getLevelEntries(character);
+	// a multiclassed character's proficiency bonus follows the total level, not the level in this class
+	const multi = getClassViews(character).length > 1;
 	const values = { ...getChoiceValues(character), __subclass: character.classInfo.subclass };
 	const [open, setOpen] = React.useState({});
 	const seenChoiceLevels = React.useRef(new Set());
@@ -193,9 +196,11 @@ export default function ClassLevels({ character, updateClass }) {
 							</Box>
 						</AccordionSummary>
 						<AccordionDetails>
-							<Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', marginBottom: 1 }}>
-								Proficiency bonus +{lv.proficiencyBonus}
-							</Typography>
+							{!multi && (
+								<Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', marginBottom: 1 }}>
+									Proficiency bonus +{lv.proficiencyBonus}
+								</Typography>
+							)}
 							{lv.entries.map((entry) => (
 								<FeatureCard key={entry.key} entry={entry} character={character} cls={cls} updateClass={updateClass} />
 							))}

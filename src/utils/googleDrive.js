@@ -49,8 +49,9 @@ export function clearToken() {
 	try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
 }
 
-// Asks Google for an access token. prompt '' may show the account / consent popup (so call it from a click);
-// prompt 'none' never shows anything and fails when Google needs the user to interact.
+// Asks Google for an access token. This opens Google's sign-in window, so it must only be called from a click
+// (the sign-in button in the sync window). Even prompt 'none' can open and flash that window, so the app never
+// tries to renew a sign-in on its own: when the token expires the user signs in again from the button.
 function requestToken(prompt) {
 	return preloadGoogle().then(() => new Promise((resolve, reject) => {
 		if (!getClientId()) { reject(new Error('Google Drive is not set up for this site (no Client ID).')); return; }
@@ -85,7 +86,6 @@ function requestToken(prompt) {
 }
 
 export const signIn = () => requestToken('');
-export const silentSignIn = () => requestToken('none');
 
 async function api(url, init = {}) {
 	const token = currentToken();

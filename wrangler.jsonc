@@ -1,4 +1,7 @@
 {
+	// Cloudflare Workers static-asset deployment (the same setup as the budget app). Built by Cloudflare from this repo on push to main.
+	// Access is not configured here: Cloudflare Access (Zero Trust) is switched on for this Worker's workers.dev URL in the
+	// Cloudflare dashboard, with a policy that only lets the approved email addresses in. Everything is served behind that login.
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "dnd-builder",
 	"compatibility_date": "2025-01-01",

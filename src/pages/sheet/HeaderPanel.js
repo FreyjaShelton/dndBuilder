@@ -3,6 +3,7 @@ import {
 	Box, Button, Card, CardContent, Checkbox, Chip, LinearProgress, Menu, MenuItem, TextField, Typography,
 } from '@mui/material';
 import { signed } from './dice';
+import { hitDiceLeftByDie } from './derive';
 
 export const CONDITIONS = [
 	'Blinded', 'Charmed', 'Deafened', 'Exhaustion', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
@@ -29,8 +30,9 @@ export default function HeaderPanel({ character, d, play, setPlay, hp, onRoll, o
 	const [condAnchor, setCondAnchor] = React.useState(null);
 	const hpPercent = d.hpMax ? Math.max(0, Math.min(100, (play.hpCurrent / d.hpMax) * 100)) : 0;
 	const dying = d.hpMax > 0 && play.hpCurrent === 0;
-	const hitDiceTotal = d.level;
+	const hitDiceTotal = d.hitDice.reduce((sum, x) => sum + x.count, 0) || d.level;
 	const hitDiceLeft = Math.max(0, hitDiceTotal - play.hitDiceUsed);
+	const hitDiceText = hitDiceLeftByDie(d.hitDice, play.hitDiceUsed).map((x) => `${x.count}d${x.die}`).join(' + ') || '0';
 	const n = Number(amount);
 
 	return (
@@ -39,7 +41,7 @@ export default function HeaderPanel({ character, d, play, setPlay, hp, onRoll, o
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 2, marginBottom: 2 }}>
 					<Typography variant="h5" sx={{ fontWeight: 700 }}>{character.info.name || 'Unnamed Character'}</Typography>
 					<Typography sx={{ color: 'text.secondary' }}>
-						{[d.race && (d.subrace?.name || d.race.name), d.cls && `${d.cls.name} ${d.level}`, d.background && d.background.name].filter(Boolean).join(' · ')}
+						{[d.race && (d.subrace?.name || d.race.name), d.cls && d.classSummary, d.background && d.background.name].filter(Boolean).join(' · ')}
 					</Typography>
 				</Box>
 
@@ -107,7 +109,7 @@ export default function HeaderPanel({ character, d, play, setPlay, hp, onRoll, o
 
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, marginTop: 2 }}>
 					<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-						Hit Dice: {hitDiceLeft}/{hitDiceTotal} d{d.hitDie}
+						Hit Dice: {d.hitDice.length > 1 ? `${hitDiceText} left of ${hitDiceTotal}` : `${hitDiceLeft}/${hitDiceTotal} d${d.hitDie}`}
 					</Typography>
 					<Button size="small" variant="outlined" disabled={hitDiceLeft === 0} onClick={hp.spendHitDie}>Spend hit die</Button>
 					<Box sx={{ flex: 1 }} />

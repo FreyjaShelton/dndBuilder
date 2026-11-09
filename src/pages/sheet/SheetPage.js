@@ -6,7 +6,8 @@ import UploadIcon from '@mui/icons-material/Upload';
 import { useCharacter } from '../../context/CharacterContext';
 import { rollD20, rollExpression, describeD20 } from './dice';
 import { defaultPlay, loadSaved, persist } from './storage';
-import { derive } from './derive';
+import { derive, hitDiceLeftByDie } from './derive';
+import { getClassViews } from '../../utils/multiclass';
 import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
 import HeaderPanel from './HeaderPanel';
@@ -65,7 +66,11 @@ export default function SheetPage() {
 	const items = play ? play.items : null;
 	// the spells prepared on the sheet stand in for the builder's until the sheet is closed
 	const preparedOnSheet = play ? play.prepared : undefined;
-	const view = React.useMemo(() => viewCharacter(character, { prepared: preparedOnSheet }), [character, preparedOnSheet]);
+	const preparedMoreOnSheet = play ? play.preparedMore : undefined;
+	const view = React.useMemo(
+		() => viewCharacter(character, { prepared: preparedOnSheet, preparedMore: preparedMoreOnSheet }),
+		[character, preparedOnSheet, preparedMoreOnSheet],
+	);
 	const d = React.useMemo(() => derive(view, items), [view, items, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!play || playKey !== currentKey) {
@@ -82,10 +87,15 @@ export default function SheetPage() {
 	}
 
 	const setPlay = (patch) => setPlayState((p) => ({ ...p, ...patch }));
-	const setPrepared = (update) => setPlayState((p) => ({
-		...p,
-		prepared: update(Array.isArray(p.prepared) ? p.prepared : ((character.classInfo.choices || {}).prepared || [])),
-	}));
+	// The prepared spells of one class (index 0 is the first class, 1+ the classes taken after it) are kept on the sheet:
+	// play.prepared for the first class, play.preparedMore[index] for the others.
+	const setPrepared = (update, index = 0) => setPlayState((p) => {
+		const classView = getClassViews(character)[index];
+		const saved = (classView?.classInfo.choices || {}).prepared || [];
+		if (index === 0) return { ...p, prepared: update(Array.isArray(p.prepared) ? p.prepared : saved) };
+		const more = p.preparedMore || {};
+		return { ...p, preparedMore: { ...more, [index]: update(Array.isArray(more[index]) ? more[index] : saved) } };
+	});
 	const addLog = (label, total, detail, flag) => setLog((l) => [{ id: Date.now() + Math.random(), label, total, detail, flag }, ...l].slice(0, 40));
 
 	const roll = (label, bonus) => {
@@ -136,10 +146,12 @@ export default function SheetPage() {
 			}
 		},
 		spendHitDie: () => {
-			const r = rollExpression(`1d${d.hitDie}`);
+			// the biggest hit die that is left is spent first (a multiclassed character can have several sizes)
+			const die = hitDiceLeftByDie(d.hitDice, play.hitDiceUsed)[0]?.die || d.hitDie;
+			const r = rollExpression(`1d${die}`);
 			const heal = Math.max(1, r.total + d.mods.con);
 			setPlayState((p) => ({ ...p, hitDiceUsed: p.hitDiceUsed + 1, hpCurrent: Math.min(d.hpMax, p.hpCurrent + heal) }));
-			addLog('Hit die', heal, `d${d.hitDie}(${r.rolls[0]}) ${d.mods.con >= 0 ? '+' : ''}${d.mods.con} HP`);
+			addLog('Hit die', heal, `d${die}(${r.rolls[0]}) ${d.mods.con >= 0 ? '+' : ''}${d.mods.con} HP`);
 		},
 	};
 
@@ -162,9 +174,10 @@ export default function SheetPage() {
 		}
 	};
 
-	const cast = (spell, level) => {
+	// source 'pact' spends a Pact Magic slot; otherwise a regular slot of that level is used
+	const cast = (spell, level, source) => {
 		if (level > 0) {
-			if (d.slots.type === 'pact') setPlay({ pactUsed: play.pactUsed + 1 });
+			if (source === 'pact' || d.slots.type === 'pact') setPlay({ pactUsed: play.pactUsed + 1 });
 			else setPlay({ slotsUsed: { ...play.slotsUsed, [level]: (play.slotsUsed[level] || 0) + 1 } });
 		}
 		if (spell.concentration) setPlay({ concentration: spell.name });

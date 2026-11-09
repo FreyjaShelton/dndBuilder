@@ -8,6 +8,10 @@ import {
 	getRaceAbilityBonuses, getRaceArmor, getRaceArmorProficiencies, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts,
 	getRaceWeaponProficiencies, getSubraceRecord, isCustomizing, resolveRace,
 } from './raceChoices';
+import {
+	casterKind, casterLevelContribution, getClassLevelOf, getClassViews, getExtraClassViews, getMulticlassProficiencies, getTotalLevel, multiclassSlots,
+	thirdCasterSlots,
+} from './multiclass';
 import { getChoiceLanguages, getChoiceSkills, getChoiceWeaponProficiencies, getChosenFeats, getSubclassProficiencyText, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
 const abilityKeyByName = Object.fromEntries(Object.entries(ABILITY_NAMES).map(([k, v]) => [v, k]));
@@ -36,8 +40,15 @@ export function getBackground(character) {
 	return rules(character).backgrounds[character.background.name] || null;
 }
 
+// The character level: all the levels in every class added together (a multiclassed character's proficiency bonus, hit points and
+// the like depend on it).
 export function getLevel(character) {
-	return Math.min(20, Math.max(1, Number(character.classInfo.level) || 1));
+	return getTotalLevel(character);
+}
+
+// The level in the one class this character (or class view, see multiclass.js) is looking at: what the class table is read at.
+export function getClassLevel(character) {
+	return getClassLevelOf(character);
 }
 
 export function getProficiencyBonus(level) {
@@ -143,6 +154,7 @@ export function getProficientSkills(character) {
 		...getRacialSkills(character),
 		...character.skills.classChoices,
 		...getChoiceSkills(character),
+		...getExtraClassViews(character).map((v) => v.classInfo.skill).filter(Boolean), // the skill a later class (bard, ranger, rogue) adds
 	];
 	return [...new Set(all)];
 }
@@ -176,11 +188,30 @@ export function getClassFeatureNames(cls, level) {
 	return names;
 }
 
-// { type: 'standard', slots: {1: n..9: n} } | { type: 'pact', count, level } | null
-export function getSpellSlots(character) {
-	const cls = getClass(character);
-	if (!cls || !cls.spellcastingAbility) return null;
-	const level = getLevel(character);
+// ---- Spellcasting ---------------------------------------------------------------------------------------------------
+// The functions with "Class" in their name read ONE class (the character itself, or one of its class views, see multiclass.js);
+// the others cover the whole character.
+
+// What a class contributes to the spell slot calculation, or null if it does not cast.
+function getClassCasting(view) {
+	const cls = getClass(view);
+	if (!cls) return null;
+	if (cls.spellcastingAbility) return { className: cls.name, ability: cls.spellcastingAbility };
+	// Eldritch Knights and Arcane Tricksters cast with Intelligence though their class does not (2014)
+	if (!is2024(view) && casterKind(cls.name, view.classInfo.subclass, getClassLevel(view)) === 'third') {
+		return { className: `${cls.name} (${view.classInfo.subclass})`, ability: 'Intelligence' };
+	}
+	return null;
+}
+
+// { type: 'standard', slots: {1: n..9: n} } | { type: 'pact', count, level } | null — for one class, read from its table
+export function getClassSpellSlots(view) {
+	const cls = getClass(view);
+	if (!cls) return null;
+	const level = getClassLevel(view);
+	if (!cls.spellcastingAbility) {
+		return !is2024(view) && casterKind(cls.name, view.classInfo.subclass, level) === 'third' ? { type: 'standard', slots: thirdCasterSlots(level) } : null;
+	}
 	const row = getClassTableRow(cls, level);
 	if (cls.name === 'Warlock') {
 		const count = Number(row[columnIndex(cls, /^Spell Slots$/)]) || 0;
@@ -196,11 +227,34 @@ export function getSpellSlots(character) {
 	return { type: 'standard', slots };
 }
 
+// The character's spell slots. One spellcasting class follows its own table; with several, the Multiclass Spellcaster table is
+// used for the combined level, and a warlock's Pact Magic slots stay separate:
+// { type: 'standard', slots: {1: n..9: n}, combined?: casterLevel, pact?: { count, level } } | { type: 'pact', count, level } | null
+export function getSpellSlots(character) {
+	const views = getClassViews(character);
+	if (views.length === 1) return getClassSpellSlots(views[0]);
+	const parts = views.map((v) => ({ v, kind: casterKind(v.classInfo.className, v.classInfo.subclass, getClassLevel(v)) })).filter((p) => p.kind);
+	const regular = parts.filter((p) => p.kind !== 'pact');
+	const pactPart = parts.find((p) => p.kind === 'pact');
+	let result = null;
+	if (regular.length === 1) {
+		result = getClassSpellSlots(regular[0].v);
+	} else if (regular.length > 1) {
+		const casterLevel = regular.reduce((sum, p) => sum + casterLevelContribution(p.kind, getClassLevel(p.v)), 0);
+		result = { type: 'standard', slots: multiclassSlots(casterLevel), combined: casterLevel };
+	}
+	if (pactPart) {
+		const pact = getClassSpellSlots(pactPart.v);
+		return result ? { ...result, pact: { count: pact.count, level: pact.level } } : pact;
+	}
+	return result;
+}
+
 export function getCantripsKnown(character) {
 	const cls = getClass(character);
 	if (!cls) return 0;
 	const idx = columnIndex(cls, /^Cantrips( Known)?$/);
-	return idx >= 0 ? Number(getClassTableRow(cls, getLevel(character))[idx]) || 0 : 0;
+	return idx >= 0 ? Number(getClassTableRow(cls, getClassLevel(character))[idx]) || 0 : 0;
 }
 
 // Number of level 1+ spells the class prepares (the 'Prepared Spells' column), or 0.
@@ -208,19 +262,30 @@ export function getPreparedSpellsLimit(character) {
 	const cls = getClass(character);
 	if (!cls) return 0;
 	const idx = columnIndex(cls, /^Prepared Spells$/);
-	return idx >= 0 ? Number(getClassTableRow(cls, getLevel(character))[idx]) || 0 : 0;
+	return idx >= 0 ? Number(getClassTableRow(cls, getClassLevel(character))[idx]) || 0 : 0;
 }
 
-export function getSpellcastingStats(character) {
-	const cls = getClass(character);
-	if (!cls || !cls.spellcastingAbility) return null;
-	const key = abilityKeyByName[cls.spellcastingAbility];
-	const mod = getAbilityMods(character)[key];
-	const prof = getProficiencyBonus(getLevel(character));
+// { className, ability, abilityKey, saveDc, attackBonus, index } for one class (null if it does not cast). The proficiency bonus
+// is the character's, so it follows the total level.
+export function getClassSpellcastingStats(view) {
+	const casting = getClassCasting(view);
+	if (!casting) return null;
+	const key = abilityKeyByName[casting.ability];
+	const mod = getAbilityMods(view)[key];
+	const prof = getProficiencyBonus(getLevel(view));
 	return {
-		className: cls.name, ability: cls.spellcastingAbility, abilityKey: key,
+		className: casting.className, ability: casting.ability, abilityKey: key, index: view.__index || 0,
 		saveDc: 8 + prof + mod, attackBonus: prof + mod,
 	};
+}
+
+// One entry for each class that casts spells, the first class first.
+export const getSpellcastingStatsList = (character) => getClassViews(character).map((v) => getClassSpellcastingStats(v)).filter(Boolean);
+
+// The spellcasting numbers of the class passed in (a class view), or of the first class that casts.
+export function getSpellcastingStats(character) {
+	if (character.__root) return getClassSpellcastingStats(character);
+	return getSpellcastingStatsList(character)[0] || null;
 }
 
 // The maximum hit points: a total typed in by hand if there is one, otherwise the calculated total.
@@ -229,28 +294,48 @@ export function getHitPoints(character) {
 	return parseHpOverride(character.classInfo.hpOverride) ?? getCalculatedHitPoints(character);
 }
 
-// Hit points worked out from the hit die, the chosen method (average or rolled), Constitution, race and feats.
+// Hit points worked out from the hit dice, the chosen method (average or rolled), Constitution, race and feats.
+// The first level of the first class is the hit die maximum; every other level, in any class, is the average or the rolled value.
 export function getCalculatedHitPoints(character) {
 	const cls = getClass(character);
 	if (!cls) return null;
 	const level = getLevel(character);
 	const conMod = getAbilityMods(character).con;
 	const racialHp = is2024(character) ? (character.race.name === 'Dwarf' ? level : 0) : getRaceHpPerLevel(character) * level;
-	const average = averageHitDie(cls.hitDie);
-	const { hpMethod, hpRolls } = character.classInfo;
+	const { hpMethod } = character.classInfo;
 	const toughFeat = !is2024(character) && getChosenFeats(character).includes('Tough') ? 2 * level : 0;
-	// level 1 is the hit die maximum; later levels use the average or the rolled value (missing rolls fall back to the average)
 	let base = Math.max(1, cls.hitDie + conMod);
-	for (let l = 2; l <= level; l += 1) {
-		const gain = hpMethod === 'roll' && Array.isArray(hpRolls) && hpRolls[l - 2] ? hpRolls[l - 2] : average;
-		base += Math.max(1, gain + conMod);
-	}
+	getClassViews(character).forEach((view, i) => {
+		const viewClass = getClass(view);
+		if (!viewClass) return;
+		const average = averageHitDie(viewClass.hitDie);
+		const rolls = view.classInfo.hpRolls;
+		// the first class's rolls start at its level 2; a later class's start at its level 1
+		const first = i === 0 ? 2 : 1;
+		for (let l = first; l <= getClassLevel(view); l += 1) {
+			const roll = hpMethod === 'roll' && Array.isArray(rolls) ? rolls[l - first] : 0;
+			base += Math.max(1, (roll || average) + conMod);
+		}
+	});
 	return base + racialHp + toughFeat;
+}
+
+// The hit dice the character has, biggest die first: [{ die, count }]
+export function getHitDice(character) {
+	const byDie = new Map();
+	getClassViews(character).forEach((view) => {
+		const cls = getClass(view);
+		if (cls) byDie.set(cls.hitDie, (byDie.get(cls.hitDie) || 0) + getClassLevel(view));
+	});
+	return [...byDie.entries()].map(([die, count]) => ({ die, count })).sort((a, b) => b.die - a.die);
 }
 
 export function getSpeed(character) {
 	return getRace(character)?.speed ?? '';
 }
+
+// Unarmored Defense comes from the first class that has it; a later class does not give it again (multiclassing rules).
+const unarmoredDefenseClass = (character) => getClassViews(character).map((v) => v.classInfo.className).find((n) => n === 'Barbarian' || n === 'Monk') || '';
 
 // `wear` ({ armor: name, shield: bool }) overrides what is worn; the interactive sheet passes what is equipped in the
 // inventory. Without it, the armor and shield picked on the builder's Equipment step are used.
@@ -265,9 +350,9 @@ export function getArmorClass(character, wear) {
 	if (worn) {
 		const dex = worn.dexCap === null ? mods.dex : Math.min(mods.dex, worn.dexCap);
 		ac = worn.ac + dex;
-	} else if (character.classInfo.className === 'Barbarian') {
+	} else if (unarmoredDefenseClass(character) === 'Barbarian') {
 		ac = 10 + mods.dex + mods.con;
-	} else if (character.classInfo.className === 'Monk' && !shield) {
+	} else if (unarmoredDefenseClass(character) === 'Monk' && !shield) {
 		ac = 10 + mods.dex + mods.wis;
 	} else {
 		ac = 10 + mods.dex;
@@ -303,10 +388,9 @@ export function getSavingThrows(character) {
 	});
 }
 
-export function isWeaponProficient(character, weapon) {
-	const cls = getClass(character);
-	const race = getRace(character);
-	const classText = (cls?.weaponProficiencies || '').toLowerCase();
+// Does a class's weapon proficiency text cover this weapon ("Simple weapons, hand crossbows, longswords")?
+function classTextCovers(text, weapon) {
+	const classText = text.toLowerCase();
 	const lname = weapon.name.toLowerCase();
 	const category = weapon.category.toLowerCase();
 	if (classText.includes(category)) {
@@ -316,9 +400,18 @@ export function isWeaponProficient(character, weapon) {
 			return true;
 		}
 	}
-	if (getChoiceWeaponProficiencies(character).includes(weapon.name)) return true;
 	const singular = (w) => w.replace(/s$/, '');
-	if (classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname)) return true;
+	return classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname);
+}
+
+export function isWeaponProficient(character, weapon) {
+	const cls = getClass(character);
+	const race = getRace(character);
+	const lname = weapon.name.toLowerCase();
+	// the first class's proficiencies, plus what each later class adds (Multiclassing Proficiencies)
+	const classTexts = [cls?.weaponProficiencies || '', ...getExtraClassViews(character).map((v) => getMulticlassProficiencies(v.classInfo.className).weapons.join(', '))];
+	if (classTexts.some((text) => classTextCovers(text, weapon))) return true;
+	if (getChoiceWeaponProficiencies(character).includes(weapon.name)) return true;
 	// customized origin (2014): the race's weapon training is whatever is left after the player's swaps
 	if (!is2024(character) && isCustomizing(character)) return getRaceWeaponProficiencies(character).includes(weapon.name);
 	const raceText = (is2024(character) ? (race?.traits || []).map((t) => t.description) : getRaceTraitTexts(character))
@@ -342,29 +435,59 @@ export function getAttacks(character, weaponNames) {
 	}).filter(Boolean);
 }
 
-// The class's armor proficiencies, plus anything the subclass adds (Elemental Bloodline's light armor and shields) and
-// the armor training the race gives (Mountain Dwarf), which a customized origin can swap away.
+// Does a proficiency text already say this (a later class's "Light armor" is covered by a first class's "All armor")?
+const textCovers = (text, item) => {
+	const t = text.toLowerCase();
+	const i = item.toLowerCase();
+	return t.includes(i) || t.includes(i.replace(/s$/, '')) || (/armor$/.test(i) && t.includes('all armor'));
+};
+
+// What the later classes add that the first class's text does not already cover.
+const multiclassExtras = (character, kind, base) => {
+	const out = [];
+	getExtraClassViews(character).forEach((v) => getMulticlassProficiencies(v.classInfo.className)[kind].forEach((item) => {
+		if (!textCovers(base, item) && !out.includes(item)) out.push(item);
+	}));
+	return out;
+};
+
+// The class's armor proficiencies, plus what each later class adds (multiclassing), anything the subclass adds (Elemental
+// Bloodline's light armor and shields) and the armor training the race gives (Mountain Dwarf), which a customized origin can swap away.
 export function getArmorProficiencies(character) {
 	const base = getClass(character)?.armorProficiencies || '';
-	const have = base.toLowerCase();
+	const fromClasses = multiclassExtras(character, 'armor', base);
+	const have = [base, ...fromClasses].join(', ').toLowerCase();
 	const raceArmor = is2024(character) ? [] : getRaceArmorProficiencies(character)
 		.filter((type) => !have.includes('all armor') && !have.includes(`${type.toLowerCase()} armor`)).map((type) => `${type} armor`);
-	const extra = [getSubclassProficiencyText(character).armor, ...raceArmor].filter(Boolean).join(', ');
+	const extra = [...fromClasses, getSubclassProficiencyText(character).armor, ...raceArmor].filter(Boolean).join(', ');
 	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
 }
 
-// Weapon proficiencies as text: the class's, plus weapons picked through choices and the race's weapon training
-// (a customized origin can swap it).
+// Weapon proficiencies as text: the class's, what later classes add, weapons picked through choices and the race's weapon
+// training (a customized origin can swap it).
 export function getWeaponProficiencies(character) {
 	const base = getClass(character)?.weaponProficiencies || '';
-	const have = base.toLowerCase();
+	const fromClasses = multiclassExtras(character, 'weapons', base);
+	const have = [base, ...fromClasses].join(', ').toLowerCase();
 	const weapons = getEditionData(character.edition).equipment.weapons;
 	const raceWeapons = is2024(character) ? [] : getRaceWeaponProficiencies(character).filter((name) => {
 		const w = weapons.find((x) => x.name === name);
 		return !have.includes(name.toLowerCase()) && !(w && have.includes(`${w.category.toLowerCase()} weapons`) && !/martial weapons that/.test(have));
 	});
-	const extra = [getSubclassProficiencyText(character).weapons, ...raceWeapons].filter(Boolean).join(', ');
+	const extra = [...fromClasses, getSubclassProficiencyText(character).weapons, ...raceWeapons].filter(Boolean).join(', ');
 	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
+}
+
+// Tool proficiencies the classes give, as text: the first class's, then what later classes add (thieves' tools, the bard's
+// instrument). Background tools are listed separately.
+export function getClassToolProficiencies(character) {
+	const base = getClass(character)?.toolProficiencies || '';
+	const parts = base && !/^none$/i.test(base) ? [base] : [];
+	getExtraClassViews(character).forEach((v) => {
+		getMulticlassProficiencies(v.classInfo.className).tools.forEach((t) => { if (!textCovers(parts.join(', '), t)) parts.push(t); });
+		if (v.classInfo.instrument) parts.push(v.classInfo.instrument);
+	});
+	return parts.join(', ');
 }
 
 export function getLanguages(character) {

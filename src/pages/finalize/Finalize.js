@@ -18,10 +18,11 @@ import { ABILITY_KEYS, formatSigned, getModifier } from '../../utils/abilityScor
 import {
 	getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getProficiencyBonus, getRace,
-	getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getSubrace,
+	getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getSpellcastingStatsList, getSubrace, getHitDice, getClassToolProficiencies,
 	getAbilityMods, getArmorProficiencies, getCarriedGold, getOriginFeats, getWeaponProficiencies, is2024,
 } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
+import { getClassSummary } from '../../utils/multiclass';
 import { getEquipmentLines } from '../../utils/equipment';
 import { getRaceChoiceSummaries, getRaceTools } from '../../utils/raceChoices';
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
@@ -117,7 +118,7 @@ const PdfEditor = () => {
 		setText('CharacterName 2', info.name);
 		setText('PlayerName', info.player);
 		setText('Alignment', info.alignment);
-		setText('ClassLevel', classPicked ? `${cls.name} ${level}` : '');
+		setText('ClassLevel', classPicked ? (getClassSummary(character) || `${cls.name} ${level}`) : '');
 		setText('Race ', race ? (subrace ? subrace.name : race.name) : '');
 		setText('Background', bg ? (bg.name === 'Custom' ? character.background.customName : bg.name) : '');
 		setText('PersonalityTraits ', character.background.personalityTraits, 9);
@@ -161,8 +162,8 @@ const PdfEditor = () => {
 		const hp = classPicked ? getHitPoints(character) : '';
 		setText('HPMax', hp);
 		setText('HPCurrent', hp);
-		setText('HDTotal', classPicked ? `${level}d${cls.hitDie}` : '');
-		setText('HD', classPicked ? `d${cls.hitDie}` : '');
+		setText('HDTotal', classPicked ? getHitDice(character).map((x) => `${x.count}d${x.die}`).join(' + ') : '');
+		setText('HD', classPicked ? getHitDice(character).map((x) => `d${x.die}`).join(' + ') : '');
 		getAttacks(character).slice(0, 3).forEach((atk, i) => {
 			const [nameField, bonusField, dmgField] = WEAPON_FIELDS[i];
 			setText(nameField, atk.name);
@@ -176,7 +177,7 @@ const PdfEditor = () => {
 		if (cls) {
 			proficiencyLines.push(`Armor: ${getArmorProficiencies(character)}`);
 			proficiencyLines.push(`Weapons: ${getWeaponProficiencies(character)}`);
-			proficiencyLines.push(`Tools: ${cls.toolProficiencies}`);
+			proficiencyLines.push(`Tools: ${is2024(character) ? cls.toolProficiencies : (getClassToolProficiencies(character) || 'None')}`);
 		}
 		if (bg?.name === 'Custom' && character.background.customProficiency) {
 			proficiencyLines.push(`Background: ${character.background.customProficiency}`);
@@ -215,17 +216,19 @@ const PdfEditor = () => {
 		// #region Spellcasting
 		const casting = getSpellcastingStats(character);
 		if (casting) {
-			setText('Spellcasting Class 2', casting.className);
-			setText('SpellcastingAbility 2', casting.ability.slice(0, 3).toUpperCase());
-			setText('SpellSaveDC  2', casting.saveDc);
-			setText('SpellAtkBonus 2', formatSigned(casting.attackBonus));
+			// this sheet has room for one spellcasting class; a multiclassed caster lists each class's numbers together
+			const castingList = getSpellcastingStatsList(character);
+			setText('Spellcasting Class 2', castingList.map((c) => c.className).join(' / '));
+			setText('SpellcastingAbility 2', castingList.map((c) => c.ability.slice(0, 3).toUpperCase()).join('/'));
+			setText('SpellSaveDC  2', castingList.map((c) => c.saveDc).join('/'));
+			setText('SpellAtkBonus 2', castingList.map((c) => formatSigned(c.attackBonus)).join('/'));
 			const slots = getSpellSlots(character);
-			if (slots?.type === 'standard') {
-				SLOT_TOTAL_FIELDS.forEach((field, i) => setText(field, slots.slots[i + 1] || ''));
-			} else if (slots?.type === 'pact') {
-				// Warlock pact slots are all one level; show them on that level's row.
-				SLOT_TOTAL_FIELDS.forEach((field, i) => setText(field, i + 1 === slots.level ? slots.count : ''));
-			}
+			// Pact Magic slots (all of one level) are added to that level's row
+			const pact = slots?.type === 'pact' ? slots : slots?.pact;
+			SLOT_TOTAL_FIELDS.forEach((field, i) => {
+				const regular = slots?.type === 'standard' ? slots.slots[i + 1] || 0 : 0;
+				setText(field, regular + (pact && pact.level === i + 1 ? pact.count : 0) || '');
+			});
 		}
 		// Spell names, listed under their spell level on the sheet's spell page.
 		const chosenSpells = getSelectedSpells(character);

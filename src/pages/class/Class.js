@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {
-	Accordion, AccordionDetails, AccordionSummary, Box, Chip, FormControl, InputLabel, MenuItem, Select,
-	Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
+	Accordion, AccordionDetails, AccordionSummary, Box, Chip, FormControl, InputLabel, MenuItem, Select, Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CardSelector from '../../components/CardSelector';
@@ -9,12 +8,13 @@ import PageHeader from '../../components/PageHeader';
 import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { getEditionData } from '../../data';
-import { is2024 } from '../../utils/characterCalc';
+import { getLevel, is2024 } from '../../utils/characterCalc';
+import { getClassViews, MAX_LEVEL } from '../../utils/multiclass';
 import { fillHpRolls, rollAllHitDice } from '../../utils/hitPoints';
 import HitPointControls from './HitPointControls';
 import ClassLevels from './ClassLevels';
-
-const norm = (s) => s.replace(/\s+/g, ' ');
+import ClassTable from './ClassTable';
+import Multiclass from './Multiclass';
 
 function Stat({ label, children }) {
 	return (
@@ -24,36 +24,15 @@ function Stat({ label, children }) {
 	);
 }
 
-function ClassTable({ cls, level }) {
-	return (
-		<TableContainer sx={{ maxHeight: 360, marginTop: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-			<Table size="small" stickyHeader sx={{ '& .MuiTableCell-root': { padding: { xs: '6px 8px', sm: '6px 16px' }, fontSize: { xs: 12, sm: 14 } } }}>
-				<TableHead>
-					<TableRow>
-						{cls.table.columns.map((c, i) => (
-							<TableCell key={i} sx={{ backgroundColor: 'background.paper', whiteSpace: { xs: 'normal', sm: 'nowrap' }, minWidth: norm(c) === 'Features' ? 170 : undefined }}>
-								{norm(c).replace('Spell Slots per Spell Level ', '').replace('Proficiency Bonus', 'Prof.')}
-							</TableCell>
-						))}
-					</TableRow>
-				</TableHead>
-				<TableBody>
-					{cls.table.rows.map((row, i) => (
-						<TableRow key={i} selected={i + 1 === level}>
-							{row.map((cell, j) => <TableCell key={j}>{cell}</TableCell>)}
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-		</TableContainer>
-	);
-}
-
 export default function Class() {
 	const { character, updateClass, updateSkills, updateSpells } = useCharacter();
 	const { className, level } = character.classInfo;
 	const classes = getEditionData(character.edition).classes;
 	const cls = classes[className];
+	// the levels taken in later classes (multiclassing) use up part of the 20
+	const otherLevels = getLevel(character) - Number(level || 1);
+	const maxLevel = Math.max(1, MAX_LEVEL - Math.max(0, otherLevels));
+	const multiclassed = getClassViews(character).length > 1;
 
 	const handleClassChange = (event) => {
 		const next = classes[event.target.value];
@@ -61,6 +40,8 @@ export default function Class() {
 		updateClass((ci) => ({
 			className: event.target.value, subclass: '', optionalFeatures: [], choices: {}, hpOverride: '',
 			hpRolls: ci.hpMethod === 'roll' && next ? rollAllHitDice(next.hitDie, ci.level) : [],
+			// a class can't be both the first class and a later one
+			...(ci.multiclass ? { multiclass: { ...ci.multiclass, classes: (ci.multiclass.classes || []).filter((c) => c.className !== event.target.value) } } : {}),
 		}));
 		updateSkills({ classChoices: [] });
 		updateSpells({ cantrips: [], prepared: [], spellbook: [] });
@@ -90,12 +71,13 @@ export default function Class() {
 										updateClass((ci) => ({ level: newLevel, hpOverride: '', hpRolls: ci.hpMethod === 'roll' ? fillHpRolls(ci.hpRolls, cls.hitDie, newLevel) : ci.hpRolls }));
 									}}
 								>
-								{Array.from({ length: 20 }, (_, i) => i + 1).map((l) => (
+								{Array.from({ length: maxLevel }, (_, i) => i + 1).map((l) => (
 									<MenuItem key={l} value={l}>{l}</MenuItem>
 								))}
 							</Select>
 						</FormControl>
-								<HitPointControls character={character} cls={cls} updateClass={updateClass} />
+								{multiclassed && <Chip color="primary" size="small" label={`Character level ${getLevel(character)}`} />}
+							<HitPointControls character={character} cls={cls} updateClass={updateClass} />
 							</Box>
 							<Box sx={{ padding: 2, backgroundColor: 'action.hover', borderRadius: 2 }}>
 							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 1 }}>
@@ -131,6 +113,7 @@ export default function Class() {
 					</span>
 				)}
 			</CardSelector>
+			{cls && !is2024(character) && <Multiclass />}
 		</>
 	);
 }

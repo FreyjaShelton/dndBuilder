@@ -3,27 +3,13 @@ import { Box, Card, CardContent, Chip, Typography } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
 import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
-import {
-	getAbilityMods, getClass, getLevel, getProficiencyBonus, getSpellSlots, getSpellcastingStats,
-} from '../../utils/characterCalc';
+import { getClass, getSpellSlots, getSpellcastingStatsList } from '../../utils/characterCalc';
 import { formatSigned } from '../../utils/abilityScore';
-import { getSubclass } from '../../utils/classChoices';
 import { getAlwaysPrepared, getSpellSections } from '../../utils/spells2014';
 import { getRaceSpellInfo } from '../../utils/raceChoices';
 import { USE_TEXT, getFeatGrantedSpells } from '../../utils/featSpells';
 import useSpellDetails from '../../utils/useSpellDetails';
 import SpellPicker2014 from './SpellPicker2014';
-
-// Eldritch Knights and Arcane Tricksters cast with Intelligence even though their class does not.
-function useCasterStats(character) {
-	const stats = getSpellcastingStats(character);
-	if (stats) return stats;
-	const sub = getSubclass(character);
-	if (!sub || !['Eldritch Knight', 'Arcane Trickster'].includes(sub.name)) return null;
-	const mod = getAbilityMods(character).int;
-	const prof = getProficiencyBonus(getLevel(character));
-	return { className: `${getClass(character).name} (${sub.name})`, ability: 'Intelligence', saveDc: 8 + prof + mod, attackBonus: prof + mod };
-}
 
 function Stat({ label, children }) {
 	return (
@@ -34,29 +20,41 @@ function Stat({ label, children }) {
 	);
 }
 
+const pactText = (p) => `${p.count} Pact Magic slot${p.count === 1 ? '' : 's'} of level ${p.level} (refresh on a short rest)`;
+
 export default function Spells2014() {
-	const { character, updateClass } = useCharacter();
+	const { character, updateClass, updateExtraClass } = useCharacter();
 	const details = useSpellDetails();
-	const stats = useCasterStats(character);
+	// One set of spellcasting numbers for each class that casts (Eldritch Knights and Arcane Tricksters cast with Intelligence
+	// even though their class does not).
+	const statsList = getSpellcastingStatsList(character);
+	const multi = statsList.length > 1;
 	const slots = getSpellSlots(character);
 	const sections = getSpellSections(character);
+	const casterNames = [...new Set(sections.map((s) => s.className))]; // the classes that have spells to choose
 	const always = getAlwaysPrepared(character);
 	const racial = getRaceSpellInfo(character).fixed;
 	const featGranted = getFeatGrantedSpells(character);
 	const cls = getClass(character);
-	// updater: (currentNames) => newNames, applied to the latest stored value
-	const setSection = (id, updater) => updateClass((classInfo) => ({ choices: { ...(classInfo.choices || {}), [id]: updater((classInfo.choices || {})[id] || []) } }));
+	// updater: (currentNames) => newNames, applied to the latest stored value in the choices of the class the section belongs to
+	const setSection = (section, updater) => {
+		const apply = (classInfo) => ({ choices: { ...(classInfo.choices || {}), [section.choiceId]: updater((classInfo.choices || {})[section.choiceId] || []) } });
+		if (section.slot < 0) updateClass(apply);
+		else updateExtraClass(section.slot, apply);
+	};
 
-	const slotChips = slots?.type === 'standard'
-		? Object.entries(slots.slots).filter(([, n]) => n > 0).map(([l, n]) => `Level ${l}: ${n}`)
-		: slots?.type === 'pact' ? [`${slots.count} slot${slots.count === 1 ? '' : 's'} of level ${slots.level} (refresh on a short rest)`] : [];
+	const slotChips = [
+		...(slots?.type === 'standard' ? Object.entries(slots.slots).filter(([, n]) => n > 0).map(([l, n]) => `Level ${l}: ${n}`) : []),
+		...(slots?.type === 'pact' ? [pactText(slots)] : []),
+		...(slots?.pact ? [pactText(slots.pact)] : []),
+	];
 
 	return (
 		<>
 			<PageHeader
 				eyebrow={getStepEyebrow('Spells', character)}
 				title="Spells"
-				subtitle={cls ? `Choose the spells your ${cls.name} knows. Tap a spell's arrow to read it.` : 'Choose a class first.'}
+				subtitle={cls ? `Choose the spells your ${casterNames.join(' and ') || cls.name} ${casterNames.length > 1 ? 'know' : 'knows'}. Tap a spell's arrow to read it.` : 'Choose a class first.'}
 			/>
 
 			{!sections.length && (
@@ -65,26 +63,36 @@ export default function Spells2014() {
 				</Typography>
 			)}
 
-			{stats && sections.length > 0 && (
+			{statsList.length > 0 && sections.length > 0 && (
 				<Card sx={{ marginBottom: 2, backgroundColor: 'background.paper' }}>
 					<CardContent>
-						<Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-							<Stat label="Spellcasting ability">{stats.ability}</Stat>
-							<Stat label="Spell save DC">{stats.saveDc}</Stat>
-							<Stat label="Spell attack">{formatSigned(stats.attackBonus)}</Stat>
-						</Box>
+						{statsList.map((stats) => (
+							<Box key={stats.index} sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: multi ? 1.5 : 0 }}>
+								{multi && <Typography sx={{ fontWeight: 700, minWidth: 150 }}>{stats.className}</Typography>}
+								<Stat label="Spellcasting ability">{stats.ability}</Stat>
+								<Stat label="Spell save DC">{stats.saveDc}</Stat>
+								<Stat label="Spell attack">{formatSigned(stats.attackBonus)}</Stat>
+							</Box>
+						))}
 						{slotChips.length > 0 && (
 							<Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', marginTop: 1.5 }}>
-								<Typography variant="body2" sx={{ color: 'text.secondary', marginRight: 0.5 }}>Spell slots</Typography>
+								<Typography variant="body2" sx={{ color: 'text.secondary', marginRight: 0.5 }}>
+									{slots?.combined !== undefined ? `Spell slots (combined spellcaster level ${slots.combined})` : 'Spell slots'}
+								</Typography>
 								{slotChips.map((c) => <Chip key={c} size="small" label={c} />)}
 							</Box>
+						)}
+						{multi && (
+							<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', marginTop: 1 }}>
+								Spells known and prepared are worked out class by class. Each spell uses the spellcasting ability of the class you learned it with.
+							</Typography>
 						)}
 					</CardContent>
 				</Card>
 			)}
 
 			{sections.map((section) => (
-				<SpellPicker2014 key={section.id} section={section} details={details} onChange={(updater) => setSection(section.id, updater)} />
+				<SpellPicker2014 key={section.id} section={section} details={details} onChange={(updater) => setSection(section, updater)} />
 			))}
 
 			{racial.length > 0 && (
@@ -122,7 +130,7 @@ export default function Spells2014() {
 					<CardContent>
 						<Typography variant="h6" sx={{ fontWeight: 700 }}>Always prepared</Typography>
 						<Typography variant="body2" sx={{ color: 'text.secondary', marginBottom: 1 }}>
-							{always[0].from} spells are always prepared and don&apos;t count against your limit.
+							{[...new Set(always.map((a) => a.from))].join(' and ')} spells are always prepared and don&apos;t count against your limit.
 						</Typography>
 						<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
 							{always.map((s) => <Chip key={s.name} size="small" label={s.name} />)}

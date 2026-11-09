@@ -2,10 +2,12 @@
 // where the feat is chosen (the class's Ability Score Improvement card, or the race page for a racial feat) and stored
 // with it as { variant, picks: { [pickId]: [spellNames] } }:
 //   class ASI: classInfo.choices['asi-<level>'].spells      race feat: race.choices['feat:spells']
+// (a later class of a multiclassed character keeps its own choices, in its entry of classInfo.multiclass.classes)
 import spellIndex from '../data/2014/spellIndex';
 import { attackCantrips, featSpells, ritualSpells } from '../data/2014/featSpells';
 import { ABILITY_NAMES } from './abilityScore';
 import { getAsiLevels, getChoiceValues } from './classChoices';
+import { getClassViews } from './multiclass';
 
 const byName = new Map(spellIndex.map((s) => [s.name, s]));
 const ritual = new Set(ritualSpells);
@@ -99,10 +101,12 @@ export function getFeatSpellPending(featName, state) {
 export function getCharacterFeats(character) {
 	if (character.edition !== '2014') return [];
 	const out = [];
-	const values = getChoiceValues(character);
-	getAsiLevels(character).forEach((l) => {
-		const v = values[`asi-${l}`];
-		if (v?.type === 'feat' && v.feat) out.push({ feat: v.feat, source: `asi-${l}`, state: v.spells });
+	getClassViews(character).forEach((view) => {
+		const values = getChoiceValues(view);
+		getAsiLevels(view).forEach((l) => {
+			const v = values[`asi-${l}`];
+			if (v?.type === 'feat' && v.feat) out.push({ feat: v.feat, source: view.__index ? `${view.classInfo.className}:asi-${l}` : `asi-${l}`, state: v.spells });
+		});
 	});
 	const rc = character.race?.choices || {};
 	if (rc.feat) out.push({ feat: rc.feat, source: 'race', state: rc['feat:spells'] });

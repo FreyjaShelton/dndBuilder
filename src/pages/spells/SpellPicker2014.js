@@ -64,10 +64,11 @@ const Row = React.memo(function Row({ name, checked, disabled, onToggle, details
 });
 
 // One group of spell picks (cantrips, spells known, prepared...).
-// section: { title, subtitle, note, count, options, value }
+// section: { title, subtitle, note, count, options, value, openEnded? }
+// openEnded: `count` is what the class gives for free, but more can be added (a wizard's spellbook can hold any number of copied spells).
 // onChange receives an updater (currentNames) => newNames, so two quick clicks never overwrite each other.
 export default function SpellPicker2014({ section, onChange, details }) {
-	const { title, subtitle, note, count, options, value } = section;
+	const { title, subtitle, note, count, options, value, openEnded } = section;
 	const [query, setQuery] = React.useState('');
 	const [levelFilter, setLevelFilter] = React.useState('all');
 	const [chosenOnly, setChosenOnly] = React.useState(false);
@@ -76,11 +77,12 @@ export default function SpellPicker2014({ section, onChange, details }) {
 	const optionNames = React.useMemo(() => new Set(options.map((o) => o.name)), [options]);
 	const levels = React.useMemo(() => [...new Set(options.map((o) => (findSpell(o.name) || { level: 0 }).level))].sort((a, b) => a - b), [options]);
 	const picked = value.filter((n) => optionNames.has(n));
-	const full = picked.length >= count;
+	const full = !openEnded && picked.length >= count;
+	const extra = openEnded ? Math.max(0, picked.length - count) : 0;
 
 	// toggle never changes identity, so the memoised rows stay put; it reads the latest limits from refs
 	const latest = React.useRef({});
-	latest.current = { count, optionNames, onChange };
+	latest.current = { count: openEnded ? Infinity : count, optionNames, onChange };
 	const toggle = React.useCallback((name) => {
 		latest.current.onChange((current) => {
 			const valid = (current || []).filter((n) => latest.current.optionNames.has(n));
@@ -107,15 +109,15 @@ export default function SpellPicker2014({ section, onChange, details }) {
 					<Box sx={{ flex: 1 }} />
 					<Chip
 						size="small"
-						color={picked.length === count ? 'success' : 'warning'}
-						variant={picked.length === count ? 'filled' : 'outlined'}
-						label={`${picked.length} / ${count}`}
+						color={picked.length === count || extra > 0 ? 'success' : 'warning'}
+						variant={picked.length === count || extra > 0 ? 'filled' : 'outlined'}
+						label={extra > 0 ? `${count} / ${count} + ${extra} extra` : `${picked.length} / ${count}`}
 					/>
 				</Box>
 				<LinearProgress
 					variant="determinate"
 					value={Math.min(100, (picked.length / Math.max(1, count)) * 100)}
-					color={picked.length === count ? 'success' : 'primary'}
+					color={picked.length >= count && openEnded ? 'success' : picked.length === count ? 'success' : 'primary'}
 					sx={{ height: 4, borderRadius: 1, marginY: 1 }}
 				/>
 				{note && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', marginBottom: 1 }}>{note}</Typography>}

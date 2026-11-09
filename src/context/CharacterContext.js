@@ -126,6 +126,18 @@ export function CharacterProvider({ children }) {
 	const updateSection = (section) => (patch) =>
 		setCharacter((prev) => ({ ...prev, [section]: { ...prev[section], ...(typeof patch === 'function' ? patch(prev[section]) : patch) } }));
 
+	// Multiclassing (2014): the classes after the first live in classInfo.multiclass (see utils/multiclass.js).
+	// patch is an object to merge or a function of the current multiclass state returning one.
+	const updateMulticlass = (patch) => setCharacter((prev) => {
+		const mc = prev.classInfo.multiclass || { enabled: false, ignorePrereqs: false, classes: [] };
+		return { ...prev, classInfo: { ...prev.classInfo, multiclass: { ...mc, ...(typeof patch === 'function' ? patch(mc) : patch) } } };
+	});
+
+	// Changes one of the later classes. slot is its position in classInfo.multiclass.classes; patch works like updateClass's.
+	const updateExtraClass = (slot, patch) => updateMulticlass((mc) => ({
+		classes: mc.classes.map((c, i) => (i === slot ? { ...c, ...(typeof patch === 'function' ? patch(c) : patch) } : c)),
+	}));
+
 	const setEdition = (edition) =>
 		setCharacter((prev) => (prev.edition === edition ? prev : { ...prev, edition, ...editionDependentDefaults }));
 
@@ -164,6 +176,8 @@ export function CharacterProvider({ children }) {
 		updateInfo: updateSection('info'),
 		updateRace: updateSection('race'),
 		updateClass: updateSection('classInfo'),
+		updateMulticlass,
+		updateExtraClass,
 		updateAbilities: updateSection('abilities'),
 		updateBackground: updateSection('background'),
 		updateSkills: updateSection('skills'),

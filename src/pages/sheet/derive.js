@@ -1,8 +1,9 @@
 import {
-	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getFinalAbilities, getHitPoints,
+	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getFinalAbilities, getHitDice, getHitPoints,
 	getLevel, getProficiencyBonus, getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots,
-	getSpellcastingStats, getSubrace,
+	getSpellcastingStats, getSpellcastingStatsList, getSubrace,
 } from '../../utils/characterCalc';
+import { getClassSummary } from '../../utils/multiclass';
 import { getSelectedSpells } from '../../utils/spells';
 import { getEquipped, usesEquipping } from './inventory';
 
@@ -16,8 +17,11 @@ export function derive(character, items) {
 	const prof = getProficiencyBonus(level);
 	const skills = getSkillBonuses(character);
 	const perception = skills.find((s) => s.name === 'Perception');
+	const hitDice = getHitDice(character);
 	return {
 		cls, level, mods, prof, skills,
+		classSummary: getClassSummary(character), // "Fighter 3 / Wizard 2" (just "Fighter 5" for a single class)
+		hitDice, // [{ die, count }], biggest die first
 		equipping: usesEquipping(character),
 		race: getRace(character),
 		subrace: getSubrace(character),
@@ -30,9 +34,21 @@ export function derive(character, items) {
 		initiative: mods.dex,
 		passivePerception: 10 + (perception ? perception.bonus : 0),
 		attacks: getAttacks(character, equipped ? equipped.weapons : undefined),
-		spellStats: getSpellcastingStats(character),
+		spellStats: getSpellcastingStats(character), // the first class that casts
+		spellStatsList: getSpellcastingStatsList(character), // one entry for each class that casts
 		slots: getSpellSlots(character),
 		spells: getSelectedSpells(character),
-		hitDie: cls ? cls.hitDie : 8,
+		hitDie: hitDice.length ? hitDice[0].die : 8,
 	};
+}
+
+
+// The hit dice not yet spent: the biggest dice are spent first. [{ die, count }]
+export function hitDiceLeftByDie(hitDice, used) {
+	let toSpend = Math.max(0, used || 0);
+	return hitDice.map(({ die, count }) => {
+		const spent = Math.min(count, toSpend);
+		toSpend -= spent;
+		return { die, count: count - spent };
+	}).filter((x) => x.count > 0);
 }

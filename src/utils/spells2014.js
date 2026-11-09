@@ -1,8 +1,11 @@
 // Spells for 2014 characters: what the Spells step offers, what has been picked, and the spell
 // records the sheet and PDF need. The picks themselves live in character.classInfo.choices (same
-// store as the other class choices); this module only reads them.
+// store as the other class choices); this module only reads them. A multiclassed character picks spells class by class: the
+// functions that take one class (getPreparedLimit2014, getPreparedOptions, getPreparedSpells) are given a class view
+// (see multiclass.js); the ones that cover the character combine all of its classes.
 import spellIndex from '../data/2014/spellIndex';
-import { getAbilityMods, getClass, getLevel, getSpellcastingStats } from './characterCalc';
+import { getAbilityMods, getClass, getClassLevel, getClassSpellcastingStats } from './characterCalc';
+import { getClassViews } from './multiclass';
 import { getRaceChoices, getRaceSpellInfo } from './raceChoices';
 import { getFeatGrantedSpells } from './featSpells';
 import {
@@ -32,22 +35,27 @@ export const getLoadedSpellDetails = () => detailsCache;
 
 const spellDefs = (character) => getActiveChoiceDefs(character).filter((d) => d.kind === 'spells');
 
+// Does this class (or class view) have spells to choose?
+const classHasSpells = (view) => {
+	const cls = getClass(view);
+	return !!cls && (!!cls.spellcastingAbility || spellDefs(view).some((d) => resolveCount(d, view) > 0));
+};
+
 export function hasSpellsPage2014(character) {
 	if (!character || character.edition !== '2014') return false;
-	const cls = getClass(character);
-	if (!cls) return false;
+	if (!getClass(character)) return false;
 	const race = getRaceSpellInfo(character);
-	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0) || race.fixed.length > 0 || getFeatGrantedSpells(character).length > 0;
+	return getClassViews(character).some(classHasSpells) || race.fixed.length > 0 || getFeatGrantedSpells(character).length > 0;
 }
 
 // ---- Prepared spells (artificer, cleric, druid, paladin, wizard) ------------------------------------------
 
 export function getPreparedLimit2014(character) {
 	const cls = getClass(character);
-	const stats = cls && getSpellcastingStats(character);
+	const stats = cls && getClassSpellcastingStats(character);
 	if (!stats) return 0;
 	const mod = getAbilityMods(character)[stats.abilityKey];
-	const level = getLevel(character);
+	const level = getClassLevel(character);
 	if (['Cleric', 'Druid', 'Wizard'].includes(cls.name)) return Math.max(1, mod + level);
 	if (cls.name === 'Paladin') return level >= 2 ? Math.max(1, mod + Math.floor(level / 2)) : 0;
 	if (cls.name === 'Artificer') return Math.max(1, mod + Math.floor(level / 2));
@@ -88,10 +96,16 @@ function parseSpellNames(cell) {
 	return out;
 }
 
+// Always-prepared spells of every class the character has.
 export function getAlwaysPrepared(character) {
+	const all = getClassViews(character).flatMap(alwaysPreparedOf);
+	return all.filter((r, i) => all.findIndex((x) => x.name === r.name) === i);
+}
+
+function alwaysPreparedOf(character) {
 	const sub = getSubclass(character);
 	if (!sub) return [];
-	const level = getLevel(character);
+	const level = getClassLevel(character);
 	const terrain = getChoiceValues(character).landTerrain;
 	const results = [];
 	sub.features.filter((f) => /Spells$/.test(f.name) && f.level <= level).forEach((f) => {
@@ -121,38 +135,58 @@ export function getAlwaysPrepared(character) {
 
 // ---- Sections shown on the Spells step -------------------------------------------------------------------------
 
-// [{ id, title, subtitle, note, count, options, value, prepared? }] in display order.
+// [{ id, choiceId, classIndex, slot, className, title, subtitle, note, count, options, value, prepared? }] in display order.
+// `id` is unique across the character; `choiceId` is the key the picks are stored under in that class's choices (classIndex 0 is
+// the first class, `slot` is where a later class sits in classInfo.multiclass.classes, -1 for the first class).
 export function getSpellSections(character) {
 	if (!hasSpellsPage2014(character)) return [];
-	const values = getChoiceValues(character);
-	const sections = spellDefs(character)
-		.map((def) => ({
-			id: def.id,
-			title: def.id === 'cantrips' ? 'Cantrips' : def.id === 'spellsKnown' ? 'Spells known' : def.id === 'spellbook' ? 'Spellbook' : def.label,
-			subtitle: def.id === 'cantrips' || def.id === 'spellsKnown' || def.id === 'spellbook' ? '' : `${def.feature}${def.level > 1 ? ` (level ${def.level})` : ''}`,
-			note: def.countNote || '',
-			count: resolveCount(def, character),
-			options: getChoiceOptions(def, null, character),
-			value: values[def.id] || [],
-			order: def.id === 'cantrips' ? 0 : def.id === 'spellsKnown' || def.id === 'spellbook' ? 1 : 3 + def.level / 100,
-		}))
-		.filter((s) => s.count > 0);
-	const limit = getPreparedLimit2014(character);
-	if (limit > 0) {
-		const cls = getClass(character);
-		sections.push({
-			id: 'prepared',
-			title: 'Prepared spells',
-			subtitle: cls.name === 'Wizard' ? 'Chosen from your spellbook' : `From the ${cls.name} spell list`,
-			note: 'You can change these after every long rest.',
-			count: limit,
-			options: getPreparedOptions(character),
-			value: getPreparedSpells(character),
-			order: 2,
-			prepared: true,
+	const views = getClassViews(character);
+	const multi = views.length > 1;
+	return views.flatMap((view, vi) => {
+		if (!classHasSpells(view)) return [];
+		const className = getClass(view).name;
+		const values = getChoiceValues(view);
+		const mark = (section) => ({
+			...section,
+			choiceId: section.id,
+			id: multi ? `${vi}:${section.id}` : section.id,
+			classIndex: vi,
+			slot: view.__slot ?? -1,
+			className,
+			title: multi ? `${section.title} (${className})` : section.title,
+			order: vi * 10 + section.order,
 		});
-	}
-	return sections.sort((a, b) => a.order - b.order);
+		const sections = spellDefs(view)
+			.map((def) => ({
+				id: def.id,
+				title: def.id === 'cantrips' ? 'Cantrips' : def.id === 'spellsKnown' ? 'Spells known' : def.id === 'spellbook' ? 'Spellbook' : def.label,
+				subtitle: def.id === 'cantrips' || def.id === 'spellsKnown' || def.id === 'spellbook' ? '' : `${def.feature}${def.level > 1 ? ` (level ${def.level})` : ''}`,
+				note: def.countNote || '',
+				count: resolveCount(def, view),
+				options: getChoiceOptions(def, null, view),
+				value: values[def.id] || [],
+				// a wizard can keep adding spells to the spellbook, and cantrips, past the number the class gives
+				openEnded: def.id === 'spellbook' || (def.id === 'cantrips' && className === 'Wizard'),
+				order: def.id === 'cantrips' ? 0 : def.id === 'spellsKnown' || def.id === 'spellbook' ? 1 : 3 + def.level / 100,
+			}))
+			.filter((s) => s.count > 0)
+			.map(mark);
+		const limit = getPreparedLimit2014(view);
+		if (limit > 0) {
+			sections.push(mark({
+				id: 'prepared',
+				title: 'Prepared spells',
+				subtitle: className === 'Wizard' ? 'Chosen from your spellbook' : `From the ${className} spell list`,
+				note: 'You can change these after every long rest.',
+				count: limit,
+				options: getPreparedOptions(view),
+				value: getPreparedSpells(view),
+				order: 2,
+				prepared: true,
+			}));
+		}
+		return sections;
+	}).sort((a, b) => a.order - b.order);
 }
 
 // Cantrips granted by the character's race (High Elf, Fairy...): picked on the Race page, stored with the race's choices.
@@ -176,7 +210,7 @@ export function getChosenSpellNames(character) {
 	if (character.edition !== '2014') return [];
 	const names = new Set();
 	// a wizard's spellbook is reference, not what they can cast today: the sheet lists cantrips and prepared spells
-	getSpellSections(character).filter((s) => s.id !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => names.add(n)));
+	getSpellSections(character).filter((s) => s.choiceId !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => names.add(n)));
 	getFeatGrantedSpells(character).forEach((s) => names.add(s.name));
 	getRaceSpellSections(character).forEach((s) => (s.value || []).forEach((n) => { if (s.options.some((o) => o.name === n)) names.add(n); }));
 	getAlwaysPrepared(character).forEach((s) => names.add(s.name));
@@ -187,12 +221,16 @@ export function getChosenSpellNames(character) {
 // Full records (index fields plus details when they have been loaded), cantrips first.
 export function getSelectedSpells2014(character) {
 	const details = getLoadedSpellDetails();
+	// which class each spell was picked for (its spellcasting ability, save DC and attack bonus are that class's)
+	const casterOf = new Map();
+	getSpellSections(character).filter((s) => s.choiceId !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => { if (!casterOf.has(n)) casterOf.set(n, s.classIndex); }));
+	getClassViews(character).forEach((view, vi) => alwaysPreparedOf(view).forEach((a) => { if (!casterOf.has(a.name)) casterOf.set(a.name, vi); }));
 	return getChosenSpellNames(character)
 		.map(findSpell).filter(Boolean)
 		.map((s) => {
 			const d = details?.[s.name] || {};
 			return {
-				name: s.name, level: s.level, school: s.school, classes: s.classes,
+				name: s.name, level: s.level, school: s.school, classes: s.classes, casterIndex: casterOf.get(s.name),
 				castingTime: d.castingTime || '', range: d.range || '', components: d.components || '', duration: d.duration || '',
 				concentration: !!d.concentration, ritual: !!d.ritual, description: d.description || '', higherLevels: d.higherLevels || '',
 			};

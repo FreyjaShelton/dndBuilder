@@ -6,9 +6,11 @@ import { ABILITY_KEYS, formatSigned, getModifier } from '../../utils/abilityScor
 import {
 	getAbilityMods, getArmorClass, getArmorProficiencies, getAttacks, getBackground, getClass, getClassFeatureNames, getFinalAbilities,
 	getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus, getRace, getSavingThrows, getSkillBonuses, getSpeed,
-	getSpellcastingStats, getSpellSlots, getSubrace, getWeaponProficiencies, getCarriedGold, is2024,
+	getSpellcastingStats, getSpellcastingStatsList, getSpellSlots, getSubrace, getWeaponProficiencies, getCarriedGold, getClassToolProficiencies,
+	getHitDice, is2024,
 } from '../../utils/characterCalc';
 import { getEditionData } from '../../data';
+import { getClassLevelOf, getClassViews } from '../../utils/multiclass';
 import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../utils/classChoices';
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
@@ -112,8 +114,9 @@ function createFiller(form, font) {
 			f.setFontSize(size);
 			f.setText(lines.slice(0, capacity).join('\n'));
 		},
-		wrapText: (text, size, width) => wrapText(font, text, size, width),
-		widthOf: (text, size) => font.widthOfTextAtSize(text, size),
+		// text from the rules data can hold characters the standard font cannot draw (a real minus sign), so it is made safe first
+		wrapText: (text, size, width) => wrapText(font, safe(text), size, width),
+		widthOf: (text, size) => font.widthOfTextAtSize(safe(text), size),
 	};
 }
 
@@ -257,8 +260,12 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	const prof = getProficiencyBonus(level);
 	const picked = !!cls;
 	const edition2024 = is2024(character);
-	const subclassName = !edition2024 && character.classInfo?.subclass ? character.classInfo.subclass : '';
-	const classLabel = picked ? `${subclassName ? `${subclassName} ` : ''}${cls.name} ${level}` : '';
+	// "Champion Fighter 3 / Evocation Wizard 2": each class with its level (and subclass, in 2014)
+	const classLabel = picked ? getClassViews(character).filter((v) => v.classInfo.className).map((v) => {
+		const sub = !edition2024 && v.classInfo.subclass ? v.classInfo.subclass : '';
+		return `${sub ? `${sub} ` : ''}${v.classInfo.className} ${getClassLevelOf(v)}`;
+	}).join(' / ') : '';
+	const classNames = getClassViews(character).map((v) => v.classInfo.className);
 	const speciesLabel = race ? (subrace ? subrace.name : race.name) : '';
 	const bgLabel = bg ? (bg.name === 'Custom' ? character.background.customName : bg.name) : '';
 
@@ -306,14 +313,20 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	f.text('AC', picked || finals.dex !== '' ? getArmorClass(character) : '', { max: 15 });
 	if (picked) f.text('ProfBonus', formatSigned(prof), { max: 11 });
 	const casting = getSpellcastingStats(character);
+	const castingList = getSpellcastingStatsList(character);
 	if (casting) {
 		f.text('AbilitySaveScore1', casting.ability.slice(0, 3).toUpperCase(), { max: 7 });
 		f.text('AbilitySaveDC', casting.saveDc, { max: 11 });
 	}
+	// a second spellcasting class gets the sheet's second set of boxes
+	if (castingList[1]) {
+		f.text('AbilitySaveScore2', castingList[1].ability.slice(0, 3).toUpperCase(), { max: 7 });
+		f.text('AbilitySaveDC2', castingList[1].saveDc, { max: 11 });
+	}
 	if (race) f.block('Speed', `${getSpeed(character)} ft. (Walking)`, { max: 9 });
 	if (picked) {
 		f.text('MaxHP', getHitPoints(character), { max: 15 });
-		f.text('Total', `${level}d${cls.hitDie}`, { max: 9 });
+		f.text('Total', getHitDice(character).map((x) => `${x.count}d${x.die}`).join(' + '), { max: 9 });
 	}
 	const { defenses, saves: saveNotes } = getDefenses(character);
 	f.block('Defenses', defenses, { max: 7.5 });
@@ -347,7 +360,10 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 
 	// ---- proficiencies and languages
 	const toolNames = [];
-	if (cls && cls.toolProficiencies && !/^none$/i.test(cls.toolProficiencies)) toolNames.push(cls.toolProficiencies);
+	if (!edition2024) {
+		const classTools = getClassToolProficiencies(character);
+		if (classTools) toolNames.push(classTools);
+	} else if (cls && cls.toolProficiencies && !/^none$/i.test(cls.toolProficiencies)) toolNames.push(cls.toolProficiencies);
 	if (!edition2024) {
 		const values = getChoiceValues(character);
 		getActiveChoiceDefs(character).filter((d) => d.kind === 'tools').forEach((d) => (values[d.id] || []).forEach((t) => toolNames.push(t)));
@@ -367,7 +383,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	// ---- features, traits and feats across the six feature columns (pages 2 and 3)
 	const featureBlocks = [];
 	if (picked) {
-		featureBlocks.push({ title: `=== ${cls.name.toUpperCase()} FEATURES ===`, items: (edition2024 ? getClassFeatureNames(cls, level).map((n) => ({ name: n, text: '' })) : getSheetFeatures(character).map((x) => ({ name: x.label, text: x.description || '' }))) });
+		featureBlocks.push({ title: `=== ${[...new Set(classNames.filter(Boolean))].join(' / ').toUpperCase()} FEATURES ===`, items: (edition2024 ? getClassFeatureNames(cls, level).map((n) => ({ name: n, text: '' })) : getSheetFeatures(character).map((x) => ({ name: x.label, text: x.description || '' }))) });
 	}
 	if (race) {
 		const items = traitsOf(character).map((t) => ({ name: t.name, text: t.description || '' }));
@@ -428,12 +444,13 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 
 	// ---- spells (page 5)
 	if (casting && cls) {
-		f.text('spellCastingClass0', cls.name, { max: 11 });
-		f.text('spellCastingAbility0', casting.ability.slice(0, 3).toUpperCase(), { max: 13 });
-		f.text('spellSaveDC0', casting.saveDc, { max: 14 });
-		f.text('spellAtkBonus0', formatSigned(casting.attackBonus), { max: 14 });
+		// the sheet has one casting header; a multiclassed caster lists each class's numbers side by side
+		f.text('spellCastingClass0', castingList.map((c) => c.className.split(' (')[0]).join(' / '), { max: 11 });
+		f.text('spellCastingAbility0', castingList.map((c) => c.ability.slice(0, 3).toUpperCase()).join('/'), { max: 13 });
+		f.text('spellSaveDC0', castingList.map((c) => c.saveDc).join('/'), { max: 14 });
+		f.text('spellAtkBonus0', castingList.map((c) => formatSigned(c.attackBonus)).join('/'), { max: 14 });
 	}
-	fillSpellTable(f, character, spells, casting, cls);
+	fillSpellTable(f, character, spells, casting, cls, castingList, classNames);
 
 	return { missing: [...f.missing] };
 }
@@ -479,7 +496,7 @@ function fillFeatureColumns(f, blocks) {
 
 // ---- spells: header rows, spells and spacer rows flowed down the table ------------------------------------------------
 
-function fillSpellTable(f, character, spells, casting, cls) {
+function fillSpellTable(f, character, spells, casting, cls, castingList, classNames) {
 	if (!spells.length) return;
 	const slots = getSpellSlots(character);
 	const slotText = (lvl) => {
@@ -487,6 +504,7 @@ function fillSpellTable(f, character, spells, casting, cls) {
 		let n = 0;
 		if (slots?.type === 'standard') n = slots.slots[lvl] || 0;
 		else if (slots?.type === 'pact' && slots.level === lvl) n = slots.count;
+		if (slots?.pact && slots.pact.level === lvl) n += slots.pact.count; // Pact Magic slots next to a multiclass caster's regular ones
 		return n ? `${n} Slot${n === 1 ? '' : 's'} ${'O'.repeat(Math.min(n, 4))}` : '';
 	};
 	const { always, grants } = spellOrigins(character);
@@ -517,8 +535,11 @@ function fillSpellTable(f, character, spells, casting, cls) {
 		const s = e.spell;
 		f.text(row.prepared, 'O', { max: 8 });
 		f.text(row.name, s.name, { max: 8 });
-		f.text(row.source, spellSourceOf(character, s, className, always, grants), { max: 7.5 });
-		f.text(row.saveHit, saveOrHit(s, casting?.attackBonus), { max: 7.5 });
+		// a spell is cast with the class it was learned with
+		const spellClass = classNames && s.casterIndex !== undefined && classNames[s.casterIndex] ? classNames[s.casterIndex] : className;
+		const spellStats = (castingList || []).find((c) => c.index === s.casterIndex) || casting;
+		f.text(row.source, spellSourceOf(character, s, spellClass, always, grants), { max: 7.5 });
+		f.text(row.saveHit, saveOrHit(s, spellStats?.attackBonus), { max: 7.5 });
 		f.text(row.castingTime, castingTimeShort(s.castingTime), { max: 7.5 });
 		f.text(row.range, rangeShort(s.range), { max: 7.5 });
 		f.text(row.components, componentsShort(s.components), { max: 7.5 });

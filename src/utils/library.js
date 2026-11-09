@@ -12,6 +12,8 @@
 //
 // Built as a factory so the sync logic can be tested against an in-memory storage.
 
+import { getClassSummary } from './multiclass';
+
 const INDEX_KEY = 'dndBuilder.library.v2';
 const RECORD_PREFIX = 'dndBuilder.char.';
 const LEGACY_KEY = 'dndBuilder.sheet.v1'; // the old single-character slot
@@ -28,7 +30,7 @@ const describe = (character) => {
 	const name = character?.info?.name?.trim() || 'Unnamed character';
 	const race = character?.race?.subrace || character?.race?.name;
 	const cls = character?.classInfo?.className;
-	const summary = [race, cls ? `${cls} ${character.classInfo.level || 1}` : ''].filter(Boolean).join(' · ');
+	const summary = [race, cls ? (getClassSummary(character) || `${cls} ${character.classInfo.level || 1}`) : ''].filter(Boolean).join(' · ');
 	return { name, summary };
 };
 
