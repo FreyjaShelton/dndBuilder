@@ -6,8 +6,8 @@ import { getAlwaysPrepared, getSpellSections } from '../../utils/spells2014';
 import useSpellDetails from '../../utils/useSpellDetails';
 
 // The sheet's Spells tab while editing: the same spell picker the builder uses, for the prepared list only.
-// Changes go straight into the character (classInfo.choices.prepared), so the builder and the sheet stay in step.
-export default function PreparedSpellsEditor({ character, updateClass, onDone }) {
+// Changes are kept on the sheet while playing; they reach the builder when the player goes back to it (see sheetSync.js).
+export default function PreparedSpellsEditor({ character, setPrepared, onDone }) {
 	const details = useSpellDetails();
 	const section = getSpellSections(character).find((s) => s.id === 'prepared');
 	const always = getAlwaysPrepared(character);
@@ -28,7 +28,7 @@ export default function PreparedSpellsEditor({ character, updateClass, onDone })
 			<SpellPicker2014
 				section={section}
 				details={details}
-				onChange={(update) => updateClass((ci) => ({ choices: { ...(ci.choices || {}), prepared: update((ci.choices || {}).prepared || []) } }))}
+				onChange={(update) => setPrepared(update)}
 			/>
 			{always.length > 0 && (
 				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>

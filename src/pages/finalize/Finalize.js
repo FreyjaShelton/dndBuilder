@@ -5,6 +5,9 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import characterSheet from './5E_CharacterSheet_Fillable.pdf';
 import characterSheet2024 from './DnD_2024_Character_Sheet.pdf';
 import { fillSheet2024 } from './fillSheet2024';
+import characterSheetBeyond from './DnD_Beyond_Character_Sheet.pdf';
+import { fillBeyondSheet } from './fillBeyondSheet';
+import { loadSpellDetails } from '../../utils/spells2014';
 import { SPELL_FIELDS_2014 } from './spellFields2014';
 import { getSelectedSpells } from '../../utils/spells';
 import { useCharacter } from '../../context/CharacterContext';
@@ -42,14 +45,23 @@ const SLOT_TOTAL_FIELDS = [19, 20, 21, 22, 23, 24, 25, 26, 27].map((n) => `Slots
 
 const PdfEditor = () => {
 	const [pdfUrl, setPdfUrl] = useState(null);
-	// The 2014 sheet is the default for both editions; either sheet can be filled from any character.
-	const [sheet, setSheet] = useState('2014');
+	// The standard sheet is the default for both editions; any sheet can be filled from any character.
+	const [sheet, setSheet] = useState('beyond');
 	const { character, characterId } = useCharacter();
 
 	// Reaching this step is what makes a character eligible to sync to Google Drive; drafts stay on this device.
 	useEffect(() => { library.markFinalized(characterId); }, [characterId, character]);
 
 	const fillPdf = async () => {
+		if (sheet === 'beyond') {
+			const sheetBytes = await fetch(characterSheetBeyond).then((res) => res.arrayBuffer());
+			const doc = await PDFDocument.load(sheetBytes);
+			// the spell page needs casting times, ranges and so on, which load on demand
+			if (character.edition === '2014') { try { await loadSpellDetails(); } catch (e) { /* the sheet still fills without them */ } }
+			fillBeyondSheet(doc, character, await doc.embedFont(StandardFonts.Helvetica));
+			const bytes = await doc.save();
+			return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+		}
 		if (sheet === '2024') {
 			const sheetBytes = await fetch(characterSheet2024).then((res) => res.arrayBuffer());
 			const doc = await PDFDocument.load(sheetBytes);
@@ -264,6 +276,7 @@ const PdfEditor = () => {
 							value={sheet}
 							onChange={(_, next) => { if (next) setSheet(next); }}
 						>
+							<ToggleButton value="beyond">Standard sheet</ToggleButton>
 							<ToggleButton value="2014">2014 sheet</ToggleButton>
 							<ToggleButton value="2024">2024 sheet</ToggleButton>
 						</ToggleButtonGroup>

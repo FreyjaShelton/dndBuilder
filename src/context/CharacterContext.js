@@ -3,6 +3,7 @@ import { DEFAULT_EDITION } from '../data';
 import { migrateEquipment } from '../utils/equipment';
 import library, { isMeaningful, newId } from '../utils/library';
 import { startSync } from '../utils/cloud';
+import { pendingSheetChanges } from '../pages/sheet/sheetSync';
 
 const CharacterContext = React.createContext(null);
 
@@ -101,7 +102,17 @@ export function CharacterProvider({ children }) {
 		setPlayRevision((r) => r + 1);
 	}), []);
 
+	// What the player changed on the interactive sheet (inventory, prepared spells) is carried into the character when they
+	// leave the sheet. Returns the updated character, or null when there was nothing to carry over.
+	const applySheetChanges = (id) => {
+		const applied = pendingSheetChanges(library.getRecord(id));
+		if (!applied) return null;
+		library.saveFromSheet(id, { character: applied, playBase: JSON.stringify(applied) });
+		return applied;
+	};
+
 	const show = (id, next) => {
+		if (idRef.current && idRef.current !== id) applySheetChanges(idRef.current); // switching characters: nothing is stranded
 		library.setActive(id); // before anything re-renders, so nothing reads the previous character as the active one
 		idRef.current = id;
 		savedJson.current = JSON.stringify(next);
@@ -123,6 +134,14 @@ export function CharacterProvider({ children }) {
 		characterId,
 		playRevision,
 		setEdition,
+		// called when the sheet is closed: shows the sheet's changes in the rest of the app
+		syncFromSheet: () => {
+			const applied = applySheetChanges(idRef.current);
+			if (!applied) return;
+			const next = prepare(applied);
+			savedJson.current = JSON.stringify(next);
+			setCharacter(next);
+		},
 		loadCharacter: (loaded) => setCharacter(prepare(loaded)),
 		newCharacter: () => show(newId(), initialCharacter),
 		openCharacter: (id) => {

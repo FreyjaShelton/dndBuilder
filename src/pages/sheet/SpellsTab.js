@@ -94,14 +94,14 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 	);
 }
 
-export default function SpellsTab({ character, updateClass, d, play, setPlay, onCast, onAttack, onDamage }) {
+export default function SpellsTab({ character, setPrepared, d, play, setPlay, onCast, onAttack, onDamage }) {
 	const [editing, setEditing] = React.useState(false);
 	if (!d.spellStats) {
 		return <Typography color="text.secondary">{d.cls ? `${d.cls.name}s don't cast spells.` : 'No class selected.'}</Typography>;
 	}
 	// clerics, druids, paladins and wizards prepare spells and can change them (after a long rest)
 	const preparedLimit = character.edition === '2014' ? getPreparedLimit2014(character) : 0;
-	if (editing && preparedLimit > 0) return <PreparedSpellsEditor character={character} updateClass={updateClass} onDone={() => setEditing(false)} />;
+	if (editing && preparedLimit > 0) return <PreparedSpellsEditor character={character} setPrepared={setPrepared} onDone={() => setEditing(false)} />;
 	const slots = d.slots;
 	const levels = slots.type === 'standard' ? Object.entries(slots.slots).filter(([, n]) => n > 0).map(([l, n]) => [Number(l), n]) : [];
 	const available = (lvl) => {

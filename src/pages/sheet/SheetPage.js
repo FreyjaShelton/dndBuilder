@@ -8,6 +8,7 @@ import { rollD20, rollExpression, describeD20 } from './dice';
 import { defaultPlay, loadSaved, persist } from './storage';
 import { derive } from './derive';
 import { withEquipFlags } from './inventory';
+import { viewCharacter } from './sheetSync';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -22,7 +23,7 @@ import useSpellDetails from '../../utils/useSpellDetails';
 const TABS = ['Actions', 'Spells', 'Inventory', 'Features', 'Notes'];
 
 export default function SheetPage() {
-	const { character, characterId, playRevision, updateClass, importCharacter } = useCharacter();
+	const { character, characterId, playRevision, importCharacter, syncFromSheet } = useCharacter();
 	const [play, setPlayState] = React.useState(null);
 	// which character (and revision of it) `play` belongs to, so a stale play state is never saved onto another character
 	const [playKey, setPlayKey] = React.useState(null);
@@ -34,6 +35,12 @@ export default function SheetPage() {
 	const fileInput = React.useRef(null);
 	const built = !!character.classInfo.className;
 	const currentKey = `${characterId}:${playRevision}`;
+
+	// Leaving the sheet for the builder carries what changed here (inventory, prepared spells) over to the rest of the app.
+	// Until then the sheet keeps its own copy, so playing never rearranges the builder underneath.
+	const syncRef = React.useRef(syncFromSheet);
+	syncRef.current = syncFromSheet;
+	React.useEffect(() => () => syncRef.current(), []);
 
 	// Load the in-play state saved with this character (HP, spent slots...) when the sheet opens or the open
 	// character changes. If the build has changed since it was saved, start fresh.
@@ -56,7 +63,10 @@ export default function SheetPage() {
 	// spell text loads on demand, so the sheet recomputes once it arrives
 	// what is equipped in the inventory decides the armor class and the attack list
 	const items = play ? play.items : null;
-	const d = React.useMemo(() => derive(character, items), [character, items, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
+	// the spells prepared on the sheet stand in for the builder's until the sheet is closed
+	const preparedOnSheet = play ? play.prepared : undefined;
+	const view = React.useMemo(() => viewCharacter(character, { prepared: preparedOnSheet }), [character, preparedOnSheet]);
+	const d = React.useMemo(() => derive(view, items), [view, items, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!play || playKey !== currentKey) {
 		return (
@@ -72,6 +82,10 @@ export default function SheetPage() {
 	}
 
 	const setPlay = (patch) => setPlayState((p) => ({ ...p, ...patch }));
+	const setPrepared = (update) => setPlayState((p) => ({
+		...p,
+		prepared: update(Array.isArray(p.prepared) ? p.prepared : ((character.classInfo.choices || {}).prepared || [])),
+	}));
 	const addLog = (label, total, detail, flag) => setLog((l) => [{ id: Date.now() + Math.random(), label, total, detail, flag }, ...l].slice(0, 40));
 
 	const roll = (label, bonus) => {
@@ -208,7 +222,7 @@ export default function SheetPage() {
 						</Tabs>
 						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
 						{activeTab === 'Actions' && <ActionsTab d={d} onAttack={roll} onDamage={damage} />}
-						{activeTab === 'Spells' && <SpellsTab character={character} updateClass={updateClass} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
 						{activeTab === 'Features' && <FeaturesTab character={character} d={d} />}
 						{activeTab === 'Notes' && <NotesTab character={character} play={play} setPlay={setPlay} />}

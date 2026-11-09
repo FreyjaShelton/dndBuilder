@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {
-	Box, Button, Card, CardContent, Checkbox, Chip, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Tab, Table,
+	Alert, Box, Button, Card, CardContent, Checkbox, Chip, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, Select, Tab, Table,
 	TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, ToggleButton, Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -220,6 +220,9 @@ export default function Equipment() {
 	const filtered = all.filter((item) => (group === 'All' || item.group === group) && item.name.toLowerCase().includes(search.trim().toLowerCase()));
 	const weight = Math.round(getTotalWeight(character) * 100) / 100;
 	const bought = getPurchasedItems(character);
+	const eqState = character.equipment || {};
+	const sheetChanged = Object.keys(eqState.added || {}).length > 0 || Object.keys(eqState.removed || {}).length > 0 || !!eqState.carried;
+	const discardSheetChanges = () => updateEquipment({ added: {}, removed: {}, customItems: {}, carried: null });
 
 	return (
 		<>
@@ -257,6 +260,16 @@ export default function Equipment() {
 						</Typography>
 					)}
 
+					{sheetChanged && (
+						<Alert
+							severity="info"
+							sx={{ marginBottom: 2 }}
+							action={<Button color="inherit" size="small" onClick={discardSheetChanges}>Discard sheet changes</Button>}
+						>
+							Your interactive sheet changed this inventory while you played (items picked up or given up, coins, worn armor). They show here with
+							no cost. Discarding goes back to what the builder gives you.
+						</Alert>
+					)}
 					{owned.length > 0 && (
 						<TableContainer sx={{ marginBottom: 3, border: BORDER, borderRadius: 2 }}>
 							<Table size="small">
@@ -272,14 +285,14 @@ export default function Equipment() {
 								</TableHead>
 								<TableBody>
 									{owned.map((item) => (
-										<TableRow key={`${item.fromKit ? 'kit' : 'own'}:${item.name}`}>
+										<TableRow key={`${item.fromKit ? 'kit' : item.fromSheet ? 'sheet' : 'own'}:${item.name}`}>
 											<TableCell sx={{ fontWeight: 600 }}>
 												{item.name}
 												{item.fromPack && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>from {item.fromPack}</Typography>}
 											</TableCell>
-											<TableCell><Chip label={item.fromKit ? `Kit · ${item.group}` : item.group} size="small" variant="outlined" /></TableCell>
+											<TableCell><Chip label={item.fromKit ? `Kit · ${item.group}` : item.fromSheet ? (item.custom ? 'Added on your sheet' : `Sheet · ${item.group}`) : item.group} size="small" variant="outlined" /></TableCell>
 											<TableCell>
-												{item.fromKit ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Included</Typography> : (
+												{item.fromKit || item.fromSheet ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>{item.fromSheet ? 'From play' : 'Included'}</Typography> : (
 													<>
 														{item.cost ? formatGold(parseCostToGold(item.cost) * item.quantity) : '—'}
 														{item.quantity > 1 && item.cost && (
@@ -289,7 +302,7 @@ export default function Equipment() {
 												)}
 											</TableCell>
 											<TableCell>
-												{item.fromKit ? item.quantity : (
+												{item.fromKit || item.fromSheet ? item.quantity : (
 													<TextField
 														type="number"
 														size="small"
@@ -312,7 +325,7 @@ export default function Equipment() {
 												)}
 											</TableCell>
 											<TableCell>
-												{!item.fromKit && (
+												{!item.fromKit && !item.fromSheet && (
 													<IconButton size="small" onClick={() => toggleItem(item)} aria-label={`Remove ${item.name}`}>
 														<DeleteOutlineIcon fontSize="small" />
 													</IconButton>

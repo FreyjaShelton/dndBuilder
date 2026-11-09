@@ -9,6 +9,7 @@ import { getKitGold, getKitItems } from './startingKit';
 //   goldMethod: '' | 'average' | 'roll' | 'kit',  how starting gold was determined
 //   gold: '' | number,                         starting gold (the budget); in 'kit' mode the kit's coins are used instead
 //   kit: { choices, picks },                   choices made in the starting kit (see startingKit.js)
+//   added, removed, customItems, carried       changes made on the interactive sheet (see getOwnedItems and sheetSync.js)
 // }
 // In 'kit' mode the class and background kit items are owned as well (derived, free); everything in `selected` still costs gold.
 
@@ -43,8 +44,41 @@ export function getPurchasedItems(character) {
 		.filter(Boolean);
 }
 
-// Everything the character has: the starting kit (when taken) followed by what was added by hand.
-export const getOwnedItems = (character) => [...getKitItems(character), ...getPurchasedItems(character)];
+// The kit plus what was bought, before anything the interactive sheet changed.
+export const getBaseOwnedItems = (character) => [...getKitItems(character), ...getPurchasedItems(character)];
+
+// What the interactive sheet changed in play, applied when the player goes back to the builder (see sheetSync.js):
+//   equipment.added   { name: quantity }     items picked up or bought in play (free: they never touch the starting gold)
+//   equipment.removed { name: quantity }     items given up (taken from the kit first, then purchases; spent gold is not refunded)
+//   equipment.customItems { name: { weight } }   weights of the added items that are not in the item catalog
+function applySheetChanges(character, base) {
+	const eq = character.equipment || {};
+	const removed = eq.removed || {};
+	const added = eq.added || {};
+	if (!Object.keys(removed).length && !Object.keys(added).length) return base;
+	let rows = base.map((row) => ({ ...row }));
+	Object.entries(removed).forEach(([name, quantity]) => {
+		let left = Number(quantity) || 0;
+		rows.forEach((row) => {
+			if (row.name !== name || left <= 0) return;
+			const take = Math.min(row.quantity, left);
+			row.quantity -= take;
+			left -= take;
+		});
+	});
+	rows = rows.filter((row) => row.quantity > 0);
+	Object.entries(added).forEach(([name, quantity]) => {
+		if (!(Number(quantity) > 0)) return;
+		const item = getItem(character.edition, name);
+		const custom = eq.customItems?.[name];
+		if (item) rows.push({ ...item, quantity: Number(quantity), fromSheet: true });
+		else rows.push({ name, group: 'Added on the sheet', cost: '', weight: Number(custom?.weight) || 0, quantity: Number(quantity), custom: true, fromSheet: true });
+	});
+	return rows;
+}
+
+// Everything the character has: the starting kit (when taken), what was added by hand, and what the sheet changed.
+export const getOwnedItems = (character) => applySheetChanges(character, getBaseOwnedItems(character));
 
 export const getWeaponNames = (character) => [...new Set(getOwnedItems(character).filter((i) => i.group === 'Weapons').map((i) => i.name))];
 

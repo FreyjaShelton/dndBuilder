@@ -391,6 +391,12 @@ export function getLanguages(character) {
 }
 
 export function getCarriedGold(character) {
+	// coins counted on the interactive sheet win over the starting-gold arithmetic (they are in gold pieces)
+	const carried = character.equipment?.carried;
+	if (carried) {
+		const total = (Number(carried.pp) || 0) * 10 + (Number(carried.gp) || 0) + (Number(carried.ep) || 0) * 0.5 + (Number(carried.sp) || 0) / 10 + (Number(carried.cp) || 0) / 100;
+		return String(Math.round(total * 100) / 100);
+	}
 	// whatever is left of the starting gold after buying gear
 	const left = getRemainingGold(character);
 	return left === '' ? '' : String(Math.max(0, left));
