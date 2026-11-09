@@ -1,26 +1,31 @@
 // Keeps the characters in the local library in sync with the user's Google Drive, like the budget app does:
-// sign in with Google once and it stays connected. Changes upload a few seconds after you stop editing, and
-// characters saved on another device show up here. There is no passphrase and no manual save.
+// sign in with Google once and it stays connected. There is no passphrase and no manual save, and no continuous
+// syncing either: a character uploads when the user reaches the Finalize step (and again only if they edit it and
+// finalize again), and changes made on the interactive sheet upload after 20 quiet seconds. A sync also runs when the app opens, when the Characters list is opened and on "Sync now",
+// which is how characters saved on another device show up here. Drafts never upload.
 //
 // Each sync pass compares every character with its file in Drive using the file's version number:
 //   - only this device changed it  -> upload
 //   - only Drive changed it        -> download
 //   - both changed it              -> keep the newer one; the older one is saved as a separate copy so
 //                                     nothing is lost
-//   - new on either side           -> copied across
+//   - new on either side           -> copied across (a new character only goes up once the user reaches Finalize;
+//                                     drafts stay on this device)
 //   - deleted on this device       -> its Drive file is deleted; deleted on another device -> removed here
 // Built as a factory so it can be tested with an in-memory Drive and library.
 
 const CONNECTED_KEY = 'dndBuilder.drive.connected';
 const LAST_SYNC_KEY = 'dndBuilder.drive.lastSync';
-const SYNC_DELAY_MS = 3000;
+const SYNC_DELAY_MS = 1000;
+const SHEET_DELAY_MS = 5000; // quiet period after the last change on the interactive sheet
 
-export function createSyncEngine({ library, drive, getStorage = () => window.localStorage, now = Date.now, delay = SYNC_DELAY_MS }) {
+export function createSyncEngine({ library, drive, getStorage = () => window.localStorage, now = Date.now, delay = SYNC_DELAY_MS, sheetDelay = SHEET_DELAY_MS }) {
 	let state = { status: 'off' };
 	const listeners = new Set();
 	let running = false;
 	let rerun = false;
 	let timer = null;
+	let sheetTimer = null;
 
 	const store = () => { try { return getStorage(); } catch (e) { return null; } };
 	const getFlag = (key) => { try { return store()?.getItem(key); } catch (e) { return null; } };
@@ -28,6 +33,14 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 	const isConnected = () => getFlag(CONNECTED_KEY) === '1';
 
 	const set = (patch) => { state = { ...state, ...patch }; listeners.forEach((l) => l()); };
+
+	// A character uploads only if it changed and the user has reached Finalize since its last edit.
+	const canPush = (entry) => !!(entry.dirty && entry.ready);
+	// Drive files this session deleted: a listing that lags behind must not bring them back.
+	const recentlyDeleted = new Set();
+	const sameContent = (content, record) => !!record
+		&& JSON.stringify(content.character) === JSON.stringify(record.character)
+		&& JSON.stringify(content.play || null) === JSON.stringify(record.play || null);
 
 	const remoteId = (file) => file.appProperties?.cid || `legacy-${file.id}`;
 
@@ -69,7 +82,8 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 	// The character is kept twice when both devices changed it; this saves the losing copy as its own character.
 	function keepAsCopy(character, play, playBase, label) {
 		const copy = { ...character, info: { ...character.info, name: `${character.info?.name?.trim() || 'Unnamed character'} (${label})` } };
-		library.createRecord({ character: copy, ...(play ? { play, playBase: JSON.stringify(copy) } : {}) });
+		const id = library.createRecord({ character: copy, ...(play ? { play, playBase: JSON.stringify(copy) } : {}) });
+		library.markFinalized(id);
 	}
 
 	async function pass() {
@@ -79,10 +93,11 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 		let files = await drive.listFiles();
 		const tombstones = library.getIndex().deleted;
 		for (const gone of tombstones) {
-			if (files.some((f) => f.id === gone.driveId)) await drive.deleteFile(gone.driveId);
+			await drive.deleteFile(gone.driveId); // already-gone files are fine
+			recentlyDeleted.add(gone.driveId);
 			library.clearDeleted(gone.id);
 		}
-		files = files.filter((f) => !tombstones.some((d) => d.driveId === f.id));
+		files = files.filter((f) => !recentlyDeleted.has(f.id) && !tombstones.some((d) => d.driveId === f.id));
 
 		// If two files claim the same character, use the most recently changed one.
 		const remote = new Map();
@@ -95,18 +110,28 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 				adopt(id, await download(file), file);
 				continue;
 			}
-			const remoteChanged = file.id !== entry.driveId || file.version !== entry.syncedVersion;
-			if (!remoteChanged) {
-				if (entry.dirty) await upload(id, entry, file);
+			const versionDiffers = file.id !== entry.driveId || file.version !== entry.syncedVersion;
+			if (!versionDiffers) {
+				if (canPush(entry)) await upload(id, entry, file);
+				continue;
+			}
+			// The version differs, but Drive's listing can lag behind a write, so look at the contents before calling
+			// it a change from another device: if it is what we last synced, nothing happened elsewhere.
+			const content = await download(file);
+			const stamp = content.updatedAt || Date.parse(file.modifiedTime) || 0;
+			const unchanged = entry.syncedUpdatedAt !== undefined ? stamp === entry.syncedUpdatedAt : sameContent(content, library.getRecord(id));
+			if (unchanged) {
+				if (canPush(entry)) await upload(id, entry, file);
+				else library.setSyncedVersion(id, file.id, file.version);
 			} else if (!entry.dirty) {
-				adopt(id, await download(file), file);
+				adopt(id, content, file);
+			} else if (!entry.ready) {
+				// Being edited here and changed on another device: leave it alone until the user finalizes, then resolve.
 			} else {
 				// Edited here and on another device since the last sync
-				const content = await download(file);
-				const remoteNewer = (content.updatedAt || Date.parse(file.modifiedTime) || 0) > entry.updatedAt;
 				const local = library.getRecord(id);
 				conflicts += 1;
-				if (remoteNewer) {
+				if (stamp > entry.updatedAt) {
 					keepAsCopy(local.character, local.play, local.playBase, 'this device');
 					adopt(id, content, file);
 				} else {
@@ -116,11 +141,16 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 			}
 		}
 
-		// 3. Characters only this device has
+		// 3. Characters the listing did not show
 		for (const entry of library.list()) {
 			if (remote.has(entry.id)) continue;
+			if (entry.driveId && await drive.fileExists(entry.driveId)) {
+				// Still in Drive; the listing just had not caught up. Never treat that as a delete.
+				if (canPush(entry)) await upload(entry.id, entry, { id: entry.driveId });
+				continue;
+			}
 			if (entry.driveId && !entry.dirty) {
-				// It was synced before and its file is gone: it was deleted on another device.
+				// It was synced before and its file is really gone: it was deleted on another device.
 				if (library.getIndex().activeId === entry.id) {
 					library.unlink(entry.id); // keep the open one; it uploads again
 				} else {
@@ -129,7 +159,7 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 				}
 			}
 			const current = library.getIndex().entries[entry.id];
-			if (current && (!current.driveId || current.dirty)) await upload(entry.id, { ...current, driveId: undefined }, null);
+			if (current && canPush(current)) await upload(entry.id, { ...current, driveId: undefined }, null);
 		}
 		return { conflicts };
 	}
@@ -167,11 +197,18 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 			return engine.syncNow();
 		},
 
-		// Call whenever the library changes locally.
-		notifyLocalChange() {
+		// Schedules a sync a moment from now (batches a burst of triggers into one).
+		scheduleSync() {
 			if (!isConnected()) return;
 			clearTimeout(timer);
 			timer = setTimeout(() => engine.syncIfReady(), delay);
+		},
+
+		// Changes on the interactive sheet sync after a quiet period: every further change restarts the countdown.
+		scheduleSheetSync() {
+			if (!isConnected()) return;
+			clearTimeout(sheetTimer);
+			sheetTimer = setTimeout(() => engine.syncIfReady(), sheetDelay);
 		},
 
 		// Sync now if signed in, or try to renew the sign-in quietly (no popup). Used on startup and when the tab regains focus.
@@ -204,19 +241,26 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 				else set({ status: 'error', error: e.message });
 			} finally {
 				running = false;
-				if (rerun) { rerun = false; engine.notifyLocalChange(); }
+				if (rerun) { rerun = false; engine.scheduleSync(); }
 			}
 		},
 
 		// Stop syncing on this device. Characters stay here and in Google Drive.
 		disconnect() {
 			clearTimeout(timer);
+			clearTimeout(sheetTimer);
 			setFlag(CONNECTED_KEY, null);
 			drive.clearToken();
 			set({ status: 'off', error: undefined, lastSyncAt: undefined, lastConflicts: undefined });
 		},
 	};
 
-	library.subscribe((event) => { if (event === 'local') engine.notifyLocalChange(); });
+	// Editing in the builder never syncs. Reaching Finalize does, so does deleting a character that is in Drive, and so
+	// do changes made on the interactive sheet (after a quiet period).
+	library.subscribe((event, id) => {
+		if (event === 'finalize') engine.scheduleSync();
+		else if (event === 'sheet') engine.scheduleSheetSync();
+		else if (event === 'local' && library.getIndex().deleted.some((d) => d.id === id)) engine.scheduleSync();
+	});
 	return engine;
 }

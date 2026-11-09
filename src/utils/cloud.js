@@ -9,12 +9,11 @@ export const syncEngine = createSyncEngine({ library, drive });
 
 let started = false;
 
-// Call once at startup. Reconnects quietly if the user signed in before, and syncs again whenever the tab regains focus.
+// Call once at startup. Reconnects quietly if the user signed in before and pulls in characters from other devices.
 export function startSync() {
 	if (started) return;
 	started = true;
 	syncEngine.init();
-	window.addEventListener('focus', () => syncEngine.syncIfReady({ retry: true }));
 }
 
 export const useSyncState = () => React.useSyncExternalStore(syncEngine.subscribe, syncEngine.getState);

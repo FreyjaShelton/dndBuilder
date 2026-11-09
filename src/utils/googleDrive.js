@@ -142,6 +142,18 @@ export async function writeFile({ id, name, appProperties, content }) {
 	return res.json();
 }
 
+// Whether a file is still in Drive. Used before treating a file missing from the listing as deleted, because the
+// listing can lag a moment behind recent writes.
+export async function fileExists(id) {
+	try {
+		const body = await (await api(`${API}/${id}?fields=id,trashed`)).json();
+		return !body.trashed;
+	} catch (e) {
+		if (e.status === 404) return false;
+		throw e;
+	}
+}
+
 export async function deleteFile(id) {
 	try {
 		await api(`${API}/${id}`, { method: 'DELETE' });

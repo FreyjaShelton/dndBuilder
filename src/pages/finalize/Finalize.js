@@ -8,6 +8,7 @@ import { fillSheet2024 } from './fillSheet2024';
 import { SPELL_FIELDS_2014 } from './spellFields2014';
 import { getSelectedSpells } from '../../utils/spells';
 import { useCharacter } from '../../context/CharacterContext';
+import library from '../../utils/library';
 import PageHeader from '../../components/PageHeader';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { ABILITY_KEYS, formatSigned, getModifier } from '../../utils/abilityScore';
@@ -43,7 +44,10 @@ const PdfEditor = () => {
 	const [pdfUrl, setPdfUrl] = useState(null);
 	// The 2014 sheet is the default for both editions; either sheet can be filled from any character.
 	const [sheet, setSheet] = useState('2014');
-	const { character } = useCharacter();
+	const { character, characterId } = useCharacter();
+
+	// Reaching this step is what makes a character eligible to sync to Google Drive; drafts stay on this device.
+	useEffect(() => { library.markFinalized(characterId); }, [characterId, character]);
 
 	const fillPdf = async () => {
 		if (sheet === '2024') {

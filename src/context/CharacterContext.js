@@ -39,17 +39,30 @@ const prepare = (loaded) => (loaded && loaded.equipment
 	? { ...loaded, equipment: migrateEquipment(loaded.equipment, loaded.edition || DEFAULT_EDITION) }
 	: loaded);
 
-// The dev server (npm start) begins with a finished level 20 Wizard so pages and the sheet can be tested without
-// building one by hand. Production builds never include it; set REACT_APP_BLANK_CHARACTER=true to start empty in dev.
-const DEV_CHARACTER_ID = 'dev-test-character';
-const useDevCharacter = process.env.NODE_ENV === 'development' && process.env.REACT_APP_BLANK_CHARACTER !== 'true';
+// The dev server (npm start) comes with two finished level 20 characters, a Wizard and a Fighter (src/dev), so pages, the
+// interactive sheet, swapping between characters and Drive sync can be tested without building one by hand. They are
+// added to the library (once, if missing) like any saved character. Production builds never include them; set
+// REACT_APP_BLANK_CHARACTER=true to start empty in dev.
+const useDevCharacters = process.env.NODE_ENV === 'development' && process.env.REACT_APP_BLANK_CHARACTER !== 'true';
 
-// What the app opens with: the dev test character, else the character that was open last time, else a blank one.
+function seedDevCharacters() {
+	const have = library.getIndex().entries;
+	const list = require('../dev/testCharacters').DEV_CHARACTERS;
+	list.forEach(({ id, character }) => {
+		if (have[id]) return;
+		library.createRecord({ character }, id);
+		library.markFinalized(id); // they are finished characters
+	});
+	return list[0];
+}
+
+// What the app opens with: the character that was open last time, else a blank one (in dev, else the test Wizard).
 function loadStart() {
-	if (useDevCharacter) return { id: DEV_CHARACTER_ID, character: require('../dev/testCharacter').default };
+	const first = useDevCharacters ? seedDevCharacters() : null;
 	const id = library.getActiveId();
 	const record = library.getRecord(id);
 	if (record?.character) return { id, character: prepare(record.character) };
+	if (first) return { id: first.id, character: first.character };
 	return { id: newId(), character: initialCharacter };
 }
 
@@ -89,6 +102,7 @@ export function CharacterProvider({ children }) {
 	}), []);
 
 	const show = (id, next) => {
+		library.setActive(id); // before anything re-renders, so nothing reads the previous character as the active one
 		idRef.current = id;
 		savedJson.current = JSON.stringify(next);
 		setCharacterId(id);
@@ -124,6 +138,7 @@ export function CharacterProvider({ children }) {
 			const next = prepare(data.character);
 			const id = newId();
 			library.createRecord({ character: next, ...(data.play ? { play: data.play, playBase: JSON.stringify(next) } : {}) }, id);
+			library.markFinalized(id);
 			show(id, next);
 			return id;
 		},

@@ -38,15 +38,16 @@ export default function SheetPage() {
 	// character changes. If the build has changed since it was saved, start fresh.
 	React.useEffect(() => {
 		if (!built || playKey === currentKey) return;
-		const saved = loadSaved();
-		const same = saved?.play && saved.playBase === JSON.stringify(character);
+		const saved = loadSaved(characterId);
+		// the sheet state belongs to the build it was recorded against; compare with the saved build, not the in-memory one
+		const same = saved?.play && saved.playBase === JSON.stringify(saved.character);
 		setPlayState(same ? { ...defaultPlay(character), ...saved.play } : defaultPlay(character));
 		setPlayKey(currentKey);
-	}, [built, character, currentKey, playKey]);
+	}, [built, character, characterId, currentKey, playKey]);
 
 	React.useEffect(() => {
-		if (play && playKey === currentKey) persist({ character, play });
-	}, [character, play, playKey, currentKey]);
+		if (play && playKey === currentKey) persist(characterId, { character, play });
+	}, [character, characterId, play, playKey, currentKey]);
 
 	const spellDetails = useSpellDetails();
 	// spell text loads on demand, so the sheet recomputes once it arrives

@@ -43,7 +43,7 @@ function SyncPanel({ sync, configured }) {
 			<Paper variant="outlined" sx={{ padding: 2 }}>
 				<Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Keep your characters in Google Drive</Typography>
 				<Typography variant="body2" color="text.secondary" sx={{ marginTop: 0.5, marginBottom: 1.5 }}>
-					Sign in with Google once and your characters save to your Drive automatically. Sign in the same way on any other device and they&apos;re all there.
+					Sign in with Google once and each character saves to your Drive automatically once you reach the Finalize step. Sign in the same way on any other device and they&apos;re all there.
 					The app can only see its own hidden folder, not the rest of your Drive.
 				</Typography>
 				<Button variant="contained" onClick={signIn} disabled={busy} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}>
@@ -71,8 +71,8 @@ function SyncPanel({ sync, configured }) {
 			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ marginTop: 0.5 }}>
 				{sync.status === 'needsAuth'
-					? 'Google needs you to sign in again (this happens about once an hour on some browsers). Your changes are saved on this device and will upload as soon as you do.'
-					: `Last synced ${timeAgo(sync.lastSyncAt)}. Changes upload automatically a few seconds after you make them.`}
+					? 'Google needs you to sign in again (this happens about once an hour on some browsers). Your characters are saved on this device and will upload as soon as you do.'
+					: `Last synced ${timeAgo(sync.lastSyncAt)}. A character uploads when you reach the Finalize step, and again if you change it and finalize again. Changes on the interactive sheet upload 20 seconds after your last change.`}
 			</Typography>
 			{sync.error && <Alert severity={sync.status === 'error' ? 'error' : 'warning'} sx={{ marginTop: 1 }}>{sync.error}</Alert>}
 			{sync.lastConflicts ? (
@@ -124,14 +124,19 @@ export default function CharacterLibrary({ compact = false }) {
 		if (window.confirm(`Delete "${c.name}"?${where} This can't be undone.`)) deleteCharacter(c.id);
 	};
 
-	const statusOf = (c) => (!connected ? 'Only on this device' : c.dirty ? 'Waiting to sync' : 'In Google Drive');
+	const statusOf = (c) => {
+		if (!connected) return 'Only on this device';
+		if (!c.finalized && !c.driveId) return 'Draft · syncs when you reach Finalize';
+		if (c.dirty && !c.ready) return 'Edited · syncs when you finalize again';
+		return c.dirty ? 'Waiting to sync' : 'In Google Drive';
+	};
 
 	return (
 		<>
 			<Tooltip title={tip}>
 				<Button
 					startIcon={icon}
-					onClick={() => setOpen(true)}
+					onClick={() => { setOpen(true); syncEngine.syncIfReady(); }}
 					aria-label="Characters"
 					sx={compact ? {
 						minWidth: { xs: 40, sm: 64 },

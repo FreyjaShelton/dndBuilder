@@ -1,6 +1,10 @@
 // The characters saved on this device. Each one is a record { character, play, playBase } in its own
 // localStorage key, plus a small index with what sync needs to know about it:
-//   entries[id] = { id, name, summary, updatedAt, dirty, driveId, syncedVersion }
+//   entries[id] = { id, name, summary, updatedAt, dirty, finalized, ready, driveId, syncedVersion, syncedUpdatedAt }
+//   finalized: the user has reached the Finalize step at least once (otherwise it is a draft that never syncs).
+//   ready: they reached Finalize since the last edit. A character only uploads to Drive when it is ready, so
+//   syncing happens when the user finalizes, and again only after more edits followed by another Finalize. syncedUpdatedAt: the updatedAt of the content last uploaded/downloaded, so a
+//   stale file listing from Drive is not mistaken for a change made on another device.
 //   deleted     = characters removed here whose Drive copy still needs deleting
 //   activeId    = the character open in the builder / sheet
 // `play` is the interactive sheet's in-play state (HP, spent slots...). `playBase` is the JSON of the
@@ -48,7 +52,7 @@ export function createLibrary(getStorage, now = Date.now) {
 		if (legacy?.character && isMeaningful(legacy.character)) {
 			const id = newId();
 			write(RECORD_PREFIX + id, { character: legacy.character, play: legacy.play, playBase: legacy.play ? JSON.stringify(legacy.character) : undefined });
-			index.entries[id] = { id, ...describe(legacy.character), updatedAt: now(), dirty: true };
+			index.entries[id] = { id, ...describe(legacy.character), updatedAt: now(), dirty: true, finalized: true, ready: true }; // it came from the sheet
 			index.activeId = id;
 		}
 		write(INDEX_KEY, index);
@@ -69,7 +73,7 @@ export function createLibrary(getStorage, now = Date.now) {
 		if (JSON.stringify(next) === JSON.stringify(prev)) return false;
 		write(RECORD_PREFIX + id, next);
 		const index = getIndex();
-		index.entries[id] = { ...(index.entries[id] || {}), id, ...describe(next.character), updatedAt: now(), dirty: true };
+		index.entries[id] = { ...(index.entries[id] || {}), id, ...describe(next.character), updatedAt: now(), dirty: true, ready: false };
 		putIndex(index);
 		emit('local', id);
 		return true;
@@ -104,7 +108,7 @@ export function createLibrary(getStorage, now = Date.now) {
 	function adoptRemote(id, record, { driveId, version: syncedVersion, updatedAt }) {
 		write(RECORD_PREFIX + id, record);
 		const index = getIndex();
-		index.entries[id] = { id, ...describe(record.character), updatedAt: updatedAt || now(), dirty: false, driveId, syncedVersion };
+		index.entries[id] = { id, ...describe(record.character), updatedAt: updatedAt || now(), dirty: false, finalized: true, ready: false, driveId, syncedVersion: syncedVersion, syncedUpdatedAt: updatedAt || now() };
 		putIndex(index);
 		emit('remote', id);
 	}
@@ -114,9 +118,43 @@ export function createLibrary(getStorage, now = Date.now) {
 		const index = getIndex();
 		const entry = index.entries[id];
 		if (!entry) return;
-		index.entries[id] = { ...entry, driveId, syncedVersion, dirty: entry.updatedAt === updatedAt ? false : entry.dirty };
+		index.entries[id] = { ...entry, driveId, syncedVersion, syncedUpdatedAt: updatedAt, dirty: entry.updatedAt === updatedAt ? false : entry.dirty };
 		putIndex(index);
 		emit('meta', id);
+	}
+
+	// The user reached the Finalize step: the character is now ready to upload to Drive. Emits 'finalize', which
+	// is what starts a sync.
+	function markFinalized(id) {
+		const index = getIndex();
+		const entry = index.entries[id];
+		if (!entry || (entry.finalized && entry.ready)) return;
+		index.entries[id] = { ...entry, finalized: true, ready: true };
+		putIndex(index);
+		emit('finalize', id);
+	}
+
+	// A change made on the interactive sheet (HP, spell slots, inventory, notes, prepared spells...). The sheet is only
+	// reachable from a finished character, so this keeps it ready to upload; the engine syncs it after a short quiet
+	// period (the 'sheet' event) instead of waiting for another visit to Finalize.
+	function saveFromSheet(id, patch) {
+		if (!saveRecord(id, patch)) return false;
+		const index = getIndex();
+		const entry = index.entries[id];
+		if (!entry) return false;
+		index.entries[id] = { ...entry, finalized: true, ready: true };
+		putIndex(index);
+		emit('sheet', id);
+		return true;
+	}
+
+	// Notes the Drive file version we are looking at without touching the changed flag.
+	function setSyncedVersion(id, driveId, syncedVersion) {
+		const index = getIndex();
+		const entry = index.entries[id];
+		if (!entry) return;
+		index.entries[id] = { ...entry, driveId, syncedVersion };
+		putIndex(index);
 	}
 
 	function clearDeleted(id) {
@@ -130,13 +168,13 @@ export function createLibrary(getStorage, now = Date.now) {
 		const index = getIndex();
 		const entry = index.entries[id];
 		if (!entry) return;
-		index.entries[id] = { ...entry, driveId: undefined, syncedVersion: undefined, dirty: true };
+		index.entries[id] = { ...entry, driveId: undefined, syncedVersion: undefined, syncedUpdatedAt: undefined, dirty: true, ready: true };
 		putIndex(index);
 		emit('meta', id);
 	}
 
 	return {
-		getIndex, list, getRecord, saveRecord, createRecord, setActive, deleteRecord, adoptRemote, markSynced, clearDeleted, unlink,
+		getIndex, list, getRecord, saveRecord, createRecord, setActive, deleteRecord, adoptRemote, markSynced, markFinalized, saveFromSheet, setSyncedVersion, clearDeleted, unlink,
 		subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
 		getVersion: () => version,
 		getActiveId: () => getIndex().activeId,
