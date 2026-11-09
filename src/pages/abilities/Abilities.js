@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Button, FormControl, MenuItem, Select, Typography } from '@mui/material';
+import { Box, Button, FormControl, MenuItem, Select, TextField, Typography } from '@mui/material';
 import CardSelector from '../../components/CardSelector';
 import PageHeader from '../../components/PageHeader';
 import { useCharacter } from '../../context/CharacterContext';
@@ -40,8 +40,18 @@ export default function Abilities() {
 		const method = event.target.value;
 		updateAbilities({
 			generationMethod: method,
-			...(method === 'Point Buy' ? Object.fromEntries(ABILITY_KEYS.map((k) => [k, 8])) : blank),
+			// Manual keeps whatever scores are already entered so they can be adjusted by hand
+			...(method === 'Manual' ? {} : method === 'Point Buy' ? Object.fromEntries(ABILITY_KEYS.map((k) => [k, 8])) : blank),
 		});
+	};
+
+	// Manual entry: any whole number from 1 to 99, or empty while typing.
+	const handleManual = (key) => (event) => {
+		const raw = event.target.value;
+		if (raw === '') { updateAbilities({ [key]: '' }); return; }
+		const n = Math.round(Number(raw));
+		if (Number.isNaN(n)) return;
+		updateAbilities({ [key]: Math.min(99, Math.max(1, n)) });
 	};
 
 	const handleAssign = (key) => (event) => {
@@ -83,6 +93,7 @@ export default function Abilities() {
 				<MenuItem value="Standard Array">Standard Array</MenuItem>
 				<MenuItem value="Point Buy">Point Buy</MenuItem>
 				<MenuItem value="Rolled">Rolled (4d6, drop lowest)</MenuItem>
+				{!is2024(character) && <MenuItem value="Manual">Manual (enter any scores)</MenuItem>}
 
 				{abilities.generationMethod === 'Standard Array' && (
 					<span>
@@ -111,6 +122,35 @@ export default function Abilities() {
 									{renderAssignmentRows(abilities.rolls)}
 								</>
 							)}
+						</Box>
+					</span>
+				)}
+
+				{abilities.generationMethod === 'Manual' && !is2024(character) && (
+					<span>
+						<Box sx={{ padding: 2, backgroundColor: 'action.hover', borderRadius: 2 }}>
+							<Typography variant="body2">
+								Type any score for each ability (1&ndash;99). Nothing is limited or checked, and racial bonuses and ability score improvements are still added on top.
+							</Typography>
+							{ABILITY_KEYS.map((key) => (
+								<AbilityRow
+									key={key}
+									label={ABILITY_NAMES[key]}
+									baseScore={abilities[key]}
+									bonus={bonuses[key]}
+									source={bonusSource}
+									control={(
+										<TextField
+											size="small"
+											type="number"
+											value={abilities[key]}
+											onChange={handleManual(key)}
+											sx={{ width: 100 }}
+											slotProps={{ htmlInput: { min: 1, max: 99, step: 1, 'aria-label': `${ABILITY_NAMES[key]} score` } }}
+										/>
+									)}
+								/>
+							))}
 						</Box>
 					</span>
 				)}

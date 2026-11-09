@@ -79,9 +79,13 @@ function getBaseAbilityBonuses(character) {
 export function getFinalAbilities(character) {
 	const bonuses = getAbilityBonuses(character);
 	const { cap } = getClassAbilityEffects(character);
+	// Manual scores (2014) are used exactly as typed: no 20 cap, so a 22 from a magic item stays 22.
+	const manual = !is2024(character) && character.abilities.generationMethod === 'Manual';
 	return Object.fromEntries(ABILITY_KEYS.map((k) => {
 		const base = character.abilities[k];
-		return [k, base === '' ? '' : Math.min(cap[k], Number(base) + bonuses[k])];
+		if (base === '') return [k, ''];
+		const total = Number(base) + bonuses[k];
+		return [k, manual ? total : Math.min(cap[k], total)];
 	}));
 }
 
