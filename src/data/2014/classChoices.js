@@ -44,6 +44,33 @@ const THIRD_CASTER_MAX_LEVEL = { 3: 1, 7: 2, 13: 3, 19: 4 };
 const wizardBook = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, 6 + 2 * i]));
 
 const classChoices = {
+	// Tasha's Cauldron of Everything. Spells are prepared from the class list (Intelligence modifier + half the level).
+	Artificer: {
+		optional: { 'Firearm Proficiency': {} },
+		choices: [
+			cantrips('Artificer'),
+			{ id: 'artificerTool', level: 1, feature: 'Proficiencies', label: "Artisan's tools (one type of your choice)", kind: 'tools', count: 1, from: artisanTools },
+			{
+				id: 'infusions', level: 2, feature: 'Infuse Item', label: 'Infusions known', kind: 'multi', options: 'list:infusions', count: { column: 'Infusions Known' },
+				countNote: 'You can replace one infusion with another whenever you gain an artificer level. Some infusions need a higher level.',
+			},
+		],
+		subclasses: {
+			Alchemist: [],
+			Armorer: [
+				{
+					id: 'armorModel', level: 3, feature: 'Armor Model', label: 'Armor model', kind: 'option',
+					options: [
+						{ name: 'Guardian', description: 'Thunder Gauntlets (simple melee weapon, 1d8 thunder; the target has disadvantage on attacks against others) and Defensive Field (temporary hit points equal to your artificer level, a number of times equal to your proficiency bonus per long rest).' },
+						{ name: 'Infiltrator', description: 'Lightning Launcher (simple ranged weapon, 1d6 lightning plus an extra 1d6 once per turn), Powered Steps (+5 feet of speed) and Dampening Field (advantage on Stealth checks). You can change the model after any rest.' },
+					],
+				},
+			],
+			Artillerist: [],
+			'Battle Smith': [],
+		},
+	},
+
 	Barbarian: {
 		optional: { 'Primal Knowledge': {}, 'Instinctive Pounce': {} },
 		choices: [

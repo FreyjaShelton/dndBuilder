@@ -40,7 +40,7 @@ export function hasSpellsPage2014(character) {
 	return !!cls.spellcastingAbility || spellDefs(character).some((d) => resolveCount(d, character) > 0) || race.fixed.length > 0 || getFeatGrantedSpells(character).length > 0;
 }
 
-// ---- Prepared spells (cleric, druid, paladin, wizard) ------------------------------------------
+// ---- Prepared spells (artificer, cleric, druid, paladin, wizard) ------------------------------------------
 
 export function getPreparedLimit2014(character) {
 	const cls = getClass(character);
@@ -50,6 +50,7 @@ export function getPreparedLimit2014(character) {
 	const level = getLevel(character);
 	if (['Cleric', 'Druid', 'Wizard'].includes(cls.name)) return Math.max(1, mod + level);
 	if (cls.name === 'Paladin') return level >= 2 ? Math.max(1, mod + Math.floor(level / 2)) : 0;
+	if (cls.name === 'Artificer') return Math.max(1, mod + Math.floor(level / 2));
 	return 0;
 }
 

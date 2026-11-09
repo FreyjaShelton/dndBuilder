@@ -3,12 +3,11 @@
 // with it as { variant, picks: { [pickId]: [spellNames] } }:
 //   class ASI: classInfo.choices['asi-<level>'].spells      race feat: race.choices['feat:spells']
 import spellIndex from '../data/2014/spellIndex';
-import { artificerSpells, attackCantrips, featSpells, ritualSpells } from '../data/2014/featSpells';
+import { attackCantrips, featSpells, ritualSpells } from '../data/2014/featSpells';
 import { ABILITY_NAMES } from './abilityScore';
 import { getAsiLevels, getChoiceValues } from './classChoices';
 
 const byName = new Map(spellIndex.map((s) => [s.name, s]));
-const artificer = new Set(artificerSpells);
 const ritual = new Set(ritualSpells);
 const attack = new Set(attackCantrips);
 
@@ -26,7 +25,7 @@ export function getPickOptions(pick) {
 	if (pick.from) return pick.from.map((n) => byName.get(n)).filter(Boolean).map(optionOf);
 	return spellIndex
 		.filter((s) => (pick.level === undefined || s.level === pick.level)
-			&& (!pick.classes || pick.classes.some((c) => (c === 'Artificer' ? artificer.has(s.name) : s.classes.includes(c))))
+			&& (!pick.classes || pick.classes.some((c) => s.classes.includes(c)))
 			&& (!pick.schools || pick.schools.includes(s.school))
 			&& (!pick.ritual || ritual.has(s.name))
 			&& (!pick.attack || attack.has(s.name)))

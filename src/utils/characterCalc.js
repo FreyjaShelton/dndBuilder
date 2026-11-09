@@ -5,7 +5,8 @@ import { getRemainingGold, getWeaponNames, getWornArmorName, hasShield } from '.
 import { averageHitDie, parseHpOverride } from './hitPoints';
 import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
 import {
-	getRaceAbilityBonuses, getRaceArmor, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts, getSubraceRecord, resolveRace,
+	getRaceAbilityBonuses, getRaceArmor, getRaceArmorProficiencies, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts,
+	getRaceWeaponProficiencies, getSubraceRecord, isCustomizing, resolveRace,
 } from './raceChoices';
 import { getChoiceLanguages, getChoiceSkills, getChoiceWeaponProficiencies, getChosenFeats, getSubclassProficiencyText, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
@@ -318,6 +319,8 @@ export function isWeaponProficient(character, weapon) {
 	if (getChoiceWeaponProficiencies(character).includes(weapon.name)) return true;
 	const singular = (w) => w.replace(/s$/, '');
 	if (classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname)) return true;
+	// customized origin (2014): the race's weapon training is whatever is left after the player's swaps
+	if (!is2024(character) && isCustomizing(character)) return getRaceWeaponProficiencies(character).includes(weapon.name);
 	const raceText = (is2024(character) ? (race?.traits || []).map((t) => t.description) : getRaceTraitTexts(character))
 		.filter((d) => /proficiency with/i.test(d)).map((d) => d.toLowerCase()).join(' ');
 	return raceText.includes(lname) || raceText.includes(`${lname}s`);
@@ -339,17 +342,28 @@ export function getAttacks(character, weaponNames) {
 	}).filter(Boolean);
 }
 
-// The class's armor proficiencies, plus anything the subclass adds (Elemental Bloodline's light armor and shields).
+// The class's armor proficiencies, plus anything the subclass adds (Elemental Bloodline's light armor and shields) and
+// the armor training the race gives (Mountain Dwarf), which a customized origin can swap away.
 export function getArmorProficiencies(character) {
 	const base = getClass(character)?.armorProficiencies || '';
-	const extra = getSubclassProficiencyText(character).armor;
+	const have = base.toLowerCase();
+	const raceArmor = is2024(character) ? [] : getRaceArmorProficiencies(character)
+		.filter((type) => !have.includes('all armor') && !have.includes(`${type.toLowerCase()} armor`)).map((type) => `${type} armor`);
+	const extra = [getSubclassProficiencyText(character).armor, ...raceArmor].filter(Boolean).join(', ');
 	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
 }
 
-// Weapon proficiencies as text: the class's, plus weapons picked through choices.
+// Weapon proficiencies as text: the class's, plus weapons picked through choices and the race's weapon training
+// (a customized origin can swap it).
 export function getWeaponProficiencies(character) {
 	const base = getClass(character)?.weaponProficiencies || '';
-	const extra = getSubclassProficiencyText(character).weapons;
+	const have = base.toLowerCase();
+	const weapons = getEditionData(character.edition).equipment.weapons;
+	const raceWeapons = is2024(character) ? [] : getRaceWeaponProficiencies(character).filter((name) => {
+		const w = weapons.find((x) => x.name === name);
+		return !have.includes(name.toLowerCase()) && !(w && have.includes(`${w.category.toLowerCase()} weapons`) && !/martial weapons that/.test(have));
+	});
+	const extra = [getSubclassProficiencyText(character).weapons, ...raceWeapons].filter(Boolean).join(', ');
 	return extra ? `${base && base !== 'None' ? `${base}, ` : ''}${extra}` : base;
 }
 

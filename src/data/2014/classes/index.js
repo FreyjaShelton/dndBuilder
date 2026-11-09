@@ -1,3 +1,4 @@
+import artificer from './artificer';
 import barbarian from './barbarian';
 import bard from './bard';
 import cleric from './cleric';
@@ -13,6 +14,7 @@ import wizard from './wizard';
 import homebrewSubclasses from '../homebrew';
 
 const classes = {
+	Artificer: artificer,
 	Barbarian: barbarian,
 	Bard: bard,
 	Cleric: cleric,

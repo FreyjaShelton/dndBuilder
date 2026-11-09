@@ -2,6 +2,7 @@
 // The data lives in data/2014/classes (features, subclasses) and data/2014/classChoices (choice definitions).
 import classChoices from '../data/2014/classChoices';
 import { disciplines, invocations, maneuvers } from '../data/2014/classLists';
+import { infusions } from '../data/2014/infusions';
 import spellIndex from '../data/2014/spellIndex';
 import { allLanguages } from '../data/languages';
 import { getEditionData } from '../data';
@@ -221,6 +222,8 @@ export function getChoiceOptions(def, entry, character) {
 		list = getEditionData(character.edition).equipment.weapons
 			.filter((w) => w.category === 'Martial')
 			.map((w) => ({ name: w.name, description: `Martial ${w.kind.toLowerCase()} weapon` }));
+	} else if (def.options === 'list:infusions') {
+		list = infusions.filter((i) => !i.minLevel || i.minLevel <= level);
 	} else if (def.options === 'list:invocations') {
 		const pact = getChoiceValues(character).pactBoon;
 		list = invocations.filter((i) => (!i.minLevel || i.minLevel <= level) && (!i.pact || pact === `Pact of the ${i.pact}`));

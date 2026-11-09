@@ -9,6 +9,7 @@ import { ABILITY_KEYS } from './abilityScore';
 import { getRaceFeatSpellPending } from './featSpells';
 import { allLanguages } from '../data/languages';
 import { artisanTools, gamingSets, musicalInstruments } from '../data/toolLists';
+import { applySwaps, parseRacialArmor, parseRacialWeapons } from './customOrigin';
 
 const raceOf = (character) => character.race || {};
 export const getRaceChoices = (character) => raceOf(character).choices || {};
@@ -71,19 +72,55 @@ function chosenFeat(character) {
 	return name ? getEditionData(character.edition).feats.find((f) => f.name === name) || null : null;
 }
 
+// ---- Customizing Your Origin (Tasha's) ---------------------------------------------------------------
+// See customOrigin.js. The customization lives on character.race.customize.
+
+export const canCustomizeOrigin = (character) => character.edition === '2014' && !!getVersion(character) && getRaceRecord(character).category !== 'Custom Lineage';
+export const getCustomize = (character) => raceOf(character).customize || null;
+export const isCustomizing = (character) => canCustomizeOrigin(character) && !!getCustomize(character)?.on;
+
+// The ability score increases the race gives, as amounts ([2, 1, 1]). Races with flexible increases (the +2/+1 ones)
+// already let the player assign them, so they have nothing to customize here.
+export function getRaceIncreases(character) {
+	const asi = getEffectiveAsi(character);
+	if (asi.flex) return [];
+	const out = Object.values(asi.fixed);
+	asi.choose.forEach((g) => { for (let i = 0; i < g.count; i++) out.push(g.amount); });
+	return out;
+}
+
+// Where each increase goes by default (the race's own assignment); '' for an increase the player has not picked yet.
+export function getDefaultIncreaseTargets(character) {
+	const asi = getEffectiveAsi(character);
+	if (asi.flex) return [];
+	const picks = getRaceChoices(character).asi || [];
+	const out = Object.keys(asi.fixed);
+	let slot = 0;
+	asi.choose.forEach((g) => { for (let i = 0; i < g.count; i++) out.push(picks[slot++] || ''); });
+	return out;
+}
+
+const customizingAsi = (character) => isCustomizing(character) && !getEffectiveAsi(character).flex;
+
 export function getRaceAbilityBonuses(character) {
 	const bonuses = Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
 	if (!getVersion(character)) return bonuses;
 	const asi = getEffectiveAsi(character);
 	const choices = getRaceChoices(character);
-	Object.entries(asi.fixed).forEach(([k, n]) => { bonuses[k] += n; });
-	let slot = 0;
-	asi.choose.forEach((g) => {
-		for (let i = 0; i < g.count; i++) {
-			const key = (choices.asi || [])[slot++];
-			if (key && key in bonuses) bonuses[key] += g.amount;
-		}
-	});
+	if (customizingAsi(character)) {
+		// each increase goes where the player put it
+		const targets = getCustomize(character).asi || [];
+		getRaceIncreases(character).forEach((amount, i) => { if (targets[i] && targets[i] in bonuses) bonuses[targets[i]] += amount; });
+	} else {
+		Object.entries(asi.fixed).forEach(([k, n]) => { bonuses[k] += n; });
+		let slot = 0;
+		asi.choose.forEach((g) => {
+			for (let i = 0; i < g.count; i++) {
+				const key = (choices.asi || [])[slot++];
+				if (key && key in bonuses) bonuses[key] += g.amount;
+			}
+		});
+	}
 	if (asi.flex && choices.asiFlex) {
 		const f = choices.asiFlex;
 		if (f.mode === 'twoOne') {
@@ -162,7 +199,8 @@ export function getRaceChoiceDefs(character) {
 	const asi = getEffectiveAsi(character);
 	const fixedKeys = Object.keys(asi.fixed);
 	const slots = asi.choose.reduce((n, g) => n + g.count, 0);
-	if (slots > 0) defs.push({ id: 'asi', kind: 'abilities', label: 'Ability score increases', groups: asi.choose, exclude: fixedKeys });
+	// when the origin is customized, the increases are assigned in the "Customize your origin" panel instead
+	if (slots > 0 && !customizingAsi(character)) defs.push({ id: 'asi', kind: 'abilities', label: 'Ability score increases', groups: asi.choose, exclude: fixedKeys });
 	if (asi.flex) defs.push({ id: 'asiFlex', kind: 'flex', label: 'Ability score increases' });
 	if (v.sizeChoice && !(sub?.replaces === 'all' && sub.size)) defs.push({ id: 'size', kind: 'option', label: 'Size', options: v.sizeChoice.map((name) => ({ name })) });
 	const tables = [...(sub?.tables || []), ...(v.tables || [])];
@@ -233,24 +271,61 @@ export function getRaceSkills(character) {
 	if (character.edition !== '2014') return [];
 	const values = getRaceChoices(character);
 	const picks = getRaceChoiceDefs(character).filter((d) => d.kind === 'skills').flatMap((d) => values[d.id] || []);
-	return [...new Set([...getAllEffects(character).skills, ...picks])];
+	return [...new Set([...getRacialProficiencySet(character).skills, ...picks])];
 }
 
 export function getRaceTools(character) {
 	const values = getRaceChoices(character);
 	const picks = getRaceChoiceDefs(character).filter((d) => d.kind === 'tools').flatMap((d) => values[d.id] || []);
-	return [...getAllEffects(character).tools, ...picks];
+	return [...getRacialProficiencySet(character).tools, ...picks];
 }
 
+// What the race trains the character in outright (not the dropdown picks): skills, tools, weapons and armor types.
+// Racial proficiencies, one entry each, so they can be swapped when the origin is customized.
+export function getRacialProficiencies(character) {
+	if (character.edition !== '2014' || !getVersion(character)) return [];
+	const fx = getAllEffects(character);
+	const texts = getRaceTraitTexts(character);
+	return [
+		...fx.skills.map((name) => ({ kind: 'skill', name })),
+		...fx.tools.map((name) => ({ kind: 'tool', name })),
+		...parseRacialWeapons(texts),
+		...parseRacialArmor(texts),
+	];
+}
+
+// The racial proficiencies after the player's swaps (customized origin) or as the race gives them: { skills, tools, weapons, armor }.
+export function getRacialProficiencySet(character) {
+	const swaps = isCustomizing(character) ? getCustomize(character).swaps || {} : {};
+	return applySwaps(getRacialProficiencies(character), swaps);
+}
+
+export const getRaceWeaponProficiencies = (character) => getRacialProficiencySet(character).weapons;
+export const getRaceArmorProficiencies = (character) => getRacialProficiencySet(character).armor;
+
 // { fixed: [names], picked: [names], pickCount }
-export function getRaceLanguages(character) {
+// The languages the race gives outright, before any customization.
+export function getRaceBaseLanguages(character) {
 	const v = getVersion(character);
-	if (!v) return { fixed: [], picked: [], pickCount: 0 };
+	if (!v) return [];
 	const sub = getSubraceRecord(character);
 	const fixed = new Set(sub?.replaces === 'all' && sub.languages ? sub.languages.fixed : v.languages?.fixed || []);
 	if (sub?.languages && sub.replaces !== 'all') sub.languages.fixed.forEach((l) => fixed.add(l));
-	const picked = (getRaceChoices(character).languages || []).filter((l) => !fixed.has(l));
-	return { fixed: [...fixed], picked, pickCount: languageCount(character) + getAllEffects(character).languagePicks };
+	return [...fixed];
+}
+
+export function getRaceLanguages(character) {
+	const v = getVersion(character);
+	if (!v) return { fixed: [], picked: [], pickCount: 0 };
+	// customized origin: each language the race gives can be replaced with any other listed language
+	let fixedList = getRaceBaseLanguages(character);
+	if (isCustomizing(character)) {
+		const swaps = getCustomize(character).languages || {};
+		fixedList = [...new Set(fixedList.map((l) => (swaps[l] && allLanguages.includes(swaps[l]) ? swaps[l] : l)))];
+	}
+	const fixedSet = new Set(fixedList);
+	const picked = (getRaceChoices(character).languages || []).filter((l) => !fixedSet.has(l));
+	return { fixed: fixedList, picked, pickCount: languageCount(character) + getAllEffects(character).languagePicks };
 }
 
 export function getRaceSpeeds(character) {
@@ -301,7 +376,9 @@ export function getRaceChoiceSummaries(character) {
 // How many picks are still missing, for a "to choose" badge.
 export function getRacePending(character) {
 	const values = getRaceChoices(character);
-	return getRaceFeatSpellPending(character) + getRaceChoiceDefs(character).filter((d) => {
+	// customized increases that have not been assigned yet
+	const customPending = customizingAsi(character) ? getRaceIncreases(character).filter((_, i) => !(getCustomize(character).asi || [])[i]).length : 0;
+	return customPending + getRaceFeatSpellPending(character) + getRaceChoiceDefs(character).filter((d) => {
 		const v = values[d.id];
 		if (d.kind === 'abilities') return (Array.isArray(v) ? v.filter(Boolean).length : 0) < d.groups.reduce((n, g) => n + g.count, 0);
 		if (d.kind === 'flex') return !(v && ((v.mode === 'twoOne' && v.plus2 && v.plus1) || (v.mode === 'oneOneOne' && (v.picks || []).filter(Boolean).length === 3)));
