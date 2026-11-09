@@ -10,6 +10,7 @@ import { derive, hitDiceLeftByDie } from './derive';
 import { getClassViews } from '../../utils/multiclass';
 import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
+import { getSpellRoll, rollSpell } from './spellDice';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -181,7 +182,16 @@ export default function SheetPage() {
 			else setPlay({ slotsUsed: { ...play.slotsUsed, [level]: (play.slotsUsed[level] || 0) + 1 } });
 		}
 		if (spell.concentration) setPlay({ concentration: spell.name });
-		addLog(`Cast ${spell.name}`, '—', level > 0 ? `level ${level} slot` : 'cantrip');
+		const how = level > 0 ? `level ${level} ${source === 'pact' || d.slots.type === 'pact' ? 'pact slot' : 'slot'}` : 'cantrip';
+		// a spell with damage or healing dice rolls them: bigger with a higher slot (or the caster's level for a cantrip)
+		const stats = (d.spellStatsList || []).find((x) => x.index === spell.casterIndex) || d.spellStats;
+		const dice = getSpellRoll(spell, { slotLevel: level, characterLevel: d.level, abilityMod: stats ? d.mods[stats.abilityKey] : 0 });
+		if (dice) {
+			const rolled = rollSpell(dice);
+			addLog(`Cast ${spell.name}`, rolled.total, `${rolled.detail} · ${how}`);
+		} else {
+			addLog(`Cast ${spell.name}`, '—', how);
+		}
 	};
 
 	const exportJson = () => {

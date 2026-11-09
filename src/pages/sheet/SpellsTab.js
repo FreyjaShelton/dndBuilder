@@ -52,45 +52,47 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 
 	return (
 		<Box sx={{ borderBottom: 1, borderColor: 'divider', padding: '6px 0' }}>
-			{/* clicking anywhere on the spell (not just the arrow) opens its description; the buttons below do their own thing */}
-			<Box
-				onClick={() => setOpen(!open)}
-				sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', cursor: 'pointer' }}
-			>
-				<Typography sx={{ flex: '1 1 140px', fontWeight: 600 }}>{spell.name}</Typography>
-				<Typography variant="caption" sx={{ color: 'text.secondary' }}>{spell.castingTime.split(',')[0]} · {spell.range}</Typography>
-				{spell.concentration && <Chip size="small" label="C" title="Concentration" />}
-				{spell.ritual && <Chip size="small" label="R" title="Ritual" />}
-				{save && <Chip size="small" variant="outlined" label={`${save} save DC ${stats.saveDc}`} />}
-				<Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'contents' }}>
-					{hasAttack && (
-						<Button size="small" variant="outlined" onClick={() => onAttack(`${spell.name} attack`, stats.attackBonus)}>
-							Attack {signed(stats.attackBonus)}
-						</Button>
-					)}
-					{dmg && (
-						<Button size="small" variant="outlined" onClick={() => onDamage(`${spell.name} (${dmg.type})`, dmg.expr)}>
-							{dmg.expr}
-						</Button>
-					)}
-					{isCantrip ? (
-						<Button size="small" variant="contained" onClick={() => onCast(spell, 0)}>Cast</Button>
-					) : (
-						<>
-							<Button size="small" variant="contained" disabled={castLevels.length === 0} onClick={(e) => setAnchor(e.currentTarget)}>Cast</Button>
-							<Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
-								{castLevels.map((c) => (
-									<MenuItem key={`${c.pact ? 'pact' : 'slot'}${c.level}`} dense onClick={() => { setAnchor(null); onCast(spell, c.level, c.pact ? 'pact' : undefined); }}>
-										Level {c.level} {c.pact ? 'Pact Magic slot' : 'slot'}
-									</MenuItem>
-								))}
-							</Menu>
-						</>
-					)}
+			{/* clicking anywhere on the spell (not just the arrow) opens its description; the buttons do their own thing.
+			    Two lines so every spell looks the same on a phone: the name and arrow, then the range with the buttons. */}
+			<Box onClick={() => setOpen(!open)} sx={{ cursor: 'pointer' }}>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+					<Typography sx={{ flex: 1, minWidth: 0, fontWeight: 600, overflowWrap: 'anywhere' }}>{spell.name}</Typography>
+					{spell.concentration && <Chip size="small" label="C" title="Concentration" />}
+					{spell.ritual && <Chip size="small" label="R" title="Ritual" />}
+					<IconButton size="small" aria-label={open ? 'Hide spell description' : 'Show spell description'} aria-expanded={open} sx={{ transform: open ? 'rotate(180deg)' : 'none' }}>
+						<ExpandMoreIcon />
+					</IconButton>
 				</Box>
-				<IconButton size="small" aria-label={open ? 'Hide spell description' : 'Show spell description'} aria-expanded={open} sx={{ transform: open ? 'rotate(180deg)' : 'none' }}>
-					<ExpandMoreIcon />
-				</IconButton>
+				<Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, marginTop: 0.5 }}>
+					<Typography variant="caption" sx={{ color: 'text.secondary', flex: '1 1 120px', minWidth: 0 }}>{spell.castingTime.split(',')[0]} · {spell.range}</Typography>
+					<Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1, marginLeft: 'auto' }}>
+						{save && <Chip size="small" variant="outlined" label={`${save} save DC ${stats.saveDc}`} />}
+						{hasAttack && (
+							<Button size="small" variant="outlined" onClick={() => onAttack(`${spell.name} attack`, stats.attackBonus)}>
+								Attack {signed(stats.attackBonus)}
+							</Button>
+						)}
+						{dmg && (
+							<Button size="small" variant="outlined" onClick={() => onDamage(`${spell.name} (${dmg.type})`, dmg.expr)}>
+								{dmg.expr}
+							</Button>
+						)}
+						{isCantrip ? (
+							<Button size="small" variant="contained" onClick={() => onCast(spell, 0)}>Cast</Button>
+						) : (
+							<>
+								<Button size="small" variant="contained" disabled={castLevels.length === 0} onClick={(e) => setAnchor(e.currentTarget)}>Cast</Button>
+								<Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
+									{castLevels.map((c) => (
+										<MenuItem key={`${c.pact ? 'pact' : 'slot'}${c.level}`} dense onClick={() => { setAnchor(null); onCast(spell, c.level, c.pact ? 'pact' : undefined); }}>
+											Level {c.level} {c.pact ? 'Pact Magic slot' : 'slot'}
+										</MenuItem>
+									))}
+								</Menu>
+							</>
+						)}
+					</Box>
+				</Box>
 			</Box>
 			<Collapse in={open} unmountOnExit>
 				<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', marginTop: 0.5 }}>
