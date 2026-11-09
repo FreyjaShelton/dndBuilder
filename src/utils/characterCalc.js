@@ -131,7 +131,12 @@ export function getBackgroundSkills(character) {
 	return bg.name === 'Custom' ? character.background.customSkills.slice(0, 2) : bg.skills;
 }
 
+// 2014: the player can override the automatic skill proficiencies (class picks, background, species, class features)
+// and choose exactly which skills the character is proficient in, and which have expertise.
+export const isSkillOverride = (character) => !is2024(character) && !!character.skills?.override;
+
 export function getProficientSkills(character) {
+	if (isSkillOverride(character)) return [...new Set(character.skills.manual || [])];
 	const all = [
 		...getBackgroundSkills(character),
 		...getRacialSkills(character),
@@ -246,11 +251,13 @@ export function getSpeed(character) {
 	return getRace(character)?.speed ?? '';
 }
 
-export function getArmorClass(character) {
+// `wear` ({ armor: name, shield: bool }) overrides what is worn; the interactive sheet passes what is equipped in the
+// inventory. Without it, the armor and shield picked on the builder's Equipment step are used.
+export function getArmorClass(character, wear) {
 	const armorData = rules(character).equipment.armor;
 	const mods = getAbilityMods(character);
-	const armorName = getWornArmorName(character);
-	const shield = hasShield(character);
+	const armorName = wear ? wear.armor : getWornArmorName(character);
+	const shield = wear ? !!wear.shield : hasShield(character);
 	const worn = armorData.find((a) => a.name === armorName && a.type !== 'Shield');
 	const shieldBonus = shield ? (armorData.find((a) => a.type === 'Shield')?.ac || 2) : 0;
 	let ac;
@@ -277,7 +284,7 @@ export function getSkillBonuses(character) {
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
 	const proficient = getProficientSkills(character);
-	const expertise = is2024(character) ? [] : getExpertiseSkills(character);
+	const expertise = is2024(character) ? [] : isSkillOverride(character) ? (character.skills.manualExpertise || []) : getExpertiseSkills(character);
 	return skills.map((s) => {
 		const isProf = proficient.includes(s.name);
 		const isExpert = isProf && expertise.includes(s.name);
@@ -295,7 +302,7 @@ export function getSavingThrows(character) {
 	});
 }
 
-function isWeaponProficient(character, weapon) {
+export function isWeaponProficient(character, weapon) {
 	const cls = getClass(character);
 	const race = getRace(character);
 	const classText = (cls?.weaponProficiencies || '').toLowerCase();
@@ -316,11 +323,12 @@ function isWeaponProficient(character, weapon) {
 	return raceText.includes(lname) || raceText.includes(`${lname}s`);
 }
 
-export function getAttacks(character) {
+// `weaponNames` overrides which weapons are listed; the interactive sheet passes the ones equipped in the inventory.
+export function getAttacks(character, weaponNames) {
 	const weaponData = rules(character).equipment.weapons;
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
-	return getWeaponNames(character).map((name) => {
+	return (weaponNames || getWeaponNames(character)).map((name) => {
 		const w = weaponData.find((x) => x.name === name);
 		if (!w) return null;
 		const finesse = w.properties.includes('Finesse');

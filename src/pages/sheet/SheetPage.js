@@ -7,6 +7,7 @@ import { useCharacter } from '../../context/CharacterContext';
 import { rollD20, rollExpression, describeD20 } from './dice';
 import { defaultPlay, loadSaved, persist } from './storage';
 import { derive } from './derive';
+import { withEquipFlags } from './inventory';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -41,7 +42,9 @@ export default function SheetPage() {
 		const saved = loadSaved(characterId);
 		// the sheet state belongs to the build it was recorded against; compare with the saved build, not the in-memory one
 		const same = saved?.play && saved.playBase === JSON.stringify(saved.character);
-		setPlayState(same ? { ...defaultPlay(character), ...saved.play } : defaultPlay(character));
+		const loaded = same ? { ...defaultPlay(character), ...saved.play } : defaultPlay(character);
+		// sheets saved before equipping existed get equipped flags from the builder's selection
+		setPlayState({ ...loaded, items: withEquipFlags(character, loaded.items) });
 		setPlayKey(currentKey);
 	}, [built, character, characterId, currentKey, playKey]);
 
@@ -51,7 +54,9 @@ export default function SheetPage() {
 
 	const spellDetails = useSpellDetails();
 	// spell text loads on demand, so the sheet recomputes once it arrives
-	const d = React.useMemo(() => derive(character), [character, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
+	// what is equipped in the inventory decides the armor class and the attack list
+	const items = play ? play.items : null;
+	const d = React.useMemo(() => derive(character, items), [character, items, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	if (!play || playKey !== currentKey) {
 		return (

@@ -1,11 +1,14 @@
 import * as React from 'react';
 import {
-	Autocomplete, Box, Button, IconButton, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
+	Autocomplete, Box, Button, Checkbox, IconButton, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
 	createFilterOptions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { getCatalog, newItemId } from './inventory';
+import { formatItemStats, getItem } from '../../utils/equipment';
+import { getArmorProficiencies, isWeaponProficient } from '../../utils/characterCalc';
+import { describePack, getPackContents } from '../../utils/itemIndex';
+import { getCatalog, getEquipKind, getEquipped, newItemId, toggleEquipped, unpackItem, usesEquipping } from './inventory';
 
 const COINS = [['pp', 'PP'], ['gp', 'GP'], ['ep', 'EP'], ['sp', 'SP'], ['cp', 'CP']];
 const filter = createFilterOptions({ limit: 50 });
@@ -14,6 +17,9 @@ const round = (n) => Math.round(n * 100) / 100;
 export default function InventoryTab({ character, d, play, setPlay }) {
 	const catalog = React.useMemo(() => getCatalog(character.edition), [character.edition]);
 	const items = play.items || [];
+	const equipping = usesEquipping(character);
+	const equipped = getEquipped(character, items);
+	const armorText = getArmorProficiencies(character).toLowerCase();
 	const [name, setName] = React.useState('');
 	const [qty, setQty] = React.useState(1);
 
@@ -24,6 +30,23 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 	const setQtyOf = (id, value) => setItems(items.map((i) => (i.id === id ? { ...i, qty: Math.max(0, Math.floor(Number(value) || 0)) } : i)));
 	const setWeightOf = (id, value) => setItems(items.map((i) => (i.id === id ? { ...i, weight: value === '' ? '' : Math.max(0, Number(value) || 0) } : i)));
 	const remove = (id) => setItems(items.filter((i) => i.id !== id));
+	const toggle = (id) => setItems(toggleEquipped(character, items, id));
+
+	// Warnings shown under an equipped item: gear the character is not trained in, or too weak to wear properly.
+	const warningsFor = (item, kind) => {
+		const data = getItem(character.edition, item.name);
+		if (!data) return [];
+		const out = [];
+		if (kind === 'weapon') {
+			if (!isWeaponProficient(character, data)) out.push('Not proficient (no proficiency bonus on attacks)');
+		} else {
+			const trained = /all armor/.test(armorText) || (kind === 'shield' ? /shield/.test(armorText) : armorText.includes(String(data.type).toLowerCase()));
+			if (!trained) out.push('Not proficient (disadvantage on Strength and Dexterity checks, attacks and saves, and no spellcasting)');
+			if (data.strengthRequirement > (Number(d.finals.str) || 0)) out.push(`Needs Strength ${data.strengthRequirement} (speed drops by 10 ft.)`);
+			if (data.stealthDisadvantage) out.push('Disadvantage on Stealth checks');
+		}
+		return out;
+	};
 
 	const add = () => {
 		const trimmed = name.trim();
@@ -35,7 +58,8 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 		if (existing) {
 			setItems(items.map((i) => (i.id === existing.id ? { ...i, qty: (Number(i.qty) || 0) + amount } : i)));
 		} else {
-			setItems([...items, { id: newItemId(), name: label, qty: amount, weight: known ? known.weight : 0, ...(known ? {} : { custom: true }) }]);
+			const kind = known && equipping ? getEquipKind(character.edition, label) : null;
+			setItems([...items, { id: newItemId(), name: label, qty: amount, weight: known ? known.weight : 0, ...(known ? {} : { custom: true }), ...(kind ? { equipped: false } : {}) }]);
 		}
 		setName('');
 		setQty(1);
@@ -106,10 +130,19 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 				</Button>
 			</Box>
 
+			{equipping && (
+				<Typography variant="body2" sx={{ marginBottom: 1.5, color: 'text.secondary' }}>
+					Armor Class {d.ac} · Wearing {equipped.armor || 'no armor'}{equipped.shield ? ' and a shield' : ''}
+					{equipped.weapons.length ? ` · Wielding ${equipped.weapons.join(', ')}` : ' · No weapons equipped'}.
+					{' '}Tick Equipped to wear armor or a shield (it changes your AC) or to wield a weapon (it appears under Actions).
+				</Typography>
+			)}
+
 			<Table size="small" sx={{ '& .MuiTableCell-root': { paddingX: { xs: 0.5, sm: 2 } } }}>
 				<TableHead>
 					<TableRow>
 						<TableCell>Item</TableCell>
+						{equipping && <TableCell align="center" sx={{ width: { xs: 64, sm: 84 } }}>Equipped</TableCell>}
 						<TableCell align="center" sx={{ width: { xs: 64, sm: 90 } }}>Qty</TableCell>
 						<TableCell align="center" sx={{ width: { xs: 72, sm: 96 } }}>Lb each</TableCell>
 						<TableCell sx={{ width: 48, padding: 0 }} />
@@ -120,8 +153,35 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 						<TableRow key={i.id}>
 							<TableCell>
 								{i.name}
-								{i.note && <Typography component="span" variant="caption" sx={{ marginLeft: 0.75, color: 'text.secondary' }}>({i.note})</Typography>}
+								{i.note && !(equipping && (i.note === 'worn' || i.note === 'equipped')) && <Typography component="span" variant="caption" sx={{ marginLeft: 0.75, color: 'text.secondary' }}>({i.note})</Typography>}
+								{getPackContents(character.edition, i.name) && (
+									<Box sx={{ marginTop: 0.25 }}>
+										<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{describePack(character.edition, i.name)}</Typography>
+										<Button size="small" onClick={() => setItems(unpackItem(character, items, i.id))} sx={{ padding: '0 6px', minWidth: 0, textTransform: 'none' }}>
+											Unpack into separate items
+										</Button>
+									</Box>
+								)}
+								{equipping && getEquipKind(character.edition, i.name) && (
+									<>
+										<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{formatItemStats(getItem(character.edition, i.name))}</Typography>
+										{i.equipped && warningsFor(i, getEquipKind(character.edition, i.name)).map((w) => (
+											<Typography key={w} variant="caption" sx={{ display: 'block', color: 'warning.main' }}>{w}</Typography>
+										))}
+									</>
+								)}
 							</TableCell>
+							{equipping && (
+								<TableCell align="center" sx={{ padding: 0 }}>
+									{getEquipKind(character.edition, i.name) && (
+										<Checkbox
+											checked={!!i.equipped}
+											onChange={() => toggle(i.id)}
+											inputProps={{ 'aria-label': `Equip ${i.name}` }}
+										/>
+									)}
+								</TableCell>
+							)}
 							<TableCell align="center">
 								<TextField
 									size="small"
@@ -150,7 +210,7 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 						</TableRow>
 					))}
 					{items.length === 0 && (
-						<TableRow><TableCell colSpan={4} sx={{ color: 'text.secondary' }}>Nothing in your inventory yet. Add an item above.</TableCell></TableRow>
+						<TableRow><TableCell colSpan={equipping ? 5 : 4} sx={{ color: 'text.secondary' }}>Nothing in your inventory yet. Add an item above.</TableCell></TableRow>
 					)}
 				</TableBody>
 			</Table>

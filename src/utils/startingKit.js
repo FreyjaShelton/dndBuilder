@@ -5,7 +5,7 @@
 //
 // character.equipment.kit = { choices: { [rowId]: optionKey }, picks: { [pickId]: itemName } }
 import { getEditionData } from '../data';
-import { getItemIndex } from './itemIndex';
+import { describePack, getItemIndex, getPackContents } from './itemIndex';
 
 const NUMBERS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 const toNumber = (w) => NUMBERS[String(w).toLowerCase()] || Number(w) || 1;
@@ -225,6 +225,13 @@ export function getSelectedOption(character, kitRow) {
 	return kitRow.options.find((o) => o.key === chosen) || kitRow.options[0];
 }
 
+// The packs an option hands out, with what is inside each: [{ name, quantity, contents }]. Shown while choosing.
+export function getOptionPacks(edition, option) {
+	return option.items
+		.filter((spec) => spec.name && getPackContents(edition, spec.name))
+		.map((spec) => ({ name: spec.name, quantity: spec.quantity, contents: describePack(edition, spec.name) }));
+}
+
 export const pickId = (kitRow, opt, specIndex, slot) => `${kitRow.id}:${opt.key}:${specIndex}:${slot}`;
 
 // The coins that come with the kit: the background's purse (2014) or the gold listed with the chosen class and background kit.
@@ -255,8 +262,11 @@ export function getKitItems(character) {
 	const picks = getKitState(character).picks || {};
 	const merged = new Map();
 	const add = (key, entry) => {
-		if (merged.has(key)) merged.get(key).quantity += entry.quantity;
-		else merged.set(key, entry);
+		if (merged.has(key)) {
+			const have = merged.get(key);
+			have.quantity += entry.quantity;
+			if (have.fromPack !== entry.fromPack) have.fromPack = undefined; // from more than one source: no single pack to name
+		} else merged.set(key, entry);
 	};
 	allRows(getKitPlan(character)).forEach((r) => {
 		const opt = getSelectedOption(character, r);
@@ -266,6 +276,11 @@ export function getKitItems(character) {
 					const name = picks[pickId(r, opt, si, slot)];
 					if (name && byName.has(name)) add(name, { ...byName.get(name), quantity: 1, fromKit: true });
 				}
+			} else if (spec.name && getPackContents(character.edition, spec.name)) {
+				// a pack hands out the things inside it, not a single "pack" item
+				getPackContents(character.edition, spec.name).forEach((c) => {
+					if (byName.has(c.name)) add(c.name, { ...byName.get(c.name), quantity: c.quantity * spec.quantity, fromKit: true, fromPack: spec.name });
+				});
 			} else if (spec.name) {
 				add(spec.name, { ...byName.get(spec.name), quantity: spec.quantity, fromKit: true });
 			} else {

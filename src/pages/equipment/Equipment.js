@@ -14,7 +14,7 @@ import {
 	formatItemStats, getItemIndex, getOwnedItems, getPurchasedItems, getRemainingGold, getSelected, getStartingGold, getTotalWeight,
 	getWearDefaults, getWornArmorName, hasShield, isKit,
 } from '../../utils/equipment';
-import { getKitPending, getKitPlan, getKitState, getPickOptions, getSelectedOption, pickId } from '../../utils/startingKit';
+import { getKitPending, getKitPlan, getKitState, getOptionPacks, getPickOptions, getSelectedOption, pickId } from '../../utils/startingKit';
 import { getStartingWealth, rollStartingWealth } from '../../utils/startingWealth';
 import { OptionPicker } from '../race/RaceChoices2014';
 
@@ -111,15 +111,37 @@ function KitPanel({ character, updateEquipment }) {
 				{kitRow.kind === 'choice' ? (
 					<FormControl size="small" fullWidth>
 						<InputLabel>Choose one</InputLabel>
-						<Select label="Choose one" value={opt.key} onChange={(e) => setChoice(kitRow.id, e.target.value)}>
+						<Select
+							label="Choose one"
+							value={opt.key}
+							onChange={(e) => setChoice(kitRow.id, e.target.value)}
+							renderValue={(key) => { const o = kitRow.options.find((x) => x.key === key) || opt; return `${o.key.toUpperCase()}: ${o.label}`; }}
+						>
 							{kitRow.options.map((o) => (
-								<MenuItem key={o.key} value={o.key} sx={{ whiteSpace: 'normal' }}>{`${o.key.toUpperCase()}: ${o.label}`}</MenuItem>
+								<MenuItem key={o.key} value={o.key} sx={{ whiteSpace: 'normal' }}>
+									<Box>
+										<Typography variant="body2">{`${o.key.toUpperCase()}: ${o.label}`}</Typography>
+										{/* what is inside a pack, so the choice can be made without looking it up */}
+										{getOptionPacks(character.edition, o).map((p) => (
+											<Typography key={p.name} variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+												{p.name} contains: {p.contents}
+											</Typography>
+										))}
+									</Box>
+								</MenuItem>
 							))}
 						</Select>
 					</FormControl>
 				) : (
 					<Typography variant="body2">• {opt.label}</Typography>
 				)}
+				{getOptionPacks(character.edition, opt).map((p) => (
+					<Box key={p.name} sx={{ paddingLeft: 1.5, borderLeft: BORDER }}>
+						<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+							<strong>{p.name}</strong> contains: {p.contents}. You get each of these items separately, so they appear in your inventory below.
+						</Typography>
+					</Box>
+				))}
 				{opt.items.map((spec, si) => (spec.pick ? Array.from({ length: spec.quantity }, (_, slot) => {
 					const id = pickId(kitRow, opt, si, slot);
 					return (
@@ -251,7 +273,10 @@ export default function Equipment() {
 								<TableBody>
 									{owned.map((item) => (
 										<TableRow key={`${item.fromKit ? 'kit' : 'own'}:${item.name}`}>
-											<TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>
+												{item.name}
+												{item.fromPack && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>from {item.fromPack}</Typography>}
+											</TableCell>
 											<TableCell><Chip label={item.fromKit ? `Kit · ${item.group}` : item.group} size="small" variant="outlined" /></TableCell>
 											<TableCell>
 												{item.fromKit ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Included</Typography> : (

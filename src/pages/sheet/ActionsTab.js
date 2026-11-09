@@ -51,7 +51,9 @@ export default function ActionsTab({ d, onAttack, onDamage }) {
 			)}
 			{d.attacks.length === 0 && (
 				<Typography variant="body2" sx={{ marginTop: 2, color: 'text.secondary' }}>
-					No weapons selected. Pick some on the builder&apos;s Equipment step to see them here.
+					{d.equipping
+						? 'No weapons equipped. Tick Equipped next to a weapon on the Inventory tab to see it here.'
+						: 'No weapons selected. Pick some on the builder’s Equipment step to see them here.'}
 				</Typography>
 			)}
 		</Box>
