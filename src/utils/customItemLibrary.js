@@ -120,7 +120,7 @@ export function createCustomItemLibrary(getStorage, now = Date.now) {
 			if (!copy.libId) {
 				// made before the library existed: it becomes a library item. Its id comes from its name, so loading the same
 				// character twice (or on two devices) gives it the same id instead of adding it again.
-				const stamped = { ...copy, libId: `legacy-${String(copy.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, updatedAt: now() };
+				const stamped = { ...copy, libId: `legacy-${String(copy.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, updatedAt: 1 };
 				adopt(stamped);
 				eq = { ...eq, customGear: eq.customGear.map((i) => (i === copy ? stamped : i)) };
 				changed = true;

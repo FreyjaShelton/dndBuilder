@@ -7,8 +7,8 @@
 // Each sync pass compares every character with its file in Drive using the file's version number:
 //   - only this device changed it  -> upload
 //   - only Drive changed it        -> download
-//   - both changed it              -> keep the newer one; the older one is saved as a separate copy so
-//                                     nothing is lost
+//   - both changed it              -> the newer one wins (and if both ended up exactly the same, nothing happens). A character
+//                                     is never copied: there is one per id, on every device
 //   - new on either side           -> copied across (a new character only goes up once the user reaches Finalize;
 //                                     drafts stay on this device)
 //   - deleted on this device       -> its Drive file is deleted; deleted on another device -> removed here
@@ -82,13 +82,6 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 		updatedAt: content.updatedAt || Date.parse(file.modifiedTime) || now(),
 	});
 
-	// The character is kept twice when both devices changed it; this saves the losing copy as its own character.
-	function keepAsCopy(character, play, playBase, label) {
-		const copy = { ...character, info: { ...character.info, name: `${character.info?.name?.trim() || 'Unnamed character'} (${label})` } };
-		const id = library.createRecord({ character: copy, ...(play ? { play, playBase: JSON.stringify(copy) } : {}) });
-		library.markFinalized(id);
-	}
-
 	// The custom item library is one file in Drive: merge it with this device's, and write it back when it differs.
 	async function syncItems() {
 		if (!items) return;
@@ -108,7 +101,6 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 	}
 
 	async function pass() {
-		let conflicts = 0;
 		await syncItems(); // first, so characters opened afterwards find the items they carry up to date
 
 		// 1. Characters deleted on this device
@@ -145,21 +137,20 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 			if (unchanged) {
 				if (canPush(entry)) await upload(id, entry, file);
 				else library.setSyncedVersion(id, file.id, file.version);
+			} else if (sameContent(content, library.getRecord(id))) {
+				// Both devices ended up with exactly the same character (opening a character brings its custom item copies up to
+				// date on every device, so each one "changes" it the same way). Nothing differs, so nothing is copied or downloaded.
+				library.markInSync(id, { driveId: file.id, version: file.version, updatedAt: stamp });
 			} else if (!entry.dirty) {
 				adopt(id, content, file);
 			} else if (!entry.ready) {
 				// Being edited here and changed on another device: leave it alone until the user finalizes, then resolve.
+			} else if (stamp > entry.updatedAt) {
+				// Edited here and on another device since the last sync: the newer version wins. Nothing is kept as a copy; there is only ever one
+				// character per id.
+				adopt(id, content, file);
 			} else {
-				// Edited here and on another device since the last sync
-				const local = library.getRecord(id);
-				conflicts += 1;
-				if (stamp > entry.updatedAt) {
-					keepAsCopy(local.character, local.play, local.playBase, 'this device');
-					adopt(id, content, file);
-				} else {
-					keepAsCopy(content.character, content.play, content.playBase, 'other device');
-					await upload(id, entry, file);
-				}
+				await upload(id, entry, file);
 			}
 		}
 
@@ -183,7 +174,7 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 			const current = library.getIndex().entries[entry.id];
 			if (current && canPush(current)) await upload(entry.id, { ...current, driveId: undefined }, null);
 		}
-		return { conflicts };
+		return {};
 	}
 
 	const engine = {
@@ -243,10 +234,10 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 			running = true;
 			set({ status: 'syncing', error: undefined });
 			try {
-				const { conflicts } = await pass();
+				await pass();
 				const lastSyncAt = now();
 				setFlag(LAST_SYNC_KEY, String(lastSyncAt));
-				set({ status: 'idle', lastSyncAt, lastConflicts: conflicts || undefined });
+				set({ status: 'idle', lastSyncAt });
 			} catch (e) {
 				if (e instanceof drive.AuthError) set({ status: 'needsAuth' });
 				else set({ status: 'error', error: e.message });
@@ -262,7 +253,7 @@ export function createSyncEngine({ library, drive, items, getStorage = () => win
 			clearTimeout(sheetTimer);
 			setFlag(CONNECTED_KEY, null);
 			drive.clearToken();
-			set({ status: 'off', error: undefined, lastSyncAt: undefined, lastConflicts: undefined });
+			set({ status: 'off', error: undefined, lastSyncAt: undefined });
 		},
 	};
 

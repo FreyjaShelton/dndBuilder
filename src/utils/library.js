@@ -150,6 +150,16 @@ export function createLibrary(getStorage, now = Date.now) {
 		return true;
 	}
 
+	// The file in Drive has exactly the content that is here: link it and clear the changed flag.
+	function markInSync(id, { driveId, version: syncedVersion, updatedAt }) {
+		const index = getIndex();
+		const entry = index.entries[id];
+		if (!entry) return;
+		index.entries[id] = { ...entry, driveId, syncedVersion, syncedUpdatedAt: updatedAt, dirty: false };
+		putIndex(index);
+		emit('meta', id);
+	}
+
 	// Notes the Drive file version we are looking at without touching the changed flag.
 	function setSyncedVersion(id, driveId, syncedVersion) {
 		const index = getIndex();
@@ -176,7 +186,7 @@ export function createLibrary(getStorage, now = Date.now) {
 	}
 
 	return {
-		getIndex, list, getRecord, saveRecord, createRecord, setActive, deleteRecord, adoptRemote, markSynced, markFinalized, saveFromSheet, setSyncedVersion, clearDeleted, unlink,
+		getIndex, list, getRecord, saveRecord, createRecord, setActive, deleteRecord, adoptRemote, markSynced, markInSync, markFinalized, saveFromSheet, setSyncedVersion, clearDeleted, unlink,
 		subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
 		getVersion: () => version,
 		getActiveId: () => getIndex().activeId,

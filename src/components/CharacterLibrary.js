@@ -75,12 +75,6 @@ function SyncPanel({ sync, configured }) {
 					: `Last synced ${timeAgo(sync.lastSyncAt)}. A character uploads when you reach the Finalize step, and again if you change it and finalize again. Changes on the interactive sheet upload 20 seconds after your last change.`}
 			</Typography>
 			{sync.error && <Alert severity={sync.status === 'error' ? 'error' : 'warning'} sx={{ marginTop: 1 }}>{sync.error}</Alert>}
-			{sync.lastConflicts ? (
-				<Alert severity="info" sx={{ marginTop: 1 }}>
-					{sync.lastConflicts} character{sync.lastConflicts > 1 ? 's were' : ' was'} changed on two devices at once. The newer version was kept and the
-					other was saved as a separate character with &ldquo;(this device)&rdquo; or &ldquo;(other device)&rdquo; in its name.
-				</Alert>
-			) : null}
 			<Box sx={{ marginTop: 1 }}>
 				<Button
 					size="small"

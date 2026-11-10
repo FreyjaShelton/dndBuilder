@@ -33,8 +33,8 @@ export function seedItems(character) {
 	const shield = hasShield(character);
 	const equipping = usesEquipping(character);
 	let shieldGiven = false;
-	return getOwnedItems(character).map((item) => {
-		const base = { id: newItemId(), name: item.name, qty: item.quantity, weight: Number(item.weight) || 0 };
+	return getOwnedItems(character).map((item, index) => {
+		const base = { id: `seed${index}`, name: item.name, qty: item.quantity, weight: Number(item.weight) || 0 };
 		if (equipping) {
 			const kind = getEquipKind(character, item.name);
 			if (!kind) return base;
