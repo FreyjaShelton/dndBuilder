@@ -10,9 +10,10 @@ import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { getArmorClass, getAttacks, getBackground, getClass } from '../../utils/characterCalc';
 import { formatGold, parseCostToGold } from '../../utils/currency';
+import AttunementPanel from '../../components/AttunementPanel';
 import {
-	formatItemStats, getItemIndex, getOwnedItems, getPurchasedItems, getRemainingGold, getSelected, getStartingGold, getTotalWeight,
-	getWearDefaults, getWornArmorName, hasShield, isKit,
+	formatItemStats, getAttunableItems, getAttunedNames, getItemIndex, getOwnedItems, getPurchasedItems, getRemainingGold, getSelected, getStartingGold,
+	getTotalWeight, getWearDefaults, getWornArmorName, hasShield, isKit,
 } from '../../utils/equipment';
 import { getKitPending, getKitPlan, getKitState, getOptionPacks, getPickOptions, getSelectedOption, pickId } from '../../utils/startingKit';
 import { getStartingWealth, rollStartingWealth } from '../../utils/startingWealth';
@@ -393,6 +394,17 @@ export default function Equipment() {
 					</Box>
 				</CardContent>
 			</Card>
+			{edition === '2014' && (
+				<Card sx={{ backgroundColor: 'background.paper', marginTop: 3 }}>
+					<CardContent sx={{ padding: 3 }}>
+						<AttunementPanel
+							candidates={getAttunableItems(character)}
+							attuned={getAttunedNames(character)}
+							onChange={(names) => updateEquipment({ attuned: names })}
+						/>
+					</CardContent>
+				</Card>
+			)}
 			{edition === '2014' && <CustomItems character={character} updateEquipment={updateEquipment} />}
 		</>
 	);

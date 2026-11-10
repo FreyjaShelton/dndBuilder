@@ -1,10 +1,12 @@
 import * as React from 'react';
 import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Typography } from '@mui/material';
-import { MAX_ATTUNED, describeMagicItem } from '../../utils/equipment';
+import { MAX_ATTUNED, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
 import { ABILITY_NAMES } from '../../utils/abilityScore';
-import { abilityMaxUses, abilityUsesKey, chargesLeft, getMagicItems } from './itemCharges';
+import { abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems } from './itemCharges';
 
-function Bubbles({ total, used, onChange, label }) {
+const HEADING_SX = { color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 1 };
+
+export function Bubbles({ total, used, onChange, label }) {
 	return (
 		<Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
 			{Array.from({ length: total }, (_, i) => {
@@ -27,26 +29,28 @@ function Bubbles({ total, used, onChange, label }) {
 	);
 }
 
-function Ability({ item, ability, left, dc, prof, charges, setCharges, onUse }) {
+// One use of an item's ability: what it is, what it costs, its limited uses, and the button that spends them and rolls its dice.
+function Ability({ item, ability, active, left, dc, prof, charges, setCharges, onUse }) {
 	const cost = Number(ability.cost) || 0;
 	const usesMax = abilityMaxUses(ability, prof);
 	const usesUsed = usesMax === null ? 0 : Math.min(usesMax, Number(charges[abilityUsesKey(item, ability)]) || 0);
-	const enough = (cost === 0 || left >= cost) && (usesMax === null || usesUsed < usesMax);
-	const passive = ability.activation === 'Passive';
+	const enough = active && (cost === 0 || left >= cost) && (usesMax === null || usesUsed < usesMax);
+	const [open, setOpen] = React.useState(false);
 	const save = ability.save ? `${ABILITY_NAMES[ability.save] ? ABILITY_NAMES[ability.save].slice(0, 3).toUpperCase() : ability.save} save${ability.dc ? ` DC ${ability.dc}` : dc ? ` DC ${dc}` : ''}` : '';
 	return (
-		<Box sx={{ borderTop: 1, borderColor: 'divider', padding: '8px 0' }}>
+		<Box sx={{ borderTop: 1, borderColor: 'divider', padding: '8px 0', opacity: active ? 1 : 0.6 }}>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-				<Typography sx={{ fontWeight: 600, flex: '1 1 140px' }}>{ability.name}</Typography>
-				{ability.activation && <Chip size="small" variant="outlined" label={ability.activation} />}
+				<Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
+					<Typography sx={{ fontWeight: 600, lineHeight: 1.2 }}>{ability.name}</Typography>
+					<Typography variant="caption" sx={{ color: 'text.secondary' }}>{item.name}</Typography>
+				</Box>
+				{!active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
 				{cost > 0 && <Chip size="small" variant="outlined" color={left >= cost ? 'secondary' : 'default'} label={`${cost} charge${cost === 1 ? '' : 's'}`} />}
 				{ability.resource && <Chip size="small" variant="outlined" label={ability.resource} />}
 				{save && <Chip size="small" variant="outlined" label={save} />}
-				{!passive && (
-					<Button size="small" variant="contained" disabled={!enough} onClick={() => onUse(item, ability)}>
-						{ability.dice ? `Use (${ability.dice})` : 'Use'}
-					</Button>
-				)}
+				<Button size="small" variant="contained" disabled={!enough} onClick={() => onUse(item, ability)}>
+					{ability.dice ? `Use (${ability.dice})` : 'Use'}
+				</Button>
 			</Box>
 			{usesMax !== null && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 0.5 }}>
@@ -57,85 +61,99 @@ function Ability({ item, ability, left, dc, prof, charges, setCharges, onUse }) 
 					</Typography>
 				</Box>
 			)}
-			{ability.description && <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', marginTop: 0.5 }}>{ability.description}</Typography>}
+			{ability.description && (
+				<>
+					<Button size="small" onClick={() => setOpen((o) => !o)} sx={{ paddingX: 0.5, minWidth: 0 }}>{open ? 'Hide details' : 'Details'}</Button>
+					<Collapse in={open} unmountOnExit>
+						<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{ability.description}</Typography>
+					</Collapse>
+				</>
+			)}
 		</Box>
 	);
 }
 
-const BONUS_TEXT = { ac: 'Armor Class', spellSaveDc: 'spell save DC', spellAttack: 'spell attack rolls', saves: 'saving throws' };
-const bonusText = (bonuses) => Object.entries(bonuses || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${BONUS_TEXT[k] || k}`).join(', ');
+export const BONUS_TEXT = { ac: 'Armor Class', spellSaveDc: 'spell save DC', spellAttack: 'spell attack rolls', saves: 'saving throws' };
+export const bonusText = (bonuses) => Object.entries(bonuses || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${BONUS_TEXT[k] || k}`).join(', ');
 
-// The custom magic items the character carries: their description, attunement, charges and abilities, on the Actions tab.
+// The carried magic items' abilities, under the kind of action they are (Actions, Bonus actions, Reactions...), then each item's
+// charges, attunement and bonuses. On the Actions tab.
 export default function ItemAbilities({ character, play, setPlay, onUse, spellSaveDc, prof }) {
 	const entries = getMagicItems(character, play.items, play.charges);
 	const [open, setOpen] = React.useState({});
 	if (!entries.length) return null;
 	const charges = play.charges || {};
 	const setCharges = (patch) => setPlay({ charges: { ...charges, ...patch } });
-	const attuned = Array.isArray(play.attuned) ? play.attuned : [];
-	const toggleAttune = (name) => setPlay({ attuned: attuned.includes(name) ? attuned.filter((n) => n !== name) : [...attuned, name] });
+	const carried = new Set((play.items || []).filter((i) => Number(i.qty) > 0).map((i) => i.name));
+	const attuned = getAttunedNames(character, carried);
+	const sections = getItemActions(character, play.items, charges, attuned);
 
 	return (
-		<Box sx={{ marginTop: 3 }}>
-			<Typography variant="subtitle2" sx={{ color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 1 }}>Magic items</Typography>
-			{entries.map(({ item, used }) => {
-				const max = Number(item.charges?.max) || 0;
-				const left = chargesLeft(item, used);
-				const rule = item.charges;
-				const isAttuned = attuned.includes(item.name);
-				const groups = [...new Set((item.abilities || []).map((a) => a.group || ''))];
-				const bonuses = bonusText(item.bonuses);
-				return (
-					<Box key={item.name} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, padding: 1.5, marginBottom: 1.5 }}>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-							<Typography sx={{ fontWeight: 700, flex: 1 }}>{item.name}</Typography>
-							{item.attunement && (
-								<FormControlLabel
-									sx={{ marginRight: 0 }}
-									control={<Checkbox size="small" checked={isAttuned} disabled={!isAttuned && attuned.length >= MAX_ATTUNED} onChange={() => toggleAttune(item.name)} />}
-									label={<Typography variant="body2">Attuned</Typography>}
-								/>
-							)}
-						</Box>
-						{describeMagicItem(item) && <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{describeMagicItem(item)}</Typography>}
-						{bonuses && (
-							<Typography variant="body2" sx={{ marginTop: 0.5, color: item.attunement && !isAttuned ? 'text.disabled' : 'success.main' }}>
-								{bonuses}{item.attunement && !isAttuned ? ' (while attuned)' : ''}
-							</Typography>
-						)}
-						{max > 0 && (
-							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 1 }}>
-								<Typography variant="body2" sx={{ minWidth: 90 }}>Charges {left}/{max}</Typography>
-								<Bubbles total={max} used={used} label="Charge" onChange={(u) => setCharges({ [item.name]: Math.max(0, Math.min(max, u)) })} />
-								{rule.recharge && (
-									<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-										Regains {String(rule.recharge).toLowerCase() === 'all' ? 'all charges' : `${rule.recharge} charges`} {rule.on === 'Dawn' ? 'at dawn' : `after a ${(rule.on || 'Long rest').toLowerCase()}`}
-									</Typography>
+		<Box>
+			{sections.map((section) => (
+				<Box key={section.id} sx={{ marginTop: 3 }} data-testid={`item-actions-${section.id}`}>
+					<Typography variant="subtitle2" sx={HEADING_SX}>{section.title} <Typography component="span" variant="caption" sx={{ textTransform: 'none', letterSpacing: 0, color: 'text.secondary' }}>from magic items</Typography></Typography>
+					{section.rows.map(({ item, ability, active, max, used }, i) => (
+						<Ability
+							key={`${item.name}${ability.name}${i}`} item={item} ability={ability} active={active} left={chargesLeft(max, used)} dc={spellSaveDc} prof={prof}
+							charges={charges} setCharges={setCharges} onUse={onUse}
+						/>
+					))}
+				</Box>
+			))}
+
+			<Box sx={{ marginTop: 3 }}>
+				<Typography variant="subtitle2" sx={HEADING_SX}>Magic items</Typography>
+				{entries.map(({ item, max, used }) => {
+					const left = chargesLeft(max, used);
+					const rule = item.charges;
+					const isAttuned = attuned.includes(item.name);
+					const bonuses = bonusText(item.bonuses);
+					const passives = (item.abilities || []).filter((a) => a.activation === 'Passive');
+					return (
+						<Box key={item.name} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, padding: 1.5, marginBottom: 1.5 }}>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+								<Typography sx={{ fontWeight: 700, flex: 1 }}>{item.name}</Typography>
+								{item.attunement && (
+									<FormControlLabel
+										sx={{ marginRight: 0 }}
+										control={<Checkbox size="small" checked={isAttuned} disabled={!isAttuned && attuned.length >= MAX_ATTUNED} onChange={() => setPlay({ attuned: toggleAttunement(attuned, item.name) })} />}
+										label={<Typography variant="body2">Attuned</Typography>}
+									/>
 								)}
 							</Box>
-						)}
-						{item.description && (
-							<>
-								<Button size="small" onClick={() => setOpen((o) => ({ ...o, [item.name]: !o[item.name] }))} sx={{ paddingX: 0.5, minWidth: 0 }}>{open[item.name] ? 'Hide description' : 'Description'}</Button>
-								<Collapse in={!!open[item.name]} unmountOnExit>
-									<Typography variant="body2" sx={{ whiteSpace: 'pre-line', marginBottom: 1 }}>{item.description}</Typography>
-								</Collapse>
-							</>
-						)}
-						{groups.map((group) => (
-							<Box key={group || 'abilities'} sx={{ marginTop: 1 }}>
-								{group && <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}>{group}</Typography>}
-								{(item.abilities || []).filter((a) => (a.group || '') === group).map((ability, i) => (
-									<Ability
-										key={`${ability.name}${i}`} item={item} ability={ability} left={left} dc={spellSaveDc} prof={prof}
-										charges={charges} setCharges={setCharges} onUse={onUse}
-									/>
-								))}
-							</Box>
-						))}
-					</Box>
-				);
-			})}
+							{describeMagicItem(item) && <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{describeMagicItem(item)}</Typography>}
+							{bonuses && (
+								<Typography variant="body2" sx={{ marginTop: 0.5, color: item.attunement && !isAttuned ? 'text.disabled' : 'success.main' }}>
+									{bonuses}{item.attunement && !isAttuned ? ' (while attuned)' : ''}
+								</Typography>
+							)}
+							{passives.length > 0 && (
+								<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>Always on: {passives.map((a) => a.name).join(', ')} (see the Features tab)</Typography>
+							)}
+							{max > 0 && (
+								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 1 }}>
+									<Typography variant="body2" sx={{ minWidth: 90 }}>Charges {left}/{max}</Typography>
+									<Bubbles total={max} used={used} label="Charge" onChange={(u) => setCharges({ [item.name]: Math.max(0, Math.min(max, u)) })} />
+									{rule.recharge && (
+										<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+											Regains {String(rule.recharge).toLowerCase() === 'all' ? 'all charges' : `${rule.recharge} charges`} {rule.on === 'Dawn' ? 'at dawn' : `after a ${(rule.on || 'Long rest').toLowerCase()}`}
+										</Typography>
+									)}
+								</Box>
+							)}
+							{item.description && (
+								<>
+									<Button size="small" onClick={() => setOpen((o) => ({ ...o, [item.name]: !o[item.name] }))} sx={{ paddingX: 0.5, minWidth: 0 }}>{open[item.name] ? 'Hide description' : 'Description'}</Button>
+									<Collapse in={!!open[item.name]} unmountOnExit>
+										<Typography variant="body2" sx={{ whiteSpace: 'pre-line', marginBottom: 1 }}>{item.description}</Typography>
+									</Collapse>
+								</>
+							)}
+						</Box>
+					);
+				})}
+			</Box>
 		</Box>
 	);
 }

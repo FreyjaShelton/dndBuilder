@@ -15,7 +15,8 @@ import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../ut
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
-import { describeMagicItem, getAttuned, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
+import { describeMagicItem, getAttunedNames, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
+import { abilityMaxUses, itemMaxCharges } from '../sheet/itemCharges';
 import { splitGold } from '../../utils/currency';
 import { getSelectedSpells } from '../../utils/spells';
 import { getAlwaysPrepared } from '../../utils/spells2014';
@@ -404,16 +405,20 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	if (bgItems.length) featureBlocks.push({ title: `=== ${(bgLabel || 'BACKGROUND').toUpperCase()} ===`, items: bgItems });
 	// the player's own magic items: what they are, their charges and abilities
 	const carriedNames = new Set(getOwnedItems(character).map((i) => i.name));
-	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || i.charges?.max > 0));
+	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || itemMaxCharges(i, prof) > 0 || i.bonuses));
+	const attunedNow = getAttunedNames(character, carriedNames);
+	const bonusLine = (b) => Object.entries(b || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${{ ac: 'AC', spellSaveDc: 'spell save DC', spellAttack: 'spell attack', saves: 'saves' }[k] || k}`).join(', ');
+	const usesLine = (a) => { const max = abilityMaxUses(a, prof); return max === null ? '' : ` [${max}/${a.uses.on ? a.uses.on.toLowerCase() : 'rest'}]`; };
 	if (magic.length) {
 		featureBlocks.push({
 			title: '=== MAGIC ITEMS ===',
 			items: magic.map((item) => ({
-				name: [item.name, describeMagicItem(item) && `(${describeMagicItem(item)})`].filter(Boolean).join(' '),
+				name: [item.name, describeMagicItem(item) && `(${describeMagicItem(item)})`, item.attunement && (attunedNow.includes(item.name) ? '[attuned]' : '[not attuned]')].filter(Boolean).join(' '),
 				text: [
-					item.charges?.max > 0 ? `Charges: ${item.charges.max}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
+					itemMaxCharges(item, prof) > 0 ? `Charges: ${itemMaxCharges(item, prof)}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
+					bonusLine(item.bonuses) ? `Bonus${item.attunement ? ' while attuned' : ''}: ${bonusLine(item.bonuses)}.` : '',
 					item.description || '',
-					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
+					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}${usesLine(a)}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
 				].filter(Boolean).join('\n'),
 			})),
 		});
@@ -437,7 +442,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 		if (w) f.text(`Eq Weight${i}`, Math.round(w * 100) / 100, { max: 8.5 });
 	});
 	// the magic items the character is attuned to (the sheet has room for three)
-	getAttuned(character).filter((name) => owned.some((i) => i.name === name)).slice(0, 3).forEach((name, i) => {
+	attunedNow.forEach((name, i) => {
 		const item = owned.find((x) => x.name === name);
 		const n = i + 1;
 		f.text(`Attuned Name${n}`, name, { max: 8.5 });

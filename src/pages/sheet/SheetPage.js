@@ -11,7 +11,8 @@ import { getClassViews } from '../../utils/multiclass';
 import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
 import { getSpellRoll, rollSpell } from './spellDice';
-import { abilityMaxUses, abilityUsesKey, rechargeOnRest } from './itemCharges';
+import { getAttunedNames } from '../../utils/equipment';
+import { abilityMaxUses, abilityUsesKey, itemMaxCharges, rechargeOnRest } from './itemCharges';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -160,9 +161,12 @@ export default function SheetPage() {
 
 	// Using a magic item's ability: spends its charges and rolls its dice, if it has any
 	const useItemAbility = (item, ability) => {
+		// an item that needs attunement does nothing until the character is attuned to it
+		const carried = new Set((play.items || []).filter((i) => Number(i.qty) > 0).map((i) => i.name));
+		if (item.attunement && !getAttunedNames(view, carried).includes(item.name)) return;
 		const cost = Number(ability.cost) || 0;
 		const used = Number((play.charges || {})[item.name]) || 0;
-		const max = Number(item.charges?.max) || 0;
+		const max = itemMaxCharges(item, d.prof);
 		if (cost > 0 && max - used < cost) return;
 		// an ability can also have its own limited uses ("once per long rest", "a number of times equal to your proficiency bonus")
 		const useKey = abilityUsesKey(item, ability);
@@ -271,7 +275,7 @@ export default function SheetPage() {
 						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} />}
 						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
-						{activeTab === 'Features' && <FeaturesTab character={character} d={d} />}
+						{activeTab === 'Features' && <FeaturesTab character={view} d={d} play={play} />}
 						{activeTab === 'Notes' && <NotesTab character={character} play={play} setPlay={setPlay} />}
 					</Box>
 				</Box>

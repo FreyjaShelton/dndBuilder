@@ -5,7 +5,8 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { formatItemStats, getCharacterItem } from '../../utils/equipment';
+import AttunementPanel from '../../components/AttunementPanel';
+import { formatItemStats, getAttuned, getAttunableItems, getAttunedNames, getCharacterItem } from '../../utils/equipment';
 import { getArmorProficiencies, isWeaponProficient } from '../../utils/characterCalc';
 import { describePack, getPackContents } from '../../utils/itemIndex';
 import { getCatalog, getEquipKind, getEquipped, newItemId, toggleEquipped, unpackItem, usesEquipping } from './inventory';
@@ -17,6 +18,10 @@ const round = (n) => Math.round(n * 100) / 100;
 export default function InventoryTab({ character, d, play, setPlay }) {
 	const catalog = React.useMemo(() => getCatalog(character), [character.edition, character.equipment?.customGear]); // eslint-disable-line react-hooks/exhaustive-deps
 	const items = play.items || [];
+	// the magic items carried that need attunement, and the ones the character is attuned to (the sheet keeps its own list while playing)
+	const carried = new Set(items.filter((i) => Number(i.qty) > 0).map((i) => i.name));
+	const attunable = getAttunableItems(character, carried);
+	const attunedNames = getAttunedNames({ ...character, equipment: { ...character.equipment, attuned: Array.isArray(play.attuned) ? play.attuned : getAttuned(character) } }, carried);
 	const equipping = usesEquipping(character);
 	const equipped = getEquipped(character, items);
 	const armorText = getArmorProficiencies(character).toLowerCase();
@@ -80,6 +85,12 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 					/>
 				))}
 			</Box>
+
+			{character.edition === '2014' && (
+				<Box sx={{ marginBottom: 3 }}>
+					<AttunementPanel candidates={attunable} attuned={attunedNames} onChange={(names) => setPlay({ attuned: names })} />
+				</Box>
+			)}
 
 			<Box sx={{ display: 'flex', gap: 1, marginBottom: 2, alignItems: 'flex-start' }}>
 				<Autocomplete

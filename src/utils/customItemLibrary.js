@@ -61,19 +61,24 @@ export function createCustomItemLibrary(getStorage, now = Date.now) {
 		return true;
 	}
 
-	// Makes ready-made items (the two in data/2014/customItemPresets.js) part of the library the first time they are not there.
+	// Makes ready-made items (the two in data/2014/customItemPresets.js) part of the library the first time they are not there, and brings
+	// a seeded copy up to date when the preset got a newer `revision`. An item you edited has a newer date than any revision, so it is kept.
 	// They get fixed ids and the oldest possible date, so every device seeds the same item and any edit beats the original.
 	function seed(presets) {
 		const state = read();
-		const missing = presets.filter((p) => {
-			const id = `preset-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-			return !state.items.some((i) => i.libId === id) && !state.deleted[id];
+		const idOf = (p) => `preset-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+		const built = (p) => { const { revision, ...rest } = JSON.parse(JSON.stringify(p)); return { ...rest, homebrew: true, libId: idOf(p), updatedAt: Number(revision) || 1 }; };
+		let changed = false;
+		let items = state.items;
+		presets.forEach((p) => {
+			const id = idOf(p);
+			const have = items.find((i) => i.libId === id);
+			if (!have && !state.deleted[id]) { items = [...items, built(p)]; changed = true; }
+			// a newer revision replaces a copy that was seeded earlier and never edited (an edit is dated with the clock, far past any revision)
+			else if (have && (have.updatedAt || 0) < (Number(p.revision) || 1)) { items = items.map((i) => (i.libId === id ? built(p) : i)); changed = true; }
 		});
-		if (!missing.length) return;
-		write({
-			...state,
-			items: [...state.items, ...missing.map((p) => ({ ...JSON.parse(JSON.stringify(p)), homebrew: true, libId: `preset-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, updatedAt: 1 }))],
-		});
+		if (!changed) return;
+		write({ ...state, items });
 		emit();
 	}
 

@@ -8,7 +8,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { getItemIndex } from '../../utils/itemIndex';
 import {
-	MAX_ATTUNED, carryCustomItem, checkCustomName, deleteCustomItem, formatItemStats, getAttuned, getCustomGear, getSelected, getWearDefaults, newCustomItem,
+	carryCustomItem, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults, newCustomItem,
 	refreshCustomCopy,
 } from '../../utils/equipment';
 import customItemLibrary from '../../utils/customItemLibrary';
@@ -27,13 +27,26 @@ const ABILITY_KEYS = [['str', 'Strength'], ['dex', 'Dexterity'], ['con', 'Consti
 const splitTypes = (text) => String(text || '').split(/\s*(?:\/|,|\bor\b)\s*/i).map((t) => t.trim()).filter(Boolean);
 const num = (v) => (v === '' || v === undefined || v === null ? 0 : Number(v) || 0);
 
+// How an item's charges come back: not at all, all of them, a fixed number, or a dice roll (stored as '', 'all', '2' or '1d4').
+const DICE = /^\d*d\d+(\s*[+-]\s*\d+)?$/i;
+const regainModeOf = (recharge) => {
+	const s = String(recharge || '').trim().toLowerCase();
+	return !s ? 'none' : s === 'all' ? 'all' : /^\d+$/.test(s) ? 'number' : 'dice';
+};
+const regainText = (charges) => {
+	const mode = charges?.regainMode ?? regainModeOf(charges?.recharge);
+	const raw = String(charges?.recharge || '').trim();
+	return mode === 'none' ? '' : mode === 'all' ? 'all' : mode === 'number' ? String(Math.max(1, Math.floor(num(raw)) || 1)) : raw;
+};
+
 // Keeps only the fields that make sense for the item's category, with the right types.
 function cleanItem(draft) {
+	const perProficiency = !!draft.charges?.perProficiency;
 	const maxCharges = Math.max(0, Math.floor(num(draft.charges?.max)));
 	const abilities = (draft.abilities || []).filter((a) => String(a.name || '').trim()).map((a) => ({
 		name: a.name.trim(), activation: a.activation || '', cost: Math.max(0, Math.floor(num(a.cost))), dice: String(a.dice || '').trim(), diceLabel: String(a.diceLabel || '').trim(),
 		save: a.save || '', dc: a.dc === '' || a.dc === undefined || a.dc === null ? '' : Math.max(0, Math.floor(num(a.dc))), description: a.description || '',
-		...(String(a.group || '').trim() ? { group: a.group.trim() } : {}), ...(String(a.resource || '').trim() ? { resource: a.resource.trim() } : {}),
+		...(String(a.resource || '').trim() ? { resource: a.resource.trim() } : {}),
 		...(a.uses && (a.uses.perProficiency || num(a.uses.max) > 0) ? { uses: { max: a.uses.perProficiency ? null : Math.floor(num(a.uses.max)), perProficiency: !!a.uses.perProficiency, on: a.uses.on || 'Long rest' } } : {}),
 	}));
 	const bonuses = Object.fromEntries(['ac', 'spellSaveDc', 'spellAttack', 'saves'].map((k) => [k, num(draft.bonuses?.[k])]).filter(([, v]) => v));
@@ -41,7 +54,7 @@ function cleanItem(draft) {
 		name: draft.name.trim(), group: draft.group, cost: String(draft.cost || '').trim(), weight: Math.max(0, Number(draft.weight) || 0),
 		homebrew: true, ...(draft.base ? { base: draft.base } : {}), ...(draft.description ? { description: draft.description } : {}),
 		...(draft.itemType ? { itemType: draft.itemType } : {}), ...(draft.rarity ? { rarity: draft.rarity } : {}), ...(draft.attunement ? { attunement: true } : {}),
-		...(maxCharges > 0 ? { charges: { max: maxCharges, recharge: String(draft.charges?.recharge || '').trim(), on: draft.charges?.on || 'Long rest' } } : {}),
+		...(perProficiency || maxCharges > 0 ? { charges: { max: perProficiency ? null : maxCharges, perProficiency, recharge: regainText(draft.charges), on: draft.charges?.on || 'Long rest' } } : {}),
 		...(abilities.length ? { abilities } : {}),
 		...(Object.keys(bonuses).length ? { bonuses } : {}),
 	};
@@ -79,9 +92,36 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 	const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 	const setBonus = (patch) => setDraft((d) => ({ ...d, bonuses: { ...(d.bonuses || {}), ...patch } }));
 	const setUses = (i, patch) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).map((a, k) => (k === i ? { ...a, uses: { max: '', perProficiency: false, on: 'Long rest', ...(a.uses || {}), ...patch } } : a)) }));
-	const setCharges = (patch) => setDraft((d) => ({ ...d, charges: { max: 0, recharge: '', on: 'Long rest', ...(d.charges || {}), ...patch } }));
+	// how an ability's uses are counted: no limit, a number equal to the proficiency bonus, or a number of your own
+	const usesMode = (a) => (!a.uses ? 'none' : a.uses.perProficiency ? 'proficiency' : 'custom');
+	const setUsesMode = (i, mode) => setDraft((d) => ({
+		...d,
+		abilities: (d.abilities || []).map((a, k) => {
+			if (k !== i) return a;
+			const { uses, ...rest } = a;
+			if (mode === 'none') return rest;
+			const on = uses?.on || 'Long rest';
+			return { ...rest, uses: mode === 'proficiency' ? { max: null, perProficiency: true, on } : { max: Number(uses?.max) > 0 ? uses.max : 1, perProficiency: false, on } };
+		}),
+	}));
+	const setCharges = (patch) => setDraft((d) => ({ ...d, charges: { max: 0, perProficiency: false, recharge: '', on: 'Long rest', ...(d.charges || {}), ...patch } }));
+	// how the item's charges are counted: none, a number equal to the proficiency bonus, or a number of your own
+	const chargesMode = !draft.charges ? 'none' : draft.charges.perProficiency ? 'proficiency' : 'custom';
+	const regainMode = draft.charges?.regainMode ?? regainModeOf(draft.charges?.recharge);
+	const setRegainMode = (mode) => setDraft((d) => {
+		const was = d.charges?.regainMode ?? regainModeOf(d.charges?.recharge);
+		const keep = was === mode ? String(d.charges?.recharge || '') : '';
+		const recharge = mode === 'none' ? '' : mode === 'all' ? 'all' : keep || (mode === 'number' ? '1' : '1d4');
+		return { ...d, charges: { ...d.charges, regainMode: mode, recharge } };
+	});
+	const regainError = chargesMode !== 'none' && regainMode === 'dice' && !DICE.test(String(draft.charges?.recharge || '').trim()) ? 'Use dice like 1d4 or 2d6+1' : '';
+	const setChargesMode = (mode) => setDraft((d) => {
+		const { charges, ...rest } = d;
+		if (mode === 'none') return rest;
+		return { ...rest, charges: { recharge: '', on: 'Long rest', ...(charges || {}), perProficiency: mode === 'proficiency', max: mode === 'proficiency' ? null : Number(charges?.max) > 0 ? charges.max : 1 } };
+	});
 	const setAbility = (i, patch) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).map((a, k) => (k === i ? { ...a, ...patch } : a)) }));
-	const addAbility = () => setDraft((d) => ({ ...d, abilities: [...(d.abilities || []), { name: '', activation: 'Action', cost: 0, dice: '', diceLabel: '', save: '', dc: '', description: '', group: '', resource: '' }] }));
+	const addAbility = () => setDraft((d) => ({ ...d, abilities: [...(d.abilities || []), { name: '', activation: 'Action', cost: 0, dice: '', diceLabel: '', save: '', dc: '', description: '', resource: '' }] }));
 	const removeAbility = (i) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).filter((_, k) => k !== i) }));
 	// names are unique across everything you have made, not just this character
 	const nameError = checkCustomName(character, draft.name, original?.name || '', libraryNames.filter((n) => n !== original?.name));
@@ -259,20 +299,44 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2, border: BORDER, borderRadius: 2 }}>
 					<Typography variant="subtitle2">Charges (optional)</Typography>
 					<Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-						<TextField
-							label="Maximum charges" size="small" type="number" value={draft.charges?.max ?? ''} onChange={(e) => setCharges({ max: e.target.value })}
-							helperText="Leave empty or 0 for none" slotProps={{ htmlInput: { min: 0 } }} sx={{ flex: '1 1 130px' }}
-						/>
-						<TextField
-							label="Regains" size="small" value={draft.charges?.recharge ?? ''} onChange={(e) => setCharges({ recharge: e.target.value })}
-							placeholder="1d4" helperText="Dice, a number, or all" sx={{ flex: '1 1 130px' }}
-						/>
-						<FormControl size="small" sx={{ flex: '1 1 130px' }}>
-							<InputLabel>When</InputLabel>
-							<Select label="When" value={draft.charges?.on || 'Long rest'} onChange={(e) => setCharges({ on: e.target.value })}>
-								{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
+						<FormControl size="small" sx={{ flex: '1 1 160px' }}>
+							<InputLabel>Maximum charges</InputLabel>
+							<Select label="Maximum charges" value={chargesMode} onChange={(e) => setChargesMode(e.target.value)}>
+								<MenuItem value="none">No charges</MenuItem>
+								<MenuItem value="proficiency">Proficiency bonus</MenuItem>
+								<MenuItem value="custom">Custom</MenuItem>
 							</Select>
 						</FormControl>
+						{chargesMode === 'custom' && (
+							<TextField label="Number of charges" size="small" type="number" value={draft.charges?.max ?? ''} onChange={(e) => setCharges({ max: e.target.value })} slotProps={{ htmlInput: { min: 1 } }} sx={{ flex: '0 1 130px' }} />
+						)}
+						{chargesMode !== 'none' && (
+							<>
+								<FormControl size="small" sx={{ flex: '1 1 150px' }}>
+									<InputLabel>Regains</InputLabel>
+									<Select label="Regains" value={regainMode} onChange={(e) => setRegainMode(e.target.value)}>
+										<MenuItem value="none">Doesn't regain</MenuItem>
+										<MenuItem value="all">All charges</MenuItem>
+										<MenuItem value="number">Fixed number</MenuItem>
+										<MenuItem value="dice">Dice roll</MenuItem>
+									</Select>
+								</FormControl>
+								{regainMode === 'number' && (
+									<TextField label="Charges regained" size="small" type="number" value={draft.charges?.recharge ?? ''} onChange={(e) => setCharges({ recharge: e.target.value })} slotProps={{ htmlInput: { min: 1 } }} sx={{ flex: '0 1 130px' }} />
+								)}
+								{regainMode === 'dice' && (
+									<TextField label="Dice regained" size="small" value={draft.charges?.recharge ?? ''} onChange={(e) => setCharges({ recharge: e.target.value })} placeholder="1d4" error={!!regainError} helperText={regainError || ' '} sx={{ flex: '0 1 150px' }} />
+								)}
+								{regainMode !== 'none' && (
+									<FormControl size="small" sx={{ flex: '1 1 130px' }}>
+										<InputLabel>When</InputLabel>
+										<Select label="When" value={draft.charges?.on || 'Long rest'} onChange={(e) => setCharges({ on: e.target.value })}>
+											{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
+										</Select>
+									</FormControl>
+								)}
+							</>
+						)}
 					</Box>
 				</Box>
 
@@ -298,21 +362,28 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 								<TextField label="Charges" size="small" type="number" value={a.cost ?? 0} onChange={(e) => setAbility(i, { cost: e.target.value })} slotProps={{ htmlInput: { min: 0 } }} sx={{ flex: '0 1 90px' }} />
 								<Tooltip title="Remove this ability"><IconButton size="small" aria-label="Remove this ability" onClick={() => removeAbility(i)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
 							</Box>
-							<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-								<TextField label="Group (optional)" size="small" value={a.group || ''} onChange={(e) => setAbility(i, { group: e.target.value })} placeholder="Vials" sx={{ flex: '1 1 110px' }} />
-								<TextField label="Other cost (not tracked)" size="small" value={a.resource || ''} onChange={(e) => setAbility(i, { resource: e.target.value })} placeholder="6 sorcery points" sx={{ flex: '1 1 150px' }} />
-								<TextField
-									label="Uses" size="small" type="number" value={a.uses?.perProficiency ? '' : a.uses?.max ?? ''} disabled={!!a.uses?.perProficiency}
-									onChange={(e) => setUses(i, { max: e.target.value })} helperText="Empty: no limit" slotProps={{ htmlInput: { min: 0 } }} sx={{ flex: '0 1 90px' }}
-								/>
-								<FormControlLabel control={<Checkbox checked={!!a.uses?.perProficiency} onChange={(e) => setUses(i, { perProficiency: e.target.checked })} />} label="= proficiency bonus" />
-								<FormControl size="small" sx={{ flex: '1 1 120px' }}>
-									<InputLabel>Uses reset after</InputLabel>
-									<Select label="Uses reset after" value={a.uses?.on || 'Long rest'} onChange={(e) => setUses(i, { on: e.target.value })}>
-										{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
-									</Select>
-								</FormControl>
-							</Box>
+								<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+									<TextField label="Other cost (not tracked)" size="small" value={a.resource || ''} onChange={(e) => setAbility(i, { resource: e.target.value })} placeholder="6 sorcery points" sx={{ flex: '1 1 150px' }} />
+									<FormControl size="small" sx={{ flex: '1 1 150px' }}>
+										<InputLabel>Limited uses</InputLabel>
+										<Select label="Limited uses" value={usesMode(a)} onChange={(e) => setUsesMode(i, e.target.value)}>
+											<MenuItem value="none">No limit</MenuItem>
+											<MenuItem value="proficiency">Proficiency bonus</MenuItem>
+											<MenuItem value="custom">Custom</MenuItem>
+										</Select>
+									</FormControl>
+									{usesMode(a) === 'custom' && (
+										<TextField label="Number of uses" size="small" type="number" value={a.uses?.max ?? ''} onChange={(e) => setUses(i, { max: e.target.value })} slotProps={{ htmlInput: { min: 1 } }} sx={{ flex: '0 1 120px' }} />
+									)}
+									{usesMode(a) !== 'none' && (
+										<FormControl size="small" sx={{ flex: '1 1 120px' }}>
+											<InputLabel>Uses reset after</InputLabel>
+											<Select label="Uses reset after" value={a.uses?.on || 'Long rest'} onChange={(e) => setUses(i, { on: e.target.value })}>
+												{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
+											</Select>
+										</FormControl>
+									)}
+								</Box>
 							<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
 								<TextField label="Dice rolled (optional)" size="small" value={a.dice || ''} onChange={(e) => setAbility(i, { dice: e.target.value })} placeholder="3d12" sx={{ flex: '1 1 120px' }} />
 								<TextField label="What the dice are" size="small" value={a.diceLabel || ''} onChange={(e) => setAbility(i, { diceLabel: e.target.value })} placeholder="lightning damage" sx={{ flex: '2 1 160px' }} />
@@ -334,7 +405,7 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>
-				<Button variant="contained" disabled={!!nameError} onClick={() => onSave(cleanItem(draft), original?.name)}>{editing ? 'Save' : 'Create'}</Button>
+				<Button variant="contained" disabled={!!nameError || !!regainError} onClick={() => onSave(cleanItem(draft), original?.name)}>{editing ? 'Save' : 'Create'}</Button>
 			</DialogActions>
 		</Dialog>
 	);
@@ -349,13 +420,9 @@ export default function CustomItems({ character, updateEquipment }) {
 	React.useSyncExternalStore(customItemLibrary.subscribe, customItemLibrary.getVersion);
 	const items = customItemLibrary.list();
 	const gear = getCustomGear(character); // this character's copies
+	const attunedNames = getAttunedNames(character);
 	const selected = getSelected(character);
-	const attuned = getAttuned(character);
 	const copyOf = (item) => gear.find((g) => g.libId === item.libId) || gear.find((g) => g.name === item.name);
-	const toggleAttuned = (name) => updateEquipment((eq) => {
-		const list = Array.isArray(eq.attuned) ? eq.attuned : [];
-		return { attuned: list.includes(name) ? list.filter((n) => n !== name) : [...list, name] };
-	});
 
 	// an equipment change that keeps the worn armor and carried shield consistent with what is now owned
 	const apply = (makePatch) => updateEquipment((eq) => {
@@ -424,11 +491,9 @@ export default function CustomItems({ character, updateEquipment }) {
 									</Typography>
 									{item.description && <Typography variant="body2" sx={{ marginTop: 0.5, whiteSpace: 'pre-line' }}>{item.description}</Typography>}
 									{item.attunement && have && (
-										<FormControlLabel
-											sx={{ marginLeft: -0.5 }}
-											control={<Checkbox size="small" checked={attuned.includes(name)} disabled={!attuned.includes(name) && attuned.length >= MAX_ATTUNED} onChange={() => toggleAttuned(name)} />}
-											label={<Typography variant="body2">Attuned{!attuned.includes(name) && attuned.length >= MAX_ATTUNED ? ` (you can be attuned to ${MAX_ATTUNED} items at most)` : ''}</Typography>}
-										/>
+										<Typography variant="caption" sx={{ display: 'block', marginTop: 0.5, color: attunedNames.includes(name) ? 'success.main' : 'text.secondary' }}>
+											{attunedNames.includes(name) ? 'You are attuned to this item.' : 'Requires attunement: use the Attunement section above.'}
+										</Typography>
 									)}
 								</Box>
 								<Tooltip title="Edit"><IconButton size="small" aria-label={`Edit ${item.name}`} onClick={() => setEditor({ original: item })}><EditIcon fontSize="small" /></IconButton></Tooltip>

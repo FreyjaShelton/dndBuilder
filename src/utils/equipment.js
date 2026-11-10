@@ -159,6 +159,25 @@ function applySheetChanges(character, base) {
 export const MAX_ATTUNED = 3;
 export const getAttuned = (character) => (Array.isArray(character.equipment?.attuned) ? character.equipment.attuned : []);
 
+// The custom items that need attunement among the ones carried (`carried`: a Set of names; the character's own items when left out).
+export function getAttunableItems(character, carried) {
+	const have = carried || new Set(getOwnedItems(character).filter((i) => i.quantity > 0).map((i) => i.name));
+	return getCustomGear(character).filter((i) => i.attunement && have.has(i.name));
+}
+
+// The attuned names that still count: an item that was put down or deleted stops using up a slot.
+export function getAttunedNames(character, carried) {
+	const attunable = new Set(getAttunableItems(character, carried).map((i) => i.name));
+	return [...new Set(getAttuned(character))].filter((name) => attunable.has(name)).slice(0, MAX_ATTUNED);
+}
+
+// The list of attuned names after attuning to (or ending attunement with) `name`. Attuning past the limit changes nothing.
+export function toggleAttunement(list, name) {
+	const names = Array.isArray(list) ? list : [];
+	if (names.includes(name)) return names.filter((n) => n !== name);
+	return names.length >= MAX_ATTUNED ? names : [...names, name];
+}
+
 // What the custom magic items the character carries add to the numbers: { ac, spellSaveDc, spellAttack, saves }.
 // An item that needs attunement counts only while the character is attuned to it (equipment.attuned: [names]).
 export function getItemBonuses(character) {
@@ -237,7 +256,7 @@ export const describeMagicItem = (item) => [item.itemType, item.rarity, item.att
 
 export function formatItemStats(item) {
 	const base = formatBaseStats(item);
-	const extra = [item.charges?.max > 0 && `${item.charges.max} charges`].filter(Boolean);
+	const extra = [item.charges?.perProficiency ? 'charges equal to proficiency bonus' : item.charges?.max > 0 && `${item.charges.max} charges`].filter(Boolean);
 	return [describeMagicItem(item), base, ...extra].filter(Boolean).join(' · ');
 }
 

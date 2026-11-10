@@ -429,6 +429,10 @@ export function getAttacks(character, weaponNames) {
 	const weaponData = getWeaponData(character); // the catalog's weapons and the player's own
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
+	// a weapon that counts as a spell attack rolls the character's spell attack bonus (spellcasting ability, proficiency and any item
+	// bonus to spell attacks), the same number the Spells tab shows. With several casting classes the best one is used.
+	const casting = getSpellcastingStatsList(character);
+	const spellAttackBonus = casting.length ? Math.max(...casting.map((s) => s.attackBonus)) : null;
 	return (weaponNames || getWeaponNames(character)).map((name) => {
 		const w = weaponData.find((x) => x.name === name);
 		if (!w) return null;
@@ -436,7 +440,8 @@ export function getAttacks(character, weaponNames) {
 		// a custom weapon can name the ability it attacks and damages with (a spell-like weapon that uses Charisma), and carry a
 		// magic bonus to hit and damage
 		const mod = w.ability && mods[w.ability] !== undefined ? mods[w.ability] : w.kind === 'Ranged' ? mods.dex : finesse ? Math.max(mods.str, mods.dex) : mods.str;
-		const attack = mod + (w.alwaysProficient || isWeaponProficient(character, w) ? prof : 0) + (Number(w.attackBonus) || 0);
+		const asSpell = w.spellAttack && spellAttackBonus !== null;
+		const attack = (asSpell ? spellAttackBonus : mod + (w.alwaysProficient || isWeaponProficient(character, w) ? prof : 0)) + (Number(w.attackBonus) || 0);
 		const damageMod = mod + (Number(w.damageBonus) || 0);
 		const damage = w.damage ? `${w.damage}${damageMod ? formatSigned(damageMod) : ''} ${w.damageType}` : '';
 		return { name: w.name, attackBonus: formatSigned(attack), damage, mastery: w.mastery || '', spellAttack: !!w.spellAttack };
