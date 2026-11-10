@@ -1,4 +1,4 @@
-// Ready-made custom items for the Equipment step's "Start from an existing item" list (2014). Each is a complete custom item
+// Ready-made custom items for the Equipment step (2014): they start out in the Custom items list. Each is a complete custom item
 // (see utils/equipment.js): picking one copies it whole, and every field can still be changed.
 export const CUSTOM_ITEM_PRESETS = [
 	{
@@ -40,7 +40,6 @@ export const CUSTOM_ITEM_PRESETS = [
 	},
 	{
 		name: 'Blessing of the Tempest',
-		base: 'Staff',
 		group: 'Spellcasting Focus',
 		itemType: 'Relic',
 		rarity: 'Rare',
@@ -48,7 +47,7 @@ export const CUSTOM_ITEM_PRESETS = [
 		cost: '',
 		weight: 4,
 		// bump this when the item below changes: a copy that has not been edited is replaced by the new version (see customItemLibrary.seed)
-		revision: 2,
+		revision: 3,
 		// Stormborn Rune: while attuned, +1 to spell save DC and spell attack rolls
 		bonuses: { spellSaveDc: 1, spellAttack: 1 },
 		abilities: [
@@ -74,5 +73,15 @@ export const CUSTOM_ITEM_PRESETS = [
 		description: 'Arcane focus (staff). Requires attunement.\n\n'
 			+ 'Struck by lightning, this thick twisted branch from the base of a Ginkgo tree is charged with a magical aura. It is adorned with a set of glass vials and charms containing gifts from a miracle encounter. '
 			+ 'These charms float around the staff as though they are the winds creating a cyclone.',
+	},
+	{
+		name: 'Shield Bracelet',
+		group: 'Adventuring Gear',
+		itemType: 'Wondrous item',
+		cost: '',
+		weight: 0,
+		// whoever carries it can cast Shield, whatever their class: a number of times equal to their proficiency bonus, all back after a long rest
+		spells: [{ name: 'Shield', uses: { max: null, perProficiency: true, on: 'Long rest' } }],
+		description: 'While you carry this bracelet, you can cast the shield spell from it, without a spell slot, a number of times equal to your proficiency bonus. All of its uses return after a long rest.',
 	},
 ];

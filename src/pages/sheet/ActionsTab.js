@@ -3,7 +3,7 @@ import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, Ta
 import { signed } from './dice';
 import ItemAbilities from './ItemAbilities';
 
-export default function ActionsTab({ character, d, play, setPlay, onAttack, onDamage, onUseAbility }) {
+export default function ActionsTab({ character, d, play, setPlay, onAttack, onDamage, onUseAbility, onCastItemSpell }) {
 	const strMod = d.mods.str;
 	const unarmed = {
 		name: 'Unarmed Strike',
@@ -45,7 +45,7 @@ export default function ActionsTab({ character, d, play, setPlay, onAttack, onDa
 				</TableBody>
 			</Table>
 			</TableContainer>
-			<ItemAbilities character={character} play={play} setPlay={setPlay} onUse={onUseAbility} spellSaveDc={d.spellStats?.saveDc} prof={d.prof} />
+			<ItemAbilities character={character} play={play} setPlay={setPlay} onUse={onUseAbility} onCastSpell={onCastItemSpell} spellSaveDc={d.spellStats?.saveDc} prof={d.prof} d={d} />
 			{d.spellStats && (
 				<Typography variant="body2" sx={{ marginTop: 2, color: 'text.secondary' }}>
 					Spell attack {signed(d.spellStats.attackBonus)} · Spell save DC {d.spellStats.saveDc} — open the Spells tab to cast.

@@ -17,6 +17,7 @@ import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../ut
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
 import { describeMagicItem, getAttunedNames, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
 import { abilityMaxUses, itemMaxCharges } from '../sheet/itemCharges';
+import { getItemSpells } from '../../utils/itemSpells';
 import { splitGold } from '../../utils/currency';
 import { getSelectedSpells } from '../../utils/spells';
 import { getAlwaysPrepared } from '../../utils/spells2014';
@@ -342,7 +343,9 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 		const damage = a.damage.includes(' / ') ? a.damage.replace(/^(\S+) (.*)$/,(_, dice, types) => `${dice} ${types.split(' / ').map((t) => t.slice(0, 4)).join('/')}`) : a.damage;
 		return { name: a.name, bonus: a.attackBonus, damage, notes: [a.spellAttack ? 'Spell attack' : '', props, a.mastery ? `Mastery: ${a.mastery}` : ''].filter(Boolean).join('; ') };
 	});
-	const spells = getSelectedSpells(character);
+	// spells that carried magic items let the character cast are listed too (their Source column names the item)
+	const classSpells = getSelectedSpells(character);
+	const spells = [...classSpells, ...getItemSpells(character).filter((s) => !classSpells.some((c) => c.name === s.name))];
 	if (casting) {
 		// attack cantrips deal more dice at 5th, 11th and 17th level
 		const cantripTier = 1 + (level >= 5 ? 1 : 0) + (level >= 11 ? 1 : 0) + (level >= 17 ? 1 : 0);
@@ -405,7 +408,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	if (bgItems.length) featureBlocks.push({ title: `=== ${(bgLabel || 'BACKGROUND').toUpperCase()} ===`, items: bgItems });
 	// the player's own magic items: what they are, their charges and abilities
 	const carriedNames = new Set(getOwnedItems(character).map((i) => i.name));
-	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || itemMaxCharges(i, prof) > 0 || i.bonuses));
+	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || i.spells?.length || itemMaxCharges(i, prof) > 0 || i.bonuses));
 	const attunedNow = getAttunedNames(character, carriedNames);
 	const bonusLine = (b) => Object.entries(b || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${{ ac: 'AC', spellSaveDc: 'spell save DC', spellAttack: 'spell attack', saves: 'saves' }[k] || k}`).join(', ');
 	const usesLine = (a) => { const max = abilityMaxUses(a, prof); return max === null ? '' : ` [${max}/${a.uses.on ? a.uses.on.toLowerCase() : 'rest'}]`; };
@@ -418,6 +421,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 					itemMaxCharges(item, prof) > 0 ? `Charges: ${itemMaxCharges(item, prof)}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
 					bonusLine(item.bonuses) ? `Bonus${item.attunement ? ' while attuned' : ''}: ${bonusLine(item.bonuses)}.` : '',
 					item.description || '',
+					...(item.spells || []).map((sp) => { const max = abilityMaxUses(sp, prof); return `Casts ${sp.name}${Number(sp.level) > 0 ? ` at level ${sp.level}` : ''}: ${max === null ? 'no limit' : `${max}/${sp.uses.on ? sp.uses.on.toLowerCase() : 'rest'}`}${sp.ability ? ` (${sp.ability.toUpperCase()})` : ''}.`; }),
 					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}${usesLine(a)}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
 				].filter(Boolean).join('\n'),
 			})),
@@ -539,6 +543,7 @@ function fillSpellTable(f, character, spells, casting, cls, castingList, classNa
 		return n ? `${n} Slot${n === 1 ? '' : 's'} ${'O'.repeat(Math.min(n, 4))}` : '';
 	};
 	const { always, grants } = spellOrigins(character);
+	spells.forEach((s) => { if (s.fromItem) grants.set(s.name, s.fromItem); });
 	const className = cls?.name;
 	const levels = [...new Set(spells.map((s) => s.level))].sort((a, b) => a - b);
 

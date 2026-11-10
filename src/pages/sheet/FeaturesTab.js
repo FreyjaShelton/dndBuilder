@@ -7,6 +7,7 @@ import { getSheetFeatures } from '../../utils/classChoices';
 import { getRaceChoiceSummaries } from '../../utils/raceChoices';
 import { getBackgroundChoiceSummaries } from '../../utils/backgroundChoices';
 import { describeMagicItem, getAttunedNames } from '../../utils/equipment';
+import { getSpellRecord } from '../../utils/spells2014';
 import { abilityMaxUses, getFeatureItems } from './itemCharges';
 import { bonusText } from './ItemAbilities';
 
@@ -72,6 +73,17 @@ function MagicItemFeatures({ character, d, play }) {
 								{`This item holds up to ${max} charges${item.charges.recharge ? ` and regains ${String(item.charges.recharge).toLowerCase() === 'all' ? 'all of them' : item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.`}
 							</Entry>
 						)}
+						{(item.spells || []).map((sp) => {
+							const max = abilityMaxUses(sp, d.prof);
+							const record = getSpellRecord(sp.name);
+							const facts = [
+								'Cast without a spell slot',
+								Number(sp.level) > 0 && `cast at level ${sp.level}`,
+								max !== null ? `${max} use${max === 1 ? '' : 's'}${sp.uses.perProficiency ? ' (your proficiency bonus)' : ''}${sp.uses.on ? ` per ${sp.uses.on === 'Dawn' ? 'dawn' : sp.uses.on.toLowerCase()}` : ''}` : 'no limit',
+								sp.ability && `${sp.ability.toUpperCase()} for its save DC and attack`,
+							].filter(Boolean).join(' · ');
+							return <Entry key={`spell-${sp.name}`} title={`Spell: ${sp.name}`}>{[facts, record?.description].filter(Boolean).join('\n\n')}</Entry>;
+						})}
 						{(item.abilities || []).map((a, i) => (
 							<Entry key={`${a.name}${i}`} title={`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}`}>
 								{[abilityFacts(a, d.prof), a.description].filter(Boolean).join('\n\n')}

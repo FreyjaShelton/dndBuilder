@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Typography } from '@mui/material';
 import { MAX_ATTUNED, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
 import { ABILITY_NAMES } from '../../utils/abilityScore';
-import { abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems } from './itemCharges';
+import { itemSpellKey } from '../../utils/itemSpells';
+import { abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
 
 const HEADING_SX = { color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 1 };
 
@@ -73,12 +74,58 @@ function Ability({ item, ability, active, left, dc, prof, charges, setCharges, o
 	);
 }
 
+// A spell a magic item lets the character cast, among the actions: cast it with the spell's own uses (never a slot).
+function SpellRow({ spell, d, charges, setCharges, onCast }) {
+	const key = itemSpellKey({ name: spell.fromItem }, spell);
+	const usesMax = abilityMaxUses(spell, d.prof);
+	const usesUsed = usesMax === null ? 0 : Math.min(usesMax, Number(charges[key]) || 0);
+	const ready = spell.active && (usesMax === null || usesUsed < usesMax);
+	const stats = itemSpellStats(d, spell);
+	const saveMatch = String(spell.description || '').match(/(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw/);
+	const [open, setOpen] = React.useState(false);
+	return (
+		<Box sx={{ borderTop: 1, borderColor: 'divider', padding: '8px 0', opacity: spell.active ? 1 : 0.6 }} data-testid="item-spell-row">
+			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+				<Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
+					<Typography sx={{ fontWeight: 600, lineHeight: 1.2 }}>{spell.name}</Typography>
+					<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+						{[spell.fromItem, spell.level === 0 ? 'Cantrip' : `Level ${spell.level} spell`, spell.castLevel > spell.level ? `cast at level ${spell.castLevel}` : ''].filter(Boolean).join(' · ')}
+					</Typography>
+				</Box>
+				{!spell.active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
+				{spell.concentration && <Chip size="small" variant="outlined" label="Concentration" />}
+				{saveMatch && stats && <Chip size="small" variant="outlined" label={`${saveMatch[1].slice(0, 3).toUpperCase()} save DC ${stats.saveDc}`} />}
+				<Button size="small" variant="contained" disabled={!ready} onClick={() => onCast(spell)}>Cast</Button>
+			</Box>
+			{usesMax !== null && (
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 0.5 }}>
+					<Typography variant="caption" sx={{ minWidth: 90 }}>Uses {usesMax - usesUsed}/{usesMax}</Typography>
+					<Bubbles total={usesMax} used={usesUsed} label={`${spell.name} use`} onChange={(u) => setCharges({ [key]: Math.max(0, Math.min(usesMax, u)) })} />
+					<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+						{spell.uses.perProficiency ? 'A number of times equal to your proficiency bonus' : ''}{spell.uses.on ? `${spell.uses.perProficiency ? ', r' : 'R'}esets after a ${spell.uses.on === 'Dawn' ? 'dawn' : spell.uses.on.toLowerCase()}` : ''}
+					</Typography>
+				</Box>
+			)}
+			{spell.description && (
+				<>
+					<Button size="small" onClick={() => setOpen((o) => !o)} sx={{ paddingX: 0.5, minWidth: 0 }}>{open ? 'Hide details' : 'Details'}</Button>
+					<Collapse in={open} unmountOnExit>
+						<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{spell.castingTime} · {spell.range} · {spell.components} · {spell.duration}</Typography>
+						<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{spell.description}</Typography>
+						{spell.higherLevels && <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', marginTop: 0.5 }}>{spell.higherLevels}</Typography>}
+					</Collapse>
+				</>
+			)}
+		</Box>
+	);
+}
+
 export const BONUS_TEXT = { ac: 'Armor Class', spellSaveDc: 'spell save DC', spellAttack: 'spell attack rolls', saves: 'saving throws' };
 export const bonusText = (bonuses) => Object.entries(bonuses || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${BONUS_TEXT[k] || k}`).join(', ');
 
 // The carried magic items' abilities, under the kind of action they are (Actions, Bonus actions, Reactions...), then each item's
 // charges, attunement and bonuses. On the Actions tab.
-export default function ItemAbilities({ character, play, setPlay, onUse, spellSaveDc, prof }) {
+export default function ItemAbilities({ character, play, setPlay, onUse, onCastSpell, spellSaveDc, prof, d }) {
 	const entries = getMagicItems(character, play.items, play.charges);
 	const [open, setOpen] = React.useState({});
 	if (!entries.length) return null;
@@ -86,19 +133,21 @@ export default function ItemAbilities({ character, play, setPlay, onUse, spellSa
 	const setCharges = (patch) => setPlay({ charges: { ...charges, ...patch } });
 	const carried = new Set((play.items || []).filter((i) => Number(i.qty) > 0).map((i) => i.name));
 	const attuned = getAttunedNames(character, carried);
-	const sections = getItemActions(character, play.items, charges, attuned);
+	const sections = getItemActions(character, play.items, charges, attuned, (d && d.itemSpells) || []);
 
 	return (
 		<Box>
 			{sections.map((section) => (
 				<Box key={section.id} sx={{ marginTop: 3 }} data-testid={`item-actions-${section.id}`}>
 					<Typography variant="subtitle2" sx={HEADING_SX}>{section.title} <Typography component="span" variant="caption" sx={{ textTransform: 'none', letterSpacing: 0, color: 'text.secondary' }}>from magic items</Typography></Typography>
-					{section.rows.map(({ item, ability, active, max, used }, i) => (
+					{section.rows.map(({ item, ability, spell, active, max, used }, i) => (spell ? (
+						<SpellRow key={`spell${item.name}${spell.name}`} spell={spell} d={d} charges={charges} setCharges={setCharges} onCast={onCastSpell} />
+					) : (
 						<Ability
 							key={`${item.name}${ability.name}${i}`} item={item} ability={ability} active={active} left={chargesLeft(max, used)} dc={spellSaveDc} prof={prof}
 							charges={charges} setCharges={setCharges} onUse={onUse}
 						/>
-					))}
+					)))}
 				</Box>
 			))}
 

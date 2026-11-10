@@ -218,6 +218,18 @@ export function getChosenSpellNames(character) {
 	return [...names];
 }
 
+// One spell as a full record (index fields plus details when they have been loaded), or null for a name that is not a 2014 spell.
+export function getSpellRecord(name, casterIndex) {
+	const s = findSpell(name);
+	if (!s) return null;
+	const d = getLoadedSpellDetails()?.[s.name] || {};
+	return {
+		name: s.name, level: s.level, school: s.school, classes: s.classes, casterIndex,
+		castingTime: d.castingTime || '', range: d.range || '', components: d.components || '', duration: d.duration || '',
+		concentration: !!d.concentration, ritual: !!d.ritual, description: d.description || '', higherLevels: d.higherLevels || '',
+	};
+}
+
 // Full records (index fields plus details when they have been loaded), cantrips first.
 export function getSelectedSpells2014(character) {
 	const details = getLoadedSpellDetails();

@@ -409,6 +409,7 @@ function classTextCovers(text, weapon) {
 }
 
 export function isWeaponProficient(character, weapon) {
+	if (weapon.alwaysProficient) return true; // a custom item set to "Always proficient with it"
 	const cls = getClass(character);
 	const race = getRace(character);
 	const names = [weapon.name, weapon.base].filter(Boolean);

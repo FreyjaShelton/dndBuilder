@@ -7,6 +7,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { getItemIndex } from '../../utils/itemIndex';
+import spellIndex from '../../data/2014/spellIndex';
 import {
 	carryCustomItem, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults, newCustomItem,
 	refreshCustomCopy,
@@ -24,6 +25,9 @@ const RARITIES = ['Common', 'Uncommon', 'Rare', 'Very rare', 'Legendary', 'Artif
 const ACTIVATIONS = ['Action', 'Bonus action', 'Reaction', 'Free', 'Short rest', 'Passive'];
 const RECHARGE_WHEN = ['Long rest', 'Short rest', 'Dawn'];
 const ABILITY_KEYS = [['str', 'Strength'], ['dex', 'Dexterity'], ['con', 'Constitution'], ['int', 'Intelligence'], ['wis', 'Wisdom'], ['cha', 'Charisma']];
+// the 2014 spells a custom item can grant: their names, and the level each one is
+const SPELL_LEVEL = new Map(spellIndex.map((s) => [s.name, s.level]));
+const SPELL_NAMES = spellIndex.map((s) => s.name).sort((a, b) => a.localeCompare(b));
 const splitTypes = (text) => String(text || '').split(/\s*(?:\/|,|\bor\b)\s*/i).map((t) => t.trim()).filter(Boolean);
 const num = (v) => (v === '' || v === undefined || v === null ? 0 : Number(v) || 0);
 
@@ -49,6 +53,13 @@ function cleanItem(draft) {
 		...(String(a.resource || '').trim() ? { resource: a.resource.trim() } : {}),
 		...(a.uses && (a.uses.perProficiency || num(a.uses.max) > 0) ? { uses: { max: a.uses.perProficiency ? null : Math.floor(num(a.uses.max)), perProficiency: !!a.uses.perProficiency, on: a.uses.on || 'Long rest' } } : {}),
 	}));
+	const seenSpells = new Set();
+	const spells = (draft.spells || []).filter((s) => SPELL_LEVEL.has(s.name) && !seenSpells.has(s.name) && seenSpells.add(s.name)).map((s) => ({
+		name: s.name,
+		...(Number(s.level) > SPELL_LEVEL.get(s.name) ? { level: Math.min(9, Math.floor(Number(s.level))) } : {}),
+		...(s.ability ? { ability: s.ability } : {}),
+		...(s.uses && (s.uses.perProficiency || num(s.uses.max) > 0) ? { uses: { max: s.uses.perProficiency ? null : Math.floor(num(s.uses.max)), perProficiency: !!s.uses.perProficiency, on: s.uses.on || 'Long rest' } } : {}),
+	}));
 	const bonuses = Object.fromEntries(['ac', 'spellSaveDc', 'spellAttack', 'saves'].map((k) => [k, num(draft.bonuses?.[k])]).filter(([, v]) => v));
 	const out = {
 		name: draft.name.trim(), group: draft.group, cost: String(draft.cost || '').trim(), weight: Math.max(0, Number(draft.weight) || 0),
@@ -56,6 +67,7 @@ function cleanItem(draft) {
 		...(draft.itemType ? { itemType: draft.itemType } : {}), ...(draft.rarity ? { rarity: draft.rarity } : {}), ...(draft.attunement ? { attunement: true } : {}),
 		...(perProficiency || maxCharges > 0 ? { charges: { max: perProficiency ? null : maxCharges, perProficiency, recharge: regainText(draft.charges), on: draft.charges?.on || 'Long rest' } } : {}),
 		...(abilities.length ? { abilities } : {}),
+		...(spells.length ? { spells } : {}),
 		...(Object.keys(bonuses).length ? { bonuses } : {}),
 	};
 	if (draft.group === 'Weapons') {
@@ -80,30 +92,59 @@ function cleanItem(draft) {
 	return out;
 }
 
+// How often something can be used between rests: no limit, a number equal to the proficiency bonus, or a number of your own, and
+// when the uses come back. `uses` is { max, perProficiency, on } or undefined (no limit); onChange gets the new one.
+function UsesFields({ uses, onChange }) {
+	const mode = !uses ? 'none' : uses.perProficiency ? 'proficiency' : 'custom';
+	const setMode = (next) => {
+		if (next === 'none') { onChange(undefined); return; }
+		const on = uses?.on || 'Long rest';
+		onChange(next === 'proficiency' ? { max: null, perProficiency: true, on } : { max: Number(uses?.max) > 0 ? uses.max : 1, perProficiency: false, on });
+	};
+	return (
+		<>
+			<FormControl size="small" sx={{ flex: '1 1 150px' }}>
+				<InputLabel>Limited uses</InputLabel>
+				<Select label="Limited uses" value={mode} onChange={(e) => setMode(e.target.value)}>
+					<MenuItem value="none">No limit</MenuItem>
+					<MenuItem value="proficiency">Proficiency bonus</MenuItem>
+					<MenuItem value="custom">Custom</MenuItem>
+				</Select>
+			</FormControl>
+			{mode === 'custom' && (
+				<TextField label="Number of uses" size="small" type="number" value={uses.max ?? ''} onChange={(e) => onChange({ ...uses, max: e.target.value })} slotProps={{ htmlInput: { min: 1 } }} sx={{ flex: '0 1 120px' }} />
+			)}
+			{mode !== 'none' && (
+				<FormControl size="small" sx={{ flex: '1 1 120px' }}>
+					<InputLabel>Uses reset after</InputLabel>
+					<Select label="Uses reset after" value={uses.on || 'Long rest'} onChange={(e) => onChange({ ...uses, on: e.target.value })}>
+						{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
+					</Select>
+				</FormControl>
+			)}
+		</>
+	);
+}
+
 function ItemEditor({ character, groups, catalog, libraryItems, original, onClose, onSave }) {
 	const libraryNames = libraryItems.map((i) => i.name);
 	const editing = !!original;
 	const [draft, setDraft] = React.useState(() => (original
 		? {
 			...original, properties: [...(original.properties || [])], abilities: (original.abilities || []).map((a) => ({ ...a, uses: a.uses ? { ...a.uses } : undefined })),
+			spells: (original.spells || []).map((s) => ({ ...s, uses: s.uses ? { ...s.uses } : undefined })),
 			charges: original.charges ? { ...original.charges } : undefined, bonuses: original.bonuses ? { ...original.bonuses } : undefined,
 		}
 		: newCustomItem(character, '', libraryNames)));
 	const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 	const setBonus = (patch) => setDraft((d) => ({ ...d, bonuses: { ...(d.bonuses || {}), ...patch } }));
-	const setUses = (i, patch) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).map((a, k) => (k === i ? { ...a, uses: { max: '', perProficiency: false, on: 'Long rest', ...(a.uses || {}), ...patch } } : a)) }));
-	// how an ability's uses are counted: no limit, a number equal to the proficiency bonus, or a number of your own
-	const usesMode = (a) => (!a.uses ? 'none' : a.uses.perProficiency ? 'proficiency' : 'custom');
-	const setUsesMode = (i, mode) => setDraft((d) => ({
-		...d,
-		abilities: (d.abilities || []).map((a, k) => {
-			if (k !== i) return a;
-			const { uses, ...rest } = a;
-			if (mode === 'none') return rest;
-			const on = uses?.on || 'Long rest';
-			return { ...rest, uses: mode === 'proficiency' ? { max: null, perProficiency: true, on } : { max: Number(uses?.max) > 0 ? uses.max : 1, perProficiency: false, on } };
-		}),
-	}));
+	// an ability's (or a spell's) limited uses: undefined removes the limit
+	const withUses = (obj, uses) => { const next = { ...obj }; delete next.uses; return uses ? { ...next, uses } : next; };
+	const setAbilityUses = (i, uses) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).map((a, k) => (k === i ? withUses(a, uses) : a)) }));
+	const setSpell = (i, patch) => setDraft((d) => ({ ...d, spells: (d.spells || []).map((s, k) => (k === i ? { ...s, ...patch } : s)) }));
+	const setSpellUses = (i, uses) => setDraft((d) => ({ ...d, spells: (d.spells || []).map((s, k) => (k === i ? withUses(s, uses) : s)) }));
+	const addSpell = () => setDraft((d) => ({ ...d, spells: [...(d.spells || []), { name: '', level: '', ability: '', uses: { max: null, perProficiency: true, on: 'Long rest' } }] }));
+	const removeSpell = (i) => setDraft((d) => ({ ...d, spells: (d.spells || []).filter((_, k) => k !== i) }));
 	const setCharges = (patch) => setDraft((d) => ({ ...d, charges: { max: 0, perProficiency: false, recharge: '', on: 'Long rest', ...(d.charges || {}), ...patch } }));
 	// how the item's charges are counted: none, a number equal to the proficiency bonus, or a number of your own
 	const chargesMode = !draft.charges ? 'none' : draft.charges.perProficiency ? 'proficiency' : 'custom';
@@ -160,8 +201,6 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 						onChange={(_, o) => pickBase(o)}
 						renderInput={(params) => <TextField {...params} label="Start from an existing item (optional)" helperText="Everything below is copied from it and can be changed." />}
 					/>
-				) : draft.base ? (
-					<Typography variant="caption" sx={{ color: 'text.secondary' }}>Based on {draft.base}.</Typography>
 				) : null}
 
 				<TextField label="Name" size="small" value={draft.name} onChange={(e) => set({ name: e.target.value })} error={!!nameError} helperText={nameError || ' '} autoFocus />
@@ -364,25 +403,7 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 							</Box>
 								<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
 									<TextField label="Other cost (not tracked)" size="small" value={a.resource || ''} onChange={(e) => setAbility(i, { resource: e.target.value })} placeholder="6 sorcery points" sx={{ flex: '1 1 150px' }} />
-									<FormControl size="small" sx={{ flex: '1 1 150px' }}>
-										<InputLabel>Limited uses</InputLabel>
-										<Select label="Limited uses" value={usesMode(a)} onChange={(e) => setUsesMode(i, e.target.value)}>
-											<MenuItem value="none">No limit</MenuItem>
-											<MenuItem value="proficiency">Proficiency bonus</MenuItem>
-											<MenuItem value="custom">Custom</MenuItem>
-										</Select>
-									</FormControl>
-									{usesMode(a) === 'custom' && (
-										<TextField label="Number of uses" size="small" type="number" value={a.uses?.max ?? ''} onChange={(e) => setUses(i, { max: e.target.value })} slotProps={{ htmlInput: { min: 1 } }} sx={{ flex: '0 1 120px' }} />
-									)}
-									{usesMode(a) !== 'none' && (
-										<FormControl size="small" sx={{ flex: '1 1 120px' }}>
-											<InputLabel>Uses reset after</InputLabel>
-											<Select label="Uses reset after" value={a.uses?.on || 'Long rest'} onChange={(e) => setUses(i, { on: e.target.value })}>
-												{RECHARGE_WHEN.map((w) => <MenuItem key={w} value={w}>{w}</MenuItem>)}
-											</Select>
-										</FormControl>
-									)}
+									<UsesFields uses={a.uses} onChange={(uses) => setAbilityUses(i, uses)} />
 								</Box>
 							<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
 								<TextField label="Dice rolled (optional)" size="small" value={a.dice || ''} onChange={(e) => setAbility(i, { dice: e.target.value })} placeholder="3d12" sx={{ flex: '1 1 120px' }} />
@@ -400,6 +421,48 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 						</Box>
 					))}
 				</Box>
+
+					<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2, border: BORDER, borderRadius: 2 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center' }}>
+							<Typography variant="subtitle2" sx={{ flex: 1 }}>Spells (optional)</Typography>
+							<Button size="small" startIcon={<AddIcon />} onClick={addSpell}>Add a spell</Button>
+						</Box>
+						<Typography variant="caption" sx={{ color: 'text.secondary', marginTop: -1 }}>
+							Spells the item lets whoever carries it cast, whatever their class. They appear on the interactive sheet's Spells tab, and casting one uses up one of its own uses, never a spell slot.
+						</Typography>
+						{(draft.spells || []).map((s, i) => (
+							<Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, padding: 1.5, border: BORDER, borderRadius: 2 }}>
+								<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+									<Autocomplete
+										size="small" options={SPELL_NAMES} value={s.name || null} sx={{ flex: '2 1 200px' }}
+										onChange={(_, v) => setSpell(i, { name: v || '', level: '' })}
+										renderOption={(props, name) => { const { key, ...rest } = props; return <li key={key} {...rest}>{name}<Typography component="span" variant="caption" sx={{ marginLeft: 1, color: 'text.secondary' }}>{SPELL_LEVEL.get(name) === 0 ? 'cantrip' : `level ${SPELL_LEVEL.get(name)}`}</Typography></li>; }}
+										renderInput={(params) => <TextField {...params} label="Spell" />}
+									/>
+									{SPELL_LEVEL.has(s.name) && SPELL_LEVEL.get(s.name) < 9 && SPELL_LEVEL.get(s.name) > 0 && (
+										<FormControl size="small" sx={{ flex: '1 1 130px' }}>
+											<InputLabel>Cast at level</InputLabel>
+											<Select label="Cast at level" value={Number(s.level) > SPELL_LEVEL.get(s.name) ? s.level : ''} onChange={(e) => setSpell(i, { level: e.target.value })}>
+												<MenuItem value=""><em>Its own level ({SPELL_LEVEL.get(s.name)})</em></MenuItem>
+												{Array.from({ length: 9 - SPELL_LEVEL.get(s.name) }, (_, k) => SPELL_LEVEL.get(s.name) + 1 + k).map((l) => <MenuItem key={l} value={l}>Level {l}</MenuItem>)}
+											</Select>
+										</FormControl>
+									)}
+									<Tooltip title="Remove this spell"><IconButton size="small" aria-label="Remove this spell" onClick={() => removeSpell(i)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+								</Box>
+								<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+									<UsesFields uses={s.uses} onChange={(uses) => setSpellUses(i, uses)} />
+									<FormControl size="small" sx={{ flex: '1 1 170px' }}>
+										<InputLabel>Casting ability</InputLabel>
+										<Select label="Casting ability" value={s.ability || ''} onChange={(e) => setSpell(i, { ability: e.target.value })}>
+											<MenuItem value=""><em>Your spellcasting ability</em></MenuItem>
+											{ABILITY_KEYS.map(([k, n]) => <MenuItem key={k} value={k}>{n}</MenuItem>)}
+										</Select>
+									</FormControl>
+								</Box>
+							</Box>
+						))}
+					</Box>
 
 				<TextField label="Description" size="small" multiline minRows={2} maxRows={8} value={draft.description || ''} onChange={(e) => set({ description: e.target.value })} />
 			</DialogContent>
@@ -483,7 +546,6 @@ export default function CustomItems({ character, updateEquipment }) {
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
 										<Typography sx={{ fontWeight: 600 }}>{item.name}</Typography>
 										<Chip label={item.group} size="small" variant="outlined" />
-										{item.base && <Chip label={`Based on ${item.base}`} size="small" variant="outlined" />}
 										{item.rarity && <Chip label={item.rarity} size="small" color="secondary" variant="outlined" />}
 									</Box>
 									<Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>

@@ -5,6 +5,7 @@ import {
 } from '../../utils/characterCalc';
 import { getClassSummary } from '../../utils/multiclass';
 import { getSelectedSpells } from '../../utils/spells';
+import { getItemSpells } from '../../utils/itemSpells';
 import { getEquipped, usesEquipping } from './inventory';
 
 // Everything the sheet displays, computed from the built character. In 2014 the armor, shield and weapons equipped in
@@ -38,6 +39,8 @@ export function derive(character, items) {
 		spellStatsList: getSpellcastingStatsList(character), // one entry for each class that casts
 		slots: getSpellSlots(character),
 		spells: getSelectedSpells(character),
+		// spells that carried magic items let the character cast (the sheet's inventory says what is carried)
+		itemSpells: getItemSpells(character, items ? new Set(items.filter((i) => Number(i.qty) > 0).map((i) => i.name)) : undefined),
 		hitDie: hitDice.length ? hitDice[0].die : 8,
 	};
 }

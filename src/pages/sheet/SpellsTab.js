@@ -7,6 +7,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { signed } from './dice';
 import { getPreparedLimit2014, getPreparedSpells } from '../../utils/spells2014';
 import { getClassViews } from '../../utils/multiclass';
+import { itemSpellKey } from '../../utils/itemSpells';
+import { abilityMaxUses, itemSpellStats } from './itemCharges';
 import PreparedSpellsEditor from './PreparedSpellsEditor';
 
 function SlotBubbles({ total, used, onChange }) {
@@ -40,11 +42,16 @@ const saveOf = (spell) => {
 	return m ? m[1].slice(0, 3).toUpperCase() : null;
 };
 
-function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
+function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, onAttack, onDamage }) {
 	const [open, setOpen] = React.useState(false);
 	const [anchor, setAnchor] = React.useState(null);
 	// a multiclassed character's spell uses the save DC and attack bonus of the class it was learned with
-	const stats = (d.spellStatsList || []).find((x) => x.index === spell.casterIndex) || d.spellStats;
+	const stats = spell.fromItem ? itemSpellStats(d, spell) : (d.spellStatsList || []).find((x) => x.index === spell.casterIndex) || d.spellStats;
+	// a spell a magic item grants is cast with the spell's own uses, never a slot
+	const useKey = spell.fromItem ? itemSpellKey({ name: spell.fromItem }, spell) : '';
+	const usesMax = spell.fromItem ? abilityMaxUses(spell, d.prof) : null;
+	const usesUsed = usesMax === null ? 0 : Math.min(usesMax, Number((play?.charges || {})[useKey]) || 0);
+	const itemReady = !!spell.active && (usesMax === null || usesUsed < usesMax);
 	const dmg = damageOf(spell);
 	const save = saveOf(spell);
 	const hasAttack = /spell attack/i.test(spell.description);
@@ -66,8 +73,8 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 				<Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, marginTop: 0.5 }}>
 					<Typography variant="caption" sx={{ color: 'text.secondary', flex: '1 1 120px', minWidth: 0 }}>{spell.castingTime.split(',')[0]} · {spell.range}</Typography>
 					<Box component="span" onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1, marginLeft: 'auto' }}>
-						{save && <Chip size="small" variant="outlined" label={`${save} save DC ${stats.saveDc}`} />}
-						{hasAttack && (
+						{save && stats && <Chip size="small" variant="outlined" label={`${save} save DC ${stats.saveDc}`} />}
+						{hasAttack && stats && (
 							<Button size="small" variant="outlined" onClick={() => onAttack(`${spell.name} attack`, stats.attackBonus)}>
 								Attack {signed(stats.attackBonus)}
 							</Button>
@@ -77,7 +84,9 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 								{dmg.expr}
 							</Button>
 						)}
-						{isCantrip ? (
+							{spell.fromItem ? (
+								<Button size="small" variant="contained" disabled={!itemReady} onClick={() => onCastItem(spell)}>Cast</Button>
+							) : isCantrip ? (
 							<Button size="small" variant="contained" onClick={() => onCast(spell, 0)}>Cast</Button>
 						) : (
 							<>
@@ -94,6 +103,23 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 					</Box>
 				</Box>
 			</Box>
+				{spell.fromItem && (
+					<Box onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, marginTop: 0.5 }}>
+						<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+							{[spell.fromItem, spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`, spell.castLevel > spell.level ? `cast at level ${spell.castLevel}` : ''].filter(Boolean).join(' · ')}
+						</Typography>
+						{!spell.active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
+						{usesMax !== null && (
+							<>
+								<Typography variant="caption">Uses {usesMax - usesUsed}/{usesMax}</Typography>
+								<SlotBubbles total={usesMax} used={usesUsed} onChange={(u) => setPlay({ charges: { ...(play.charges || {}), [useKey]: Math.max(0, Math.min(usesMax, u)) } })} />
+								<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+									{spell.uses.perProficiency ? 'Your proficiency bonus' : `${usesMax} per`}{spell.uses.on ? `${spell.uses.perProficiency ? ', resets after a ' : ' '}${spell.uses.on === 'Dawn' ? 'dawn' : spell.uses.on.toLowerCase()}` : ''}
+								</Typography>
+							</>
+						)}
+					</Box>
+				)}
 			<Collapse in={open} unmountOnExit>
 				<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', marginTop: 0.5 }}>
 					{spell.school} · {spell.components} · {spell.duration}
@@ -107,13 +133,14 @@ function SpellCard({ spell, d, castLevels, onCast, onAttack, onDamage }) {
 	);
 }
 
-export default function SpellsTab({ character, setPrepared, d, play, setPlay, onCast, onAttack, onDamage }) {
+export default function SpellsTab({ character, setPrepared, d, play, setPlay, onCast, onCastItemSpell, onAttack, onDamage }) {
 	// the class whose prepared list is being edited (its index), or null
 	const [editing, setEditing] = React.useState(null);
-	if (!d.spellStats) {
+	const itemSpells = d.itemSpells || [];
+	if (!d.spellStats && !itemSpells.length) {
 		return <Typography color="text.secondary">{d.cls ? `${d.cls.name}s don't cast spells.` : 'No class selected.'}</Typography>;
 	}
-	const statsList = d.spellStatsList && d.spellStatsList.length ? d.spellStatsList : [d.spellStats];
+	const statsList = d.spellStats ? (d.spellStatsList && d.spellStatsList.length ? d.spellStatsList : [d.spellStats]) : [];
 	const multi = getClassViews(character).length > 1;
 	// clerics, druids, paladins and wizards prepare spells and can change them (after a long rest); a multiclassed character
 	// has a list for each class that prepares
@@ -123,7 +150,7 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 	if (editing !== null && preparedClasses.some((x) => x.index === editing)) {
 		return <PreparedSpellsEditor character={character} setPrepared={setPrepared} classIndex={editing} onDone={() => setEditing(null)} />;
 	}
-	const slots = d.slots;
+	const slots = d.slots || { type: 'none' };
 	// regular slots (a single class's own, or the combined multiclass ones) and Pact Magic slots, which are kept apart
 	const regular = slots.type === 'standard' ? slots.slots : null;
 	const pact = slots.type === 'pact' ? slots : slots.pact || null;
@@ -138,24 +165,26 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 
 	return (
 		<Box>
-			<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
-				{statsList.map((s) => (
-					<React.Fragment key={s.index || 0}>
-						{multi && <Chip size="small" color="primary" label={s.className} />}
-						<Chip size="small" label={`${s.ability} casting`} />
-						<Chip size="small" label={`Save DC ${s.saveDc}`} />
-						<Chip size="small" label={`Spell attack ${signed(s.attackBonus)}`} />
-					</React.Fragment>
-				))}
-				{preparedClasses.map((x, k) => (
-					<React.Fragment key={x.index}>
-						<Chip size="small" label={`${multi ? `${x.name} prepared` : 'Prepared'} ${x.count} / ${x.limit}`} />
-						<Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(x.index)} sx={k === 0 ? { marginLeft: 'auto' } : undefined}>
-							{multi ? `Edit ${x.name} prepared spells` : 'Edit prepared spells'}
-						</Button>
-					</React.Fragment>
-				))}
-			</Box>
+			{d.spellStats && (
+				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
+					{statsList.map((s) => (
+						<React.Fragment key={s.index || 0}>
+							{multi && <Chip size="small" color="primary" label={s.className} />}
+							<Chip size="small" label={`${s.ability} casting`} />
+							<Chip size="small" label={`Save DC ${s.saveDc}`} />
+							<Chip size="small" label={`Spell attack ${signed(s.attackBonus)}`} />
+						</React.Fragment>
+					))}
+					{preparedClasses.map((x, k) => (
+						<React.Fragment key={x.index}>
+							<Chip size="small" label={`${multi ? `${x.name} prepared` : 'Prepared'} ${x.count} / ${x.limit}`} />
+							<Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setEditing(x.index)} sx={k === 0 ? { marginLeft: 'auto' } : undefined}>
+								{multi ? `Edit ${x.name} prepared spells` : 'Edit prepared spells'}
+							</Button>
+						</React.Fragment>
+					))}
+				</Box>
+			)}
 
 			{play.concentration && (
 				<Alert severity="info" sx={{ marginBottom: 2 }} action={<Button color="inherit" size="small" onClick={() => setPlay({ concentration: '' })}>End</Button>}>
@@ -163,31 +192,33 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 				</Alert>
 			)}
 
-			<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
-				{slots.combined !== undefined && (
-					<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-						Combined spellcaster level {slots.combined} (Multiclass Spellcaster table). These slots cast spells from any of your classes.
-					</Typography>
-				)}
-				{levels.map(([lvl, total]) => (
-					<Box key={lvl} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-						<Typography variant="body2" sx={{ width: 120 }}>Level {lvl}</Typography>
-						<SlotBubbles
-							total={total}
-							used={play.slotsUsed[lvl] || 0}
-							onChange={(u) => setPlay({ slotsUsed: { ...play.slotsUsed, [lvl]: Math.max(0, Math.min(total, u)) } })}
-						/>
-					</Box>
-				))}
-				{pact && (
-					<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-						<Typography variant="body2" sx={{ width: 120 }}>Pact slots (L{pact.level})</Typography>
-						<SlotBubbles total={pact.count} used={play.pactUsed} onChange={(u) => setPlay({ pactUsed: Math.max(0, Math.min(pact.count, u)) })} />
-					</Box>
-				)}
-			</Box>
+			{d.spellStats && (
+				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
+					{slots.combined !== undefined && (
+						<Typography variant="caption" sx={{ color: 'text.secondary' }}>
+							Combined spellcaster level {slots.combined} (Multiclass Spellcaster table). These slots cast spells from any of your classes.
+						</Typography>
+					)}
+					{levels.map(([lvl, total]) => (
+						<Box key={lvl} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+							<Typography variant="body2" sx={{ width: 120 }}>Level {lvl}</Typography>
+							<SlotBubbles
+								total={total}
+								used={play.slotsUsed[lvl] || 0}
+								onChange={(u) => setPlay({ slotsUsed: { ...play.slotsUsed, [lvl]: Math.max(0, Math.min(total, u)) } })}
+							/>
+						</Box>
+					))}
+					{pact && (
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+							<Typography variant="body2" sx={{ width: 120 }}>Pact slots (L{pact.level})</Typography>
+							<SlotBubbles total={pact.count} used={play.pactUsed} onChange={(u) => setPlay({ pactUsed: Math.max(0, Math.min(pact.count, u)) })} />
+						</Box>
+					)}
+				</Box>
+			)}
 
-			{d.spells.length === 0 && (
+			{d.spellStats && d.spells.length === 0 && !itemSpells.length && (
 				<Typography variant="body2" color="text.secondary">No spells chosen yet — pick them on the builder&apos;s Spells step.</Typography>
 			)}
 			{groups.map((lvl) => (
@@ -200,6 +231,8 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 							key={s.name}
 							spell={s}
 							d={d}
+							play={play}
+							setPlay={setPlay}
 							castLevels={s.level === 0 ? [] : castLevelsFor(s)}
 							onCast={onCast}
 							onAttack={onAttack}
@@ -208,6 +241,25 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 					))}
 				</Box>
 			))}
-		</Box>
-	);
-}
+			{itemSpells.length > 0 && (
+				<Box sx={{ marginBottom: 2 }} data-testid="item-spells">
+					<Typography variant="subtitle2" sx={{ color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1 }}>From magic items</Typography>
+					{itemSpells.map((s) => (
+						<SpellCard
+							key={`${s.fromItem}${s.name}`}
+							spell={s}
+							d={d}
+							play={play}
+							setPlay={setPlay}
+							castLevels={[]}
+							onCast={onCast}
+							onCastItem={onCastItemSpell}
+							onAttack={onAttack}
+							onDamage={onDamage}
+						/>
+					))}
+				</Box>
+			)}
+			</Box>
+			);
+			}

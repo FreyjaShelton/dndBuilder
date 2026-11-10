@@ -12,7 +12,8 @@ import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
 import { getSpellRoll, rollSpell } from './spellDice';
 import { getAttunedNames } from '../../utils/equipment';
-import { abilityMaxUses, abilityUsesKey, itemMaxCharges, rechargeOnRest } from './itemCharges';
+import { itemSpellKey } from '../../utils/itemSpells';
+import { abilityMaxUses, abilityUsesKey, itemMaxCharges, itemSpellStats, rechargeOnRest } from './itemCharges';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -222,6 +223,27 @@ export default function SheetPage() {
 		}
 	};
 
+	// Casting a spell a magic item grants: it spends one of the spell's own uses (never a spell slot) and rolls its dice at the level
+	// the item casts it at
+	const castItemSpell = (spell) => {
+		if (!spell.active) return;
+		const key = itemSpellKey({ name: spell.fromItem }, spell);
+		const usesMax = abilityMaxUses(spell, d.prof);
+		const usesUsed = Number((play.charges || {})[key]) || 0;
+		if (usesMax !== null && usesUsed >= usesMax) return;
+		if (usesMax !== null) setPlay({ charges: { ...(play.charges || {}), [key]: usesUsed + 1 } });
+		if (spell.concentration) setPlay({ concentration: spell.name });
+		const stats = itemSpellStats(d, spell);
+		const dice = getSpellRoll(spell, { slotLevel: spell.castLevel, characterLevel: d.level, abilityMod: stats ? stats.mod : 0 });
+		const how = [spell.level === 0 ? 'cantrip' : `cast at level ${spell.castLevel}`, spell.fromItem, usesMax !== null ? `${usesMax - usesUsed - 1}/${usesMax} left` : ''].filter(Boolean).join(' · ');
+		if (dice) {
+			const rolled = rollSpell(dice);
+			addLog(`Cast ${spell.name}`, rolled.total, `${rolled.detail} · ${how}`);
+		} else {
+			addLog(`Cast ${spell.name}`, '—', how);
+		}
+	};
+
 	const exportJson = () => {
 		const blob = new Blob([JSON.stringify({ character, play }, null, 2)], { type: 'application/json' });
 		const a = document.createElement('a');
@@ -272,8 +294,8 @@ export default function SheetPage() {
 							{tabNames.map((t) => <Tab key={t} label={t} value={t} />)}
 						</Tabs>
 						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
-						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} />}
-						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} onCastItemSpell={castItemSpell} />}
+						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onCastItemSpell={castItemSpell} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
 						{activeTab === 'Features' && <FeaturesTab character={view} d={d} play={play} />}
 						{activeTab === 'Notes' && <NotesTab character={character} play={play} setPlay={setPlay} />}
