@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {
-	Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List,
+	Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, List,
 	ListItem, ListItemButton, ListItemText, Paper, Tooltip, Typography,
 } from '@mui/material';
 import CloudDoneIcon from '@mui/icons-material/CloudDone';
@@ -8,6 +8,8 @@ import CloudOffIcon from '@mui/icons-material/CloudOff';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CloudOffOutlinedIcon from '@mui/icons-material/CloudOffOutlined';
 import { useCharacter } from '../context/CharacterContext';
 import { getClientId, preloadGoogle } from '../utils/googleDrive';
 import { syncEngine, useLibrary, useSyncState } from '../utils/cloud';
@@ -19,6 +21,28 @@ export function timeAgo(ts) {
 	if (s < 3600) return `${Math.round(s / 60)} min ago`;
 	if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
 	return new Date(ts).toLocaleString();
+}
+
+// What this app asks Google for and keeps, in plain words (see utils/googleDrive.js).
+function GoogleDataNote() {
+	const [open, setOpen] = React.useState(false);
+	return (
+		<Box sx={{ marginTop: 1 }} data-testid="google-data-note">
+			<Button size="small" variant="outlined" color="inherit" startIcon={<InfoOutlinedIcon />} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+				{open ? 'Hide Google data details' : 'About your Google data'}
+			</Button>
+			<Collapse in={open} unmountOnExit>
+				<Box component="ul" sx={{ margin: 0, paddingLeft: 3, fontSize: '0.875rem', color: 'text.secondary' }}>
+					<li>This app asks Google for one permission: access to its own hidden app-data folder in your Drive (the <code>drive.appdata</code> scope). It cannot see, open or change any other file in your Drive.</li>
+					<li>It never asks for your name, email address or contacts.</li>
+					<li>What is stored there: one file per character and one file for your custom items. You won&apos;t see them in Drive&apos;s file list.</li>
+					<li>Your characters are only ever sent between this browser and your Google Drive. The app has no server of its own that receives them.</li>
+					<li>This browser keeps Google&apos;s temporary access token (it lasts about an hour). &quot;Stop syncing on this device&quot; removes it from this browser; it does not remove anything from Drive or change what Google has allowed.</li>
+					<li>To withdraw the permission, go to your Google Account &rarr; Security &rarr; Your connections to third-party apps and services. To delete the stored files, go to Google Drive &rarr; Settings &rarr; Manage apps and choose &quot;Delete hidden app data&quot;.</li>
+				</Box>
+			</Collapse>
+		</Box>
+	);
 }
 
 function SyncPanel({ sync, configured }) {
@@ -50,6 +74,7 @@ function SyncPanel({ sync, configured }) {
 					Sign in with Google
 				</Button>
 				{sync.error && <Alert severity="error" sx={{ marginTop: 1.5 }}>{sync.error}</Alert>}
+				<GoogleDataNote />
 			</Paper>
 		);
 	}
@@ -78,15 +103,18 @@ function SyncPanel({ sync, configured }) {
 			<Box sx={{ marginTop: 1 }}>
 				<Button
 					size="small"
+					variant="outlined"
 					color="inherit"
+					startIcon={<CloudOffOutlinedIcon />}
 					onClick={() => { if (window.confirm('Stop syncing on this device? Your characters stay here and in Google Drive.')) syncEngine.disconnect(); }}
 				>
 					Stop syncing on this device
 				</Button>
-			</Box>
-		</Paper>
-	);
-}
+				</Box>
+				<GoogleDataNote />
+				</Paper>
+				);
+				}
 
 // The Characters button: shows whether Google Drive is connected and opens the list of characters, which can be
 // opened, deleted or started fresh, along with the Google sign-in.
