@@ -10,6 +10,10 @@ import { getKitGold, getKitItems } from './startingKit';
 //   gold: '' | number,                         starting gold (the budget); in 'kit' mode the kit's coins are used instead
 //   kit: { choices, picks },                   choices made in the starting kit (see startingKit.js)
 //   added, removed, customItems, carried       changes made on the interactive sheet (see getOwnedItems and sheetSync.js)
+//   attuned: [name]                             the custom magic items the character is attuned to (at most 3)
+//   customGear: [item]                          items the player made up (2014), usually starting from a catalog item: the same fields
+//                                               as a catalog item plus { homebrew: true, base: 'Longsword' }. They are bought through
+//                                               `selected` like any item, and every lookup by name finds them (getCharacterItem)
 // }
 // In 'kit' mode the class and background kit items are owned as well (derived, free); everything in `selected` still costs gold.
 
@@ -35,12 +39,85 @@ export function migrateEquipment(equipment, edition) {
 
 export const getSelected = (character) => character.equipment?.selected || [];
 
+// ---- Custom items (2014) -----------------------------------------------------------------------------------------------
+
+export const getCustomGear = (character) => (character.edition === '2014' && Array.isArray(character.equipment?.customGear) ? character.equipment.customGear : []);
+
+// An item by name: one the player made up, else the catalog's.
+export const getCharacterItem = (character, name) => getCustomGear(character).find((i) => i.name === name) || getItem(character.edition, name);
+
+// Armor and weapons the character can use, catalog and custom (what Armor Class and attacks look names up in).
+export const getArmorData = (character) => [...getEditionData(character.edition).equipment.armor, ...getCustomGear(character).filter((i) => i.group === 'Armor')];
+export const getWeaponData = (character) => [...getEditionData(character.edition).equipment.weapons, ...getCustomGear(character).filter((i) => i.group === 'Weapons')];
+
+// Is this name free for a custom item? (not empty, not a catalog item, not another custom item). `own` is the item being edited.
+export function checkCustomName(character, name, own = '', alsoTaken = []) {
+	const trimmed = String(name || '').trim();
+	if (!trimmed) return 'Give the item a name.';
+	if (trimmed === own) return '';
+	if (getItem(character.edition, trimmed)) return `"${trimmed}" is already an item in the catalog. Pick a different name.`;
+	if (getCustomGear(character).some((i) => i.name === trimmed) || alsoTaken.includes(trimmed)) return `You already have a custom item called "${trimmed}".`;
+	return '';
+}
+
+// A starting point for a custom item: a copy of a catalog item (or a blank one) with a free name.
+export function newCustomItem(character, baseName, alsoTaken = []) {
+	const base = baseName ? getItem(character.edition, baseName) : null;
+	const copy = base ? JSON.parse(JSON.stringify(base)) : { group: 'Adventuring Gear', cost: '', weight: 0, description: '' };
+	let name = base ? `${base.name} (custom)` : 'New item';
+	for (let n = 2; checkCustomName(character, name, '', alsoTaken); n += 1) name = `${base ? `${base.name} (custom)` : 'New item'} ${n}`;
+	return { ...copy, name, homebrew: true, ...(base ? { base: base.name } : {}) };
+}
+
+// Saves a custom item (new, or an edit of `original`, the name it had): the equipment patch for updateEquipment.
+// Renaming follows the item through what is bought and the worn armor.
+export function saveCustomItem(eq, item, original) {
+	const list = Array.isArray(eq.customGear) ? eq.customGear : [];
+	const exists = original && list.some((i) => i.name === original);
+	const customGear = exists ? list.map((i) => (i.name === original ? item : i)) : [...list, item];
+	const selected = eq.selected || [];
+	const hasIt = selected.some((s) => s.name === (original || item.name));
+	const nextSelected = original && original !== item.name
+		? selected.map((s) => (s.name === original ? { ...s, name: item.name, group: item.group } : { ...s }))
+		: selected.map((s) => (s.name === item.name ? { ...s, group: item.group } : s));
+	return {
+		customGear,
+		// a new item goes straight into the inventory
+		selected: !original && !hasIt ? [...nextSelected, { name: item.name, group: item.group, quantity: 1 }] : nextSelected,
+		...(original && original !== item.name && eq.armor === original ? { armor: item.name } : {}),
+	};
+}
+
+// Puts a library item (see customItemLibrary.js) on the character: its copy is added or brought up to date, and it is bought
+// (carried) like any item.
+export function carryCustomItem(eq, item) {
+	const list = Array.isArray(eq.customGear) ? eq.customGear : [];
+	const copy = list.find((i) => item.libId && i.libId === item.libId) || list.find((i) => i.name === item.name);
+	const patch = saveCustomItem(eq, item, copy ? copy.name : undefined);
+	const selected = patch.selected || eq.selected || [];
+	return { ...patch, selected: selected.some((s) => s.name === item.name) ? selected : [...selected, { name: item.name, group: item.group, quantity: 1 }] };
+}
+
+// Brings the character's copy of a library item up to date (nothing when the character has no copy).
+export function refreshCustomCopy(eq, item) {
+	const list = Array.isArray(eq.customGear) ? eq.customGear : [];
+	const copy = list.find((i) => item.libId && i.libId === item.libId) || list.find((i) => i.name === item.name);
+	return copy ? saveCustomItem(eq, item, copy.name) : {};
+}
+
+// Deletes a custom item and takes it out of the inventory.
+export const deleteCustomItem = (eq, name) => ({
+	customGear: (eq.customGear || []).filter((i) => i.name !== name),
+	selected: (eq.selected || []).filter((s) => s.name !== name),
+	...(eq.armor === name ? { armor: '' } : {}),
+});
+
 export const isKit = (character) => character.equipment?.goldMethod === 'kit';
 
 // The items added by hand, joined with their item data (entries without data, e.g. from another edition, are skipped).
 export function getPurchasedItems(character) {
 	return getSelected(character)
-		.map((s) => { const item = getItem(character.edition, s.name); return item ? { ...item, quantity: s.quantity || 1 } : null; })
+		.map((s) => { const item = getCharacterItem(character, s.name); return item ? { ...item, quantity: s.quantity || 1 } : null; })
 		.filter(Boolean);
 }
 
@@ -69,12 +146,31 @@ function applySheetChanges(character, base) {
 	rows = rows.filter((row) => row.quantity > 0);
 	Object.entries(added).forEach(([name, quantity]) => {
 		if (!(Number(quantity) > 0)) return;
-		const item = getItem(character.edition, name);
+		const item = getCharacterItem(character, name);
 		const custom = eq.customItems?.[name];
 		if (item) rows.push({ ...item, quantity: Number(quantity), fromSheet: true });
 		else rows.push({ name, group: 'Added on the sheet', cost: '', weight: Number(custom?.weight) || 0, quantity: Number(quantity), custom: true, fromSheet: true });
 	});
 	return rows;
+}
+
+// ---- Magic item bonuses and attunement -----------------------------------------------------------------------------------
+
+export const MAX_ATTUNED = 3;
+export const getAttuned = (character) => (Array.isArray(character.equipment?.attuned) ? character.equipment.attuned : []);
+
+// What the custom magic items the character carries add to the numbers: { ac, spellSaveDc, spellAttack, saves }.
+// An item that needs attunement counts only while the character is attuned to it (equipment.attuned: [names]).
+export function getItemBonuses(character) {
+	const out = { ac: 0, spellSaveDc: 0, spellAttack: 0, saves: 0 };
+	if (character.edition !== '2014' || !getCustomGear(character).some((i) => i.bonuses)) return out;
+	const attuned = getAttuned(character);
+	const carried = new Set(getOwnedItems(character).filter((i) => i.quantity > 0).map((i) => i.name));
+	getCustomGear(character).forEach((item) => {
+		if (!item.bonuses || !carried.has(item.name) || (item.attunement && !attuned.includes(item.name))) return;
+		Object.keys(out).forEach((k) => { out[k] += Number(item.bonuses[k]) || 0; });
+	});
+	return out;
 }
 
 // Everything the character has: the starting kit (when taken), what was added by hand, and what the sheet changed.
@@ -136,12 +232,22 @@ export function getEquipmentLines(character) {
 }
 
 // Short stats line for the item list: damage and properties, or AC and requirements.
+// "Wondrous item, Rare, requires attunement": what a magic item is, when it has been described that way
+export const describeMagicItem = (item) => [item.itemType, item.rarity, item.attunement && 'requires attunement'].filter(Boolean).join(', ');
+
 export function formatItemStats(item) {
+	const base = formatBaseStats(item);
+	const extra = [item.charges?.max > 0 && `${item.charges.max} charges`].filter(Boolean);
+	return [describeMagicItem(item), base, ...extra].filter(Boolean).join(' · ');
+}
+
+function formatBaseStats(item) {
 	if (item.group === 'Weapons') {
 		const props = item.properties.map((p) => (p === 'Versatile' && item.versatileDamage ? `Versatile (${item.versatileDamage})` : p));
 		return [
 			`${item.category} ${item.kind.toLowerCase()}`,
-			item.damage && `${item.damage} ${item.damageType.toLowerCase()}`,
+			item.damage && `${item.damage}${item.ability ? ` + ${item.ability.toUpperCase()} modifier` : ''} ${item.damageType.toLowerCase()}`,
+			item.spellAttack && 'spell attack',
 			props.length > 0 && props.join(', '),
 			item.range && `range ${item.range}`,
 			item.mastery && `Mastery: ${item.mastery}`,

@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { signed } from './dice';
+import ItemAbilities from './ItemAbilities';
 
-export default function ActionsTab({ d, onAttack, onDamage }) {
+export default function ActionsTab({ character, d, play, setPlay, onAttack, onDamage, onUseAbility }) {
 	const strMod = d.mods.str;
 	const unarmed = {
 		name: 'Unarmed Strike',
@@ -37,13 +38,14 @@ export default function ActionsTab({ d, onAttack, onDamage }) {
 									<Button size="small" variant="outlined" onClick={() => onDamage(`${a.name} damage`, a.damage)}>{a.damage}</Button>
 									<Button size="small" sx={{ minWidth: 0, marginLeft: 0.5 }} onClick={() => onDamage(`${a.name} damage (crit)`, a.damage, true)}>Crit</Button>
 								</TableCell>
-								<TableCell>{a.mastery ? `Mastery: ${a.mastery}` : ''}</TableCell>
+								<TableCell>{[a.spellAttack && 'Spell attack', a.mastery && `Mastery: ${a.mastery}`].filter(Boolean).join(' · ')}</TableCell>
 							</TableRow>
 						);
 					})}
 				</TableBody>
 			</Table>
 			</TableContainer>
+			<ItemAbilities character={character} play={play} setPlay={setPlay} onUse={onUseAbility} spellSaveDc={d.spellStats?.saveDc} prof={d.prof} />
 			{d.spellStats && (
 				<Typography variant="body2" sx={{ marginTop: 2, color: 'text.secondary' }}>
 					Spell attack {signed(d.spellStats.attackBonus)} · Spell save DC {d.spellStats.saveDc} — open the Spells tab to cast.

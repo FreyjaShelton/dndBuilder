@@ -1,7 +1,7 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
-import { getRemainingGold, getWeaponNames, getWornArmorName, hasShield } from './equipment';
+import { getArmorData, getItemBonuses, getOwnedItems, getRemainingGold, getWeaponData, getWeaponNames, getWornArmorName, hasShield } from './equipment';
 import { averageHitDie, parseHpOverride } from './hitPoints';
 import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
 import {
@@ -275,7 +275,8 @@ export function getClassSpellcastingStats(view) {
 	const prof = getProficiencyBonus(getLevel(view));
 	return {
 		className: casting.className, ability: casting.ability, abilityKey: key, index: view.__index || 0,
-		saveDc: 8 + prof + mod, attackBonus: prof + mod,
+		// magic items can add to both (a staff that gives +1 to spell save DC and spell attack rolls)
+		saveDc: 8 + prof + mod + getItemBonuses(view).spellSaveDc, attackBonus: prof + mod + getItemBonuses(view).spellAttack,
 	};
 }
 
@@ -340,12 +341,13 @@ const unarmoredDefenseClass = (character) => getClassViews(character).map((v) =>
 // `wear` ({ armor: name, shield: bool }) overrides what is worn; the interactive sheet passes what is equipped in the
 // inventory. Without it, the armor and shield picked on the builder's Equipment step are used.
 export function getArmorClass(character, wear) {
-	const armorData = rules(character).equipment.armor;
+	const armorData = getArmorData(character); // the catalog's armor and the player's own
 	const mods = getAbilityMods(character);
 	const armorName = wear ? wear.armor : getWornArmorName(character);
 	const shield = wear ? !!wear.shield : hasShield(character);
 	const worn = armorData.find((a) => a.name === armorName && a.type !== 'Shield');
-	const shieldBonus = shield ? (armorData.find((a) => a.type === 'Shield')?.ac || 2) : 0;
+	// the best shield owned (a custom shield can give more than the standard +2)
+	const shieldBonus = shield ? Math.max(2, ...getOwnedItems(character).filter((i) => i.type === 'Shield').map((i) => Number(i.ac) || 0)) : 0;
 	let ac;
 	if (worn) {
 		const dex = worn.dexCap === null ? mods.dex : Math.min(mods.dex, worn.dexCap);
@@ -363,7 +365,7 @@ export function getArmorClass(character, wear) {
 		if (naturalArmor && !worn) ac = Math.max(ac, naturalArmor.base + (naturalArmor.ability ? mods[naturalArmor.ability] : 0));
 		ac += acBonus;
 	}
-	return ac + shieldBonus;
+	return ac + shieldBonus + getItemBonuses(character).ac;
 }
 
 export function getSkillBonuses(character) {
@@ -379,19 +381,21 @@ export function getSkillBonuses(character) {
 }
 
 export function getSavingThrows(character) {
+	const itemSaves = getItemBonuses(character).saves; // magic items that add to every saving throw
 	const cls = getClass(character);
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
 	return ABILITY_KEYS.map((k) => {
 		const isProf = !!cls && cls.savingThrows.includes(ABILITY_NAMES[k]);
-		return { key: k, name: ABILITY_NAMES[k], proficient: isProf, bonus: mods[k] + (isProf ? prof : 0) };
+		return { key: k, name: ABILITY_NAMES[k], proficient: isProf, bonus: mods[k] + (isProf ? prof : 0) + itemSaves };
 	});
 }
 
 // Does a class's weapon proficiency text cover this weapon ("Simple weapons, hand crossbows, longswords")?
 function classTextCovers(text, weapon) {
 	const classText = text.toLowerCase();
-	const lname = weapon.name.toLowerCase();
+	// a custom weapon counts as the catalog weapon it was made from ("Flame Tongue Longsword" is trained like a longsword)
+	const names = [weapon.name, weapon.base].filter(Boolean).map((n) => n.toLowerCase());
 	const category = weapon.category.toLowerCase();
 	if (classText.includes(category)) {
 		if (category === 'martial' && /finesse or light/.test(classText)) {
@@ -401,37 +405,41 @@ function classTextCovers(text, weapon) {
 		}
 	}
 	const singular = (w) => w.replace(/s$/, '');
-	return classText.split(/,| and /).some((p) => singular(p.trim()) === lname || p.trim() === lname);
+	return classText.split(/,| and /).some((p) => names.includes(singular(p.trim())) || names.includes(p.trim()));
 }
 
 export function isWeaponProficient(character, weapon) {
 	const cls = getClass(character);
 	const race = getRace(character);
-	const lname = weapon.name.toLowerCase();
+	const names = [weapon.name, weapon.base].filter(Boolean);
+	const lnames = names.map((n) => n.toLowerCase());
 	// the first class's proficiencies, plus what each later class adds (Multiclassing Proficiencies)
 	const classTexts = [cls?.weaponProficiencies || '', ...getExtraClassViews(character).map((v) => getMulticlassProficiencies(v.classInfo.className).weapons.join(', '))];
 	if (classTexts.some((text) => classTextCovers(text, weapon))) return true;
-	if (getChoiceWeaponProficiencies(character).includes(weapon.name)) return true;
+	if (getChoiceWeaponProficiencies(character).some((n) => names.includes(n))) return true;
 	// customized origin (2014): the race's weapon training is whatever is left after the player's swaps
-	if (!is2024(character) && isCustomizing(character)) return getRaceWeaponProficiencies(character).includes(weapon.name);
+	if (!is2024(character) && isCustomizing(character)) return getRaceWeaponProficiencies(character).some((n) => names.includes(n));
 	const raceText = (is2024(character) ? (race?.traits || []).map((t) => t.description) : getRaceTraitTexts(character))
 		.filter((d) => /proficiency with/i.test(d)).map((d) => d.toLowerCase()).join(' ');
-	return raceText.includes(lname) || raceText.includes(`${lname}s`);
+	return lnames.some((lname) => raceText.includes(lname) || raceText.includes(`${lname}s`));
 }
 
 // `weaponNames` overrides which weapons are listed; the interactive sheet passes the ones equipped in the inventory.
 export function getAttacks(character, weaponNames) {
-	const weaponData = rules(character).equipment.weapons;
+	const weaponData = getWeaponData(character); // the catalog's weapons and the player's own
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
 	return (weaponNames || getWeaponNames(character)).map((name) => {
 		const w = weaponData.find((x) => x.name === name);
 		if (!w) return null;
 		const finesse = w.properties.includes('Finesse');
-		const mod = w.kind === 'Ranged' ? mods.dex : finesse ? Math.max(mods.str, mods.dex) : mods.str;
-		const attack = mod + (isWeaponProficient(character, w) ? prof : 0);
-		const damage = w.damage ? `${w.damage}${mod ? formatSigned(mod) : ''} ${w.damageType}` : '';
-		return { name: w.name, attackBonus: formatSigned(attack), damage, mastery: w.mastery || '' };
+		// a custom weapon can name the ability it attacks and damages with (a spell-like weapon that uses Charisma), and carry a
+		// magic bonus to hit and damage
+		const mod = w.ability && mods[w.ability] !== undefined ? mods[w.ability] : w.kind === 'Ranged' ? mods.dex : finesse ? Math.max(mods.str, mods.dex) : mods.str;
+		const attack = mod + (w.alwaysProficient || isWeaponProficient(character, w) ? prof : 0) + (Number(w.attackBonus) || 0);
+		const damageMod = mod + (Number(w.damageBonus) || 0);
+		const damage = w.damage ? `${w.damage}${damageMod ? formatSigned(damageMod) : ''} ${w.damageType}` : '';
+		return { name: w.name, attackBonus: formatSigned(attack), damage, mastery: w.mastery || '', spellAttack: !!w.spellAttack };
 	}).filter(Boolean);
 }
 

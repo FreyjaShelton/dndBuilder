@@ -17,6 +17,7 @@ import {
 import { getKitPending, getKitPlan, getKitState, getOptionPacks, getPickOptions, getSelectedOption, pickId } from '../../utils/startingKit';
 import { getStartingWealth, rollStartingWealth } from '../../utils/startingWealth';
 import { OptionPicker } from '../race/RaceChoices2014';
+import CustomItems from './CustomItems';
 
 const BORDER = '1px solid rgba(255, 255, 255, 0.08)';
 
@@ -289,6 +290,7 @@ export default function Equipment() {
 											<TableCell sx={{ fontWeight: 600 }}>
 												{item.name}
 												{item.fromPack && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>from {item.fromPack}</Typography>}
+												{item.homebrew && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400 }}>Custom item{item.base ? ` (based on ${item.base})` : ''}</Typography>}
 											</TableCell>
 											<TableCell><Chip label={item.fromKit ? `Kit · ${item.group}` : item.fromSheet ? (item.custom ? 'Added on your sheet' : `Sheet · ${item.group}`) : item.group} size="small" variant="outlined" /></TableCell>
 											<TableCell>
@@ -391,6 +393,7 @@ export default function Equipment() {
 					</Box>
 				</CardContent>
 			</Card>
+			{edition === '2014' && <CustomItems character={character} updateEquipment={updateEquipment} />}
 		</>
 	);
 }

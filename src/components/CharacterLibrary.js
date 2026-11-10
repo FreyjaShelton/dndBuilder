@@ -43,7 +43,7 @@ function SyncPanel({ sync, configured }) {
 			<Paper variant="outlined" sx={{ padding: 2 }}>
 				<Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Keep your characters in Google Drive</Typography>
 				<Typography variant="body2" color="text.secondary" sx={{ marginTop: 0.5, marginBottom: 1.5 }}>
-					Sign in with Google once and each character saves to your Drive automatically once you reach the Finalize step. Sign in the same way on any other device and they&apos;re all there.
+					Sign in with Google once and each character saves to your Drive automatically once you reach the Finalize step. Your custom items sync too, as soon as you change them. Sign in the same way on any other device and they&apos;re all there.
 					The app can only see its own hidden folder, not the rest of your Drive.
 				</Typography>
 				<Button variant="contained" onClick={signIn} disabled={busy} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}>

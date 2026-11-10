@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { formatItemStats, getItem } from '../../utils/equipment';
+import { formatItemStats, getCharacterItem } from '../../utils/equipment';
 import { getArmorProficiencies, isWeaponProficient } from '../../utils/characterCalc';
 import { describePack, getPackContents } from '../../utils/itemIndex';
 import { getCatalog, getEquipKind, getEquipped, newItemId, toggleEquipped, unpackItem, usesEquipping } from './inventory';
@@ -15,7 +15,7 @@ const filter = createFilterOptions({ limit: 50 });
 const round = (n) => Math.round(n * 100) / 100;
 
 export default function InventoryTab({ character, d, play, setPlay }) {
-	const catalog = React.useMemo(() => getCatalog(character.edition), [character.edition]);
+	const catalog = React.useMemo(() => getCatalog(character), [character.edition, character.equipment?.customGear]); // eslint-disable-line react-hooks/exhaustive-deps
 	const items = play.items || [];
 	const equipping = usesEquipping(character);
 	const equipped = getEquipped(character, items);
@@ -34,7 +34,7 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 
 	// Warnings shown under an equipped item: gear the character is not trained in, or too weak to wear properly.
 	const warningsFor = (item, kind) => {
-		const data = getItem(character.edition, item.name);
+		const data = getCharacterItem(character, item.name);
 		if (!data) return [];
 		const out = [];
 		if (kind === 'weapon') {
@@ -58,7 +58,7 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 		if (existing) {
 			setItems(items.map((i) => (i.id === existing.id ? { ...i, qty: (Number(i.qty) || 0) + amount } : i)));
 		} else {
-			const kind = known && equipping ? getEquipKind(character.edition, label) : null;
+			const kind = known && equipping ? getEquipKind(character, label) : null;
 			setItems([...items, { id: newItemId(), name: label, qty: amount, weight: known ? known.weight : 0, ...(known ? {} : { custom: true }), ...(kind ? { equipped: false } : {}) }]);
 		}
 		setName('');
@@ -162,10 +162,10 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 										</Button>
 									</Box>
 								)}
-								{equipping && getEquipKind(character.edition, i.name) && (
+								{equipping && getEquipKind(character, i.name) && (
 									<>
-										<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{formatItemStats(getItem(character.edition, i.name))}</Typography>
-										{i.equipped && warningsFor(i, getEquipKind(character.edition, i.name)).map((w) => (
+										<Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{formatItemStats(getCharacterItem(character, i.name))}</Typography>
+										{i.equipped && warningsFor(i, getEquipKind(character, i.name)).map((w) => (
 											<Typography key={w} variant="caption" sx={{ display: 'block', color: 'warning.main' }}>{w}</Typography>
 										))}
 									</>
@@ -173,7 +173,7 @@ export default function InventoryTab({ character, d, play, setPlay }) {
 							</TableCell>
 							{equipping && (
 								<TableCell align="center" sx={{ padding: 0 }}>
-									{getEquipKind(character.edition, i.name) && (
+									{getEquipKind(character, i.name) && (
 										<Checkbox
 											checked={!!i.equipped}
 											onChange={() => toggle(i.id)}

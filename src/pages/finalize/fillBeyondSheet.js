@@ -15,7 +15,7 @@ import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../ut
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
-import { getOwnedItems, getTotalWeight, getWornArmorName } from '../../utils/equipment';
+import { describeMagicItem, getAttuned, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
 import { splitGold } from '../../utils/currency';
 import { getSelectedSpells } from '../../utils/spells';
 import { getAlwaysPrepared } from '../../utils/spells2014';
@@ -333,11 +333,13 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	f.block('SaveModifiers', saveNotes, { max: 7 });
 
 	// ---- attacks: weapons first, then attack-roll cantrips
-	const weaponData = getEditionData(character.edition).equipment.weapons;
+	const weaponData = getWeaponData(character);
 	const rows = getAttacks(character).map((a) => {
 		const w = weaponData.find((x) => x.name === a.name);
 		const props = w ? [...(w.properties || []), w.range ? `range ${w.range}` : ''].filter(Boolean).join(', ') : '';
-		return { name: a.name, bonus: a.attackBonus, damage: a.damage, notes: [props, a.mastery ? `Mastery: ${a.mastery}` : ''].filter(Boolean).join('; ') };
+		// a weapon with several damage types ("2d6+3 Slashing / Bludgeoning / Lightning") would not fit the box: shorten the types
+		const damage = a.damage.includes(' / ') ? a.damage.replace(/^(\S+) (.*)$/,(_, dice, types) => `${dice} ${types.split(' / ').map((t) => t.slice(0, 4)).join('/')}`) : a.damage;
+		return { name: a.name, bonus: a.attackBonus, damage, notes: [a.spellAttack ? 'Spell attack' : '', props, a.mastery ? `Mastery: ${a.mastery}` : ''].filter(Boolean).join('; ') };
 	});
 	const spells = getSelectedSpells(character);
 	if (casting) {
@@ -400,6 +402,22 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	else if (bg?.feature?.name) bgItems.push({ name: `${bg.feature.name} (${bg.name})`, text: bg.feature.description || '' });
 	if (!edition2024) getBackgroundChoiceSummaries(character).forEach((l) => bgItems.push({ name: l, text: '' }));
 	if (bgItems.length) featureBlocks.push({ title: `=== ${(bgLabel || 'BACKGROUND').toUpperCase()} ===`, items: bgItems });
+	// the player's own magic items: what they are, their charges and abilities
+	const carriedNames = new Set(getOwnedItems(character).map((i) => i.name));
+	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || i.charges?.max > 0));
+	if (magic.length) {
+		featureBlocks.push({
+			title: '=== MAGIC ITEMS ===',
+			items: magic.map((item) => ({
+				name: [item.name, describeMagicItem(item) && `(${describeMagicItem(item)})`].filter(Boolean).join(' '),
+				text: [
+					item.charges?.max > 0 ? `Charges: ${item.charges.max}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
+					item.description || '',
+					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
+				].filter(Boolean).join('\n'),
+			})),
+		});
+	}
 	fillFeatureColumns(f, featureBlocks);
 
 	// A short list of key features and traits for the ACTIONS boxes on page 1.
@@ -417,6 +435,14 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 		f.text(`Eq Name${i}`, `${item.name}${item.name === worn ? ' (worn)' : ''}`, { max: 8.5 });
 		f.text(`Eq Qty${i}`, item.quantity || 1, { max: 8.5 });
 		if (w) f.text(`Eq Weight${i}`, Math.round(w * 100) / 100, { max: 8.5 });
+	});
+	// the magic items the character is attuned to (the sheet has room for three)
+	getAttuned(character).filter((name) => owned.some((i) => i.name === name)).slice(0, 3).forEach((name, i) => {
+		const item = owned.find((x) => x.name === name);
+		const n = i + 1;
+		f.text(`Attuned Name${n}`, name, { max: 8.5 });
+		f.text(`Attuned Qty${n}`, item.quantity || 1, { max: 8.5 });
+		if (Number(item.weight)) f.text(n === 3 ? 'AttunedWeight3' : `Attuned Weight${n}`, Math.round(Number(item.weight) * (item.quantity || 1) * 100) / 100, { max: 8.5 });
 	});
 	const coins = { cp: 0, sp: 0, ep: 0, pp: 0, ...splitGold(getCarriedGold(character) || 0) };
 	['cp', 'sp', 'ep', 'gp', 'pp'].forEach((k) => { if (coins[k]) f.text(k.toUpperCase(), coins[k], { max: 11 }); });

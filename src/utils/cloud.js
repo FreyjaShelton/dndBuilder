@@ -3,9 +3,10 @@ import * as React from 'react';
 import * as drive from './googleDrive';
 import library from './library';
 import { createSyncEngine } from './driveSync';
+import customItemLibrary from './customItemLibrary';
 
 export { library };
-export const syncEngine = createSyncEngine({ library, drive });
+export const syncEngine = createSyncEngine({ library, drive, items: customItemLibrary });
 
 let started = false;
 

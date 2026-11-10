@@ -7,13 +7,21 @@
 //   prepared   -> classInfo.choices.prepared (the first class), the choices of each later class of a multiclassed character
 //
 // The sheet keeps these in play.items / play.currency / play.prepared. Applying them is idempotent.
-import { getBaseOwnedItems, getItem } from '../../utils/equipment';
+import { getBaseOwnedItems, getCharacterItem } from '../../utils/equipment';
 import { getCarriedGold } from '../../utils/characterCalc';
 import { splitGold } from '../../utils/currency';
 import { getClassViews } from '../../utils/multiclass';
 import { getEquipped, usesEquipping } from './inventory';
 
 const COIN_KEYS = ['cp', 'sp', 'ep', 'gp', 'pp'];
+
+// The items the character is attuned to, as the sheet has them (play.attuned).
+function withAttuned(character, play) {
+	if (!Array.isArray(play?.attuned)) return character;
+	// nothing attuned on the sheet and nothing recorded on the character: leave it exactly as it was
+	if (play.attuned.length === 0 && !(character.equipment || {}).attuned?.length) return character;
+	return { ...character, equipment: { ...(character.equipment || {}), attuned: play.attuned } };
+}
 
 // The prepared spells of one class: index 0 is the first class, 1+ the classes taken after it.
 function setPreparedAt(character, index, list) {
@@ -39,14 +47,13 @@ function withPrepared(character, play) {
 // The character's equipment after the sheet's inventory is applied.
 export function inventoryToEquipment(character, items, currency) {
 	const eq = character.equipment || {};
-	const edition = character.edition;
 	const target = new Map();
 	const weights = {};
 	(items || []).forEach((i) => {
 		const quantity = Math.max(0, Math.floor(Number(i.qty) || 0));
 		if (!quantity) return;
 		target.set(i.name, (target.get(i.name) || 0) + quantity);
-		if (!getItem(edition, i.name)) weights[i.name] = Number(i.weight) || 0;
+		if (!getCharacterItem(character, i.name)) weights[i.name] = Number(i.weight) || 0;
 	});
 	// what the builder alone would give, ignoring any earlier sheet changes
 	const base = new Map();
@@ -61,7 +68,7 @@ export function inventoryToEquipment(character, items, currency) {
 		if (want > have) added[name] = want - have;
 		else if (want < have) removed[name] = have - want;
 	});
-	const customItems = Object.fromEntries(Object.keys(added).filter((n) => !getItem(edition, n)).map((n) => [n, { weight: weights[n] || 0 }]));
+	const customItems = Object.fromEntries(Object.keys(added).filter((n) => !getCharacterItem(character, n)).map((n) => [n, { weight: weights[n] || 0 }]));
 
 	// only write what differs, so visiting the sheet without changing anything leaves the character exactly as it was
 	const next = { ...eq };
@@ -86,14 +93,14 @@ export function applySheetToCharacter(character, play) {
 	if (!character || !play || character.edition !== '2014') return character;
 	let next = character;
 	if (Array.isArray(play.items)) next = { ...next, equipment: inventoryToEquipment(next, play.items, play.currency) };
-	next = withPrepared(next, play);
+	next = withAttuned(withPrepared(next, play), play);
 	return JSON.stringify(next) === JSON.stringify(character) ? character : next;
 }
 
 // The character as the sheet shows it while playing: the prepared spells picked on the sheet stand in for the builder's.
 export function viewCharacter(character, play) {
 	if (!play || character.edition !== '2014') return character;
-	return withPrepared(character, play);
+	return withAttuned(withPrepared(character, play), play);
 }
 
 // What is waiting to be applied for a saved sheet record ({ character, play, playBase }): the updated character, or null.

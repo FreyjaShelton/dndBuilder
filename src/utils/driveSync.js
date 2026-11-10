@@ -12,14 +12,17 @@
 //   - new on either side           -> copied across (a new character only goes up once the user reaches Finalize;
 //                                     drafts stay on this device)
 //   - deleted on this device       -> its Drive file is deleted; deleted on another device -> removed here
+// The custom items library is synced with the same passes, as one more file ("Custom items (dndBuilder-items).json"), merged item by
+// item (the newer edit wins; a deletion beats an item that has not changed since). It syncs whenever it changes, not only at Finalize.
 // Built as a factory so it can be tested with an in-memory Drive and library.
 
 const CONNECTED_KEY = 'dndBuilder.drive.connected';
 const LAST_SYNC_KEY = 'dndBuilder.drive.lastSync';
+const ITEMS_FILE_KEY = 'dndBuilder.drive.itemsFileId'; // the library's file, remembered so a lagging file search can't create a second one
 const SYNC_DELAY_MS = 1000;
 const SHEET_DELAY_MS = 5000; // quiet period after the last change on the interactive sheet
 
-export function createSyncEngine({ library, drive, getStorage = () => window.localStorage, now = Date.now, delay = SYNC_DELAY_MS, sheetDelay = SHEET_DELAY_MS }) {
+export function createSyncEngine({ library, drive, items, getStorage = () => window.localStorage, now = Date.now, delay = SYNC_DELAY_MS, sheetDelay = SHEET_DELAY_MS }) {
 	let state = { status: 'off' };
 	const listeners = new Set();
 	let running = false;
@@ -86,8 +89,27 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 		library.markFinalized(id);
 	}
 
+	// The custom item library is one file in Drive: merge it with this device's, and write it back when it differs.
+	async function syncItems() {
+		if (!items) return;
+		let file = null;
+		const knownId = getFlag(ITEMS_FILE_KEY);
+		if (knownId && await drive.fileExists(knownId)) file = { id: knownId };
+		if (!file) file = await drive.findFileByName(drive.ITEMS_FILE);
+		const remote = file ? await drive.downloadFile(file.id) : null;
+		const { snapshot, changedRemote } = items.merge(remote);
+		if (!changedRemote) { if (file) setFlag(ITEMS_FILE_KEY, file.id); return; }
+		if (!file && snapshot.items.length === 0 && Object.keys(snapshot.deleted).length === 0) return; // nothing to put there yet
+		const written = await drive.writeFile({
+			id: file?.id, name: drive.ITEMS_FILE, appProperties: { kind: 'customItems' },
+			content: { app: 'dndBuilder', kind: 'customItems', version: 1, ...snapshot },
+		});
+		setFlag(ITEMS_FILE_KEY, written.id);
+	}
+
 	async function pass() {
 		let conflicts = 0;
+		await syncItems(); // first, so characters opened afterwards find the items they carry up to date
 
 		// 1. Characters deleted on this device
 		let files = await drive.listFiles();
@@ -246,6 +268,8 @@ export function createSyncEngine({ library, drive, getStorage = () => window.loc
 
 	// Editing in the builder never syncs. Reaching Finalize does, so does deleting a character that is in Drive, and so
 	// do changes made on the interactive sheet (after a quiet period).
+	// A change to the custom items (made, edited, deleted, or brought in by a character) syncs soon after.
+	if (items) items.subscribe(() => engine.scheduleSync());
 	library.subscribe((event, id) => {
 		if (event === 'finalize') engine.scheduleSync();
 		else if (event === 'sheet') engine.scheduleSheetSync();

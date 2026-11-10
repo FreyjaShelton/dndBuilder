@@ -33,5 +33,6 @@ export function defaultPlay(character) {
 		currency: { cp: 0, sp: 0, ep: 0, ...splitGold(getCarriedGold(character)), pp: 0 },
 		rollMode: 'normal',
 		items: seedItems(character),
+		attuned: Array.isArray(character.equipment?.attuned) ? [...character.equipment.attuned] : [],
 	};
 }

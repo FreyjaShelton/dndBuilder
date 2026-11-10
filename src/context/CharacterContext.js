@@ -4,6 +4,7 @@ import { migrateEquipment } from '../utils/equipment';
 import library, { isMeaningful, newId } from '../utils/library';
 import { startSync } from '../utils/cloud';
 import { pendingSheetChanges } from '../pages/sheet/sheetSync';
+import customItemLibrary from '../utils/customItemLibrary';
 
 const CharacterContext = React.createContext(null);
 
@@ -35,9 +36,10 @@ const initialCharacter = {
 	...editionDependentDefaults,
 };
 
-// Brings a character loaded from storage / Drive up to the current shape.
+// Brings a character loaded from storage / Drive up to the current shape. Its copies of custom items are brought in line with the
+// shared library (and any it carries that the library lacks are added to it).
 const prepare = (loaded) => (loaded && loaded.equipment
-	? { ...loaded, equipment: migrateEquipment(loaded.equipment, loaded.edition || DEFAULT_EDITION) }
+	? customItemLibrary.reconcile({ ...loaded, equipment: migrateEquipment(loaded.equipment, loaded.edition || DEFAULT_EDITION) })
 	: loaded);
 
 // The dev server (npm start) comes with two finished level 20 characters, a Wizard and a Fighter (src/dev), so pages, the

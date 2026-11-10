@@ -124,6 +124,18 @@ export async function listFiles() {
 	return files;
 }
 
+// The file with this exact name in the app folder (the custom item library has a file of its own), or null.
+export async function findFileByName(name) {
+	const params = new URLSearchParams({
+		spaces: 'appDataFolder',
+		q: `trashed=false and name='${name}'`, // only ever called with our own fixed file name, which has no quotes in it
+		fields: 'files(id,name,version,modifiedTime,appProperties)',
+		pageSize: '10',
+	});
+	const body = await (await api(`${API}?${params}`)).json();
+	return (body.files || [])[0] || null;
+}
+
 export async function downloadFile(id) {
 	return (await api(`${API}/${id}?alt=media`)).json();
 }
@@ -161,5 +173,8 @@ export async function deleteFile(id) {
 		if (e.status !== 404) throw e; // already gone
 	}
 }
+
+// The custom item library is one file next to the characters. Its name does not end with FILE_SUFFIX, so it is never mistaken for one.
+export const ITEMS_FILE = 'Custom items (dndBuilder-items).json';
 
 export const fileNameFor = (name) => `${(name || 'Unnamed character').replace(/[\\/:*?"<>|]/g, '-').trim()}${FILE_SUFFIX}`;

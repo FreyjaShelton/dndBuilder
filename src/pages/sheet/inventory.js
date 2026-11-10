@@ -1,13 +1,13 @@
-import { getItem, getItemIndex, getOwnedItems, getWeaponNames, getWornArmorName, hasShield } from '../../utils/equipment';
+import { getCharacterItem, getCustomGear, getItemIndex, getOwnedItems, getWeaponNames, getWornArmorName, hasShield } from '../../utils/equipment';
 import { getPackContents } from '../../utils/itemIndex';
 
 let nextId = 0;
 export const newItemId = () => `i${Date.now().toString(36)}${(nextId++).toString(36)}`;
 
-// Every item the builder knows about (weapons, armor and gear), de-duplicated by name.
-export function getCatalog(edition) {
+// Every item the builder knows about (weapons, armor and gear) plus the character's own custom items, de-duplicated by name.
+export function getCatalog(character) {
 	const seen = new Map();
-	getItemIndex(edition).all.forEach((i) => {
+	[...getItemIndex(character.edition).all, ...getCustomGear(character)].forEach((i) => {
 		if (!seen.has(i.name)) seen.set(i.name, { name: i.name, weight: Number(i.weight) || 0 });
 	});
 	return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -17,8 +17,8 @@ export function getCatalog(edition) {
 export const usesEquipping = (character) => character.edition === '2014';
 
 // What an item can be equipped as: 'armor' (body armor, one at a time), 'shield' (one at a time), 'weapon', or null.
-export function getEquipKind(edition, name) {
-	const item = getItem(edition, name);
+export function getEquipKind(character, name) {
+	const item = getCharacterItem(character, name);
 	if (!item) return null;
 	if (item.type === 'Shield') return 'shield';
 	if (item.group === 'Armor') return 'armor';
@@ -36,7 +36,7 @@ export function seedItems(character) {
 	return getOwnedItems(character).map((item) => {
 		const base = { id: newItemId(), name: item.name, qty: item.quantity, weight: Number(item.weight) || 0 };
 		if (equipping) {
-			const kind = getEquipKind(character.edition, item.name);
+			const kind = getEquipKind(character, item.name);
 			if (!kind) return base;
 			let equipped = false;
 			if (kind === 'armor') equipped = item.name === worn;
@@ -58,7 +58,7 @@ export function withEquipFlags(character, items) {
 	const weapons = new Set(getWeaponNames(character));
 	let shieldGiven = false;
 	return items.map((item) => {
-		const kind = getEquipKind(character.edition, item.name);
+		const kind = getEquipKind(character, item.name);
 		if (!kind) return item;
 		// the old "worn" / "equipped" notes are replaced by the flag (they would go stale when something is unequipped)
 		const { note, ...i } = item;
@@ -81,7 +81,7 @@ export function unpackItem(character, items, id) {
 		return Number(i.qty) > 1 ? [{ ...i, qty: Number(i.qty) - 1 }] : [];
 	});
 	contents.forEach((c) => {
-		const data = getItem(character.edition, c.name);
+		const data = getCharacterItem(character, c.name);
 		const existing = next.find((i) => i.name === c.name && !i.note && !i.custom);
 		if (existing) next = next.map((i) => (i === existing ? { ...i, qty: (Number(i.qty) || 0) + c.quantity } : i));
 		else next = [...next, { id: newItemId(), name: c.name, qty: c.quantity, weight: Number(data?.weight) || 0 }];
@@ -94,7 +94,7 @@ export function getEquipped(character, items) {
 	const result = { armor: '', shield: false, weapons: [] };
 	(items || []).forEach((i) => {
 		if (!i.equipped || !(Number(i.qty) > 0)) return;
-		const kind = getEquipKind(character.edition, i.name);
+		const kind = getEquipKind(character, i.name);
 		if (kind === 'armor' && !result.armor) result.armor = i.name;
 		else if (kind === 'shield') result.shield = true;
 		else if (kind === 'weapon' && !result.weapons.includes(i.name)) result.weapons.push(i.name);
@@ -106,12 +106,12 @@ export function getEquipped(character, items) {
 // takes the other off.
 export function toggleEquipped(character, items, id) {
 	const target = items.find((i) => i.id === id);
-	const kind = target && getEquipKind(character.edition, target.name);
+	const kind = target && getEquipKind(character, target.name);
 	if (!kind) return items;
 	const on = !target.equipped;
 	return items.map((i) => {
 		if (i.id === id) return { ...i, equipped: on };
-		if (on && (kind === 'armor' || kind === 'shield') && getEquipKind(character.edition, i.name) === kind && i.equipped) return { ...i, equipped: false };
+		if (on && (kind === 'armor' || kind === 'shield') && getEquipKind(character, i.name) === kind && i.equipped) return { ...i, equipped: false };
 		return i;
 	});
 }

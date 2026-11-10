@@ -11,6 +11,7 @@ import { getClassViews } from '../../utils/multiclass';
 import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
 import { getSpellRoll, rollSpell } from './spellDice';
+import { abilityMaxUses, abilityUsesKey, rechargeOnRest } from './itemCharges';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -68,9 +69,10 @@ export default function SheetPage() {
 	// the spells prepared on the sheet stand in for the builder's until the sheet is closed
 	const preparedOnSheet = play ? play.prepared : undefined;
 	const preparedMoreOnSheet = play ? play.preparedMore : undefined;
+	const attunedOnSheet = play ? play.attuned : undefined;
 	const view = React.useMemo(
-		() => viewCharacter(character, { prepared: preparedOnSheet, preparedMore: preparedMoreOnSheet }),
-		[character, preparedOnSheet, preparedMoreOnSheet],
+		() => viewCharacter(character, { prepared: preparedOnSheet, preparedMore: preparedMoreOnSheet, attuned: attunedOnSheet }),
+		[character, preparedOnSheet, preparedMoreOnSheet, attunedOnSheet],
 	);
 	const d = React.useMemo(() => derive(view, items), [view, items, spellDetails]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -156,13 +158,35 @@ export default function SheetPage() {
 		},
 	};
 
+	// Using a magic item's ability: spends its charges and rolls its dice, if it has any
+	const useItemAbility = (item, ability) => {
+		const cost = Number(ability.cost) || 0;
+		const used = Number((play.charges || {})[item.name]) || 0;
+		const max = Number(item.charges?.max) || 0;
+		if (cost > 0 && max - used < cost) return;
+		// an ability can also have its own limited uses ("once per long rest", "a number of times equal to your proficiency bonus")
+		const useKey = abilityUsesKey(item, ability);
+		const usesMax = abilityMaxUses(ability, d.prof);
+		const usesUsed = Number((play.charges || {})[useKey]) || 0;
+		if (usesMax !== null && usesUsed >= usesMax) return;
+		if (cost > 0 || usesMax !== null) {
+			setPlay({ charges: { ...(play.charges || {}), ...(cost > 0 ? { [item.name]: used + cost } : {}), ...(usesMax !== null ? { [useKey]: usesUsed + 1 } : {}) } });
+		}
+		const rolled = ability.dice ? rollExpression(ability.dice) : null;
+		const dice = rolled ? `${ability.dice}${ability.diceLabel ? ` ${ability.diceLabel}` : ''} [${rolled.rolls.join(', ')}]${rolled.mod ? ` ${rolled.mod > 0 ? '+' : ''}${rolled.mod}` : ''}` : '';
+		addLog(`${item.name}: ${ability.name}`, rolled ? rolled.total : '—', [dice, cost > 0 ? `${cost} charge${cost === 1 ? '' : 's'}` : '', ability.resource, ability.activation].filter(Boolean).join(' · '));
+	};
+
 	const rest = (type) => {
+		const recharged = rechargeOnRest(character, play.items, play.charges, type === 'short' ? 'short' : 'long');
+		recharged.notes.forEach((note) => addLog('Item charges', '—', note));
 		if (type === 'short') {
-			setPlay({ pactUsed: 0 });
+			setPlay({ pactUsed: 0, ...(recharged.notes.length ? { charges: recharged.charges } : {}) });
 			addLog('Short rest', '—', 'Pact Magic slots restored');
 		} else {
 			setPlayState((p) => ({
 				...p,
+				...(recharged.notes.length ? { charges: recharged.charges } : {}),
 				hpCurrent: d.hpMax,
 				hpTemp: 0,
 				deathSaves: { successes: 0, failures: 0 },
@@ -244,7 +268,7 @@ export default function SheetPage() {
 							{tabNames.map((t) => <Tab key={t} label={t} value={t} />)}
 						</Tabs>
 						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
-						{activeTab === 'Actions' && <ActionsTab d={d} onAttack={roll} onDamage={damage} />}
+						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} />}
 						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
 						{activeTab === 'Features' && <FeaturesTab character={character} d={d} />}
