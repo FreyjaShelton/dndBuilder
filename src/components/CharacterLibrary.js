@@ -88,11 +88,7 @@ function SyncPanel({ sync, configured }) {
 							: sync.status === 'error' ? 'Google Drive sync hit a problem'
 								: 'Synced with Google Drive'}
 				</Typography>
-				{sync.status === 'needsAuth' ? (
-					<Button variant="contained" size="small" onClick={signIn} disabled={busy}>Sign in with Google</Button>
-				) : (
-					<Button size="small" onClick={() => syncEngine.syncNow()} disabled={sync.status === 'syncing'}>Sync now</Button>
-				)}
+				{sync.status !== 'needsAuth' && <Button size="small" onClick={() => syncEngine.syncNow()} disabled={sync.status === 'syncing'}>Sync now</Button>}
 			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ marginTop: 0.5 }}>
 				{sync.status === 'needsAuth'
@@ -100,10 +96,15 @@ function SyncPanel({ sync, configured }) {
 					: `Last synced ${timeAgo(sync.lastSyncAt)}. A character uploads when you reach the Finalize step, and again if you change it and finalize again. Changes on the interactive sheet upload 20 seconds after your last change.`}
 			</Typography>
 			{sync.error && <Alert severity={sync.status === 'error' ? 'error' : 'warning'} sx={{ marginTop: 1 }}>{sync.error}</Alert>}
+			{sync.status === 'needsAuth' && (
+			<Box sx={{ marginTop: 1.5 }}>
+			<Button variant="contained" onClick={signIn} disabled={busy} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}>Sign in with Google</Button>
+			</Box>
+			)}
 			<Box sx={{ marginTop: 1 }}>
-				<Button
-					size="small"
-					variant="outlined"
+			<Button
+			size="small"
+			variant="outlined"
 					color="inherit"
 					startIcon={<CloudOffOutlinedIcon />}
 					onClick={() => { if (window.confirm('Stop syncing on this device? Your characters stay here and in Google Drive.')) syncEngine.disconnect(); }}
