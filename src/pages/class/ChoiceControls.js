@@ -203,6 +203,7 @@ function AsiControl({ character, value, onChange }) {
 					{feat && (
 						<FeatSpellChoices
 							featName={feat.name}
+							character={character}
 							edition={character.edition}
 							state={v.spells}
 							onChange={(update) => onChange((prev) => ({ ...(prev || {}), spells: update((prev || {}).spells) }))}

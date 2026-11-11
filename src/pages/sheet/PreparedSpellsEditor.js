@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Box, Button, Chip, Typography } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import SpellPicker2014 from '../spells/SpellPicker2014';
-import { getAlwaysPrepared, getSpellSections } from '../../utils/spells2014';
+import { getAlwaysPrepared, getGrantedSpellSources, getSpellSections } from '../../utils/spells2014';
 import useSpellDetails from '../../utils/useSpellDetails';
 
 // The sheet's Spells tab while editing: the same spell picker the builder uses, for the prepared list only.
@@ -29,6 +29,7 @@ export default function PreparedSpellsEditor({ character, setPrepared, classInde
 			<SpellPicker2014
 				section={section}
 				details={details}
+				taken={getGrantedSpellSources(character)}
 				onChange={(update) => setPrepared(update, classIndex)}
 			/>
 			{always.length > 0 && (

@@ -6,7 +6,7 @@
 import spellIndex from '../data/2014/spellIndex';
 import { getAbilityMods, getClass, getClassLevel, getClassSpellcastingStats } from './characterCalc';
 import { getClassViews } from './multiclass';
-import { getRaceChoices, getRaceSpellInfo } from './raceChoices';
+import { getRaceChoices, getRaceRecord, getRaceSpellInfo } from './raceChoices';
 import { getFeatGrantedSpells } from './featSpells';
 import {
 	getActiveChoiceDefs, getChoiceOptions, getChoiceValues, getMaxCastableLevel, getSubclass, resolveCount,
@@ -102,26 +102,50 @@ export function getAlwaysPrepared(character) {
 	return all.filter((r, i) => all.findIndex((x) => x.name === r.name) === i);
 }
 
+const PREPARING_CLASSES = ['Artificer', 'Cleric', 'Druid', 'Paladin', 'Wizard'];
+
 function alwaysPreparedOf(character) {
 	const sub = getSubclass(character);
 	if (!sub) return [];
 	const level = getClassLevel(character);
 	const terrain = getChoiceValues(character).landTerrain;
 	const results = [];
-	sub.features.filter((f) => /Spells$/.test(f.name) && f.level <= level).forEach((f) => {
+	const cls = getClass(character);
+	// a feature with the subclass's spell table: "Oath Spells", "Circle Spells"... or one that says you learn the spells
+	// in its table ("Clockwork Magic", "Lunar Embodiment", "Gloom Stalker Magic"). A Warlock's "Expanded Spell List" only
+	// adds options to the spell list, so it is not one of these.
+	const hasTable = (f) => new RegExp(`^${cls.name} Level \\|`, 'm').test(f.description);
+	// (a subclass whose spells depend on a choice, such as Elemental Bloodline, reads them from bonusSpells below instead)
+	const grantsTable = (f) => /Spells$/.test(f.name) || (!sub.bonusSpells && hasTable(f) && /\byou (?:also )?learn (?:an )?additional spells?\b/i.test(f.description));
+	sub.features.filter((f) => grantsTable(f) && f.level <= level).forEach((f) => {
 		let lines = f.description.split('\n');
-		// Circle of the Land lists one table per terrain; keep only the chosen one.
-		if (f.name === 'Circle Spells') {
+		// Circle of the Land lists one table per terrain; keep only the chosen one. (Spores and Wildfire have a single table.)
+		if (sub.name === 'Land' && f.name === 'Circle Spells') {
 			const start = lines.findIndex((l) => terrain && l.trim().toLowerCase() === terrain.toLowerCase());
 			if (start < 0) return;
 			lines = lines.slice(start + 1);
 			const end = lines.findIndex((l) => !/^\d+(?:st|nd|rd|th)\s*\|/.test(l) && !/\|/.test(l));
 			lines = end < 0 ? lines : lines.slice(0, end);
 		}
+		// a table with several spell columns (Lunar Sorcery's Full Moon, New Moon and Crescent Moon) learns all of them; each
+		// spell keeps its column's name as `group` so the player can see which phase it belongs to
+		let columns = [];
 		lines.forEach((l) => {
+			if (new RegExp(`^${cls.name} Level \\|`).test(l.trim())) {
+				columns = l.split('|').slice(1).map((c) => c.trim().replace(/\s*Spells?$/i, ''));
+				return;
+			}
 			const m = l.match(/^(\d+)(?:st|nd|rd|th)\s*\|\s*(.+)$/);
-			if (m && Number(m[1]) <= level) parseSpellNames(m[2]).forEach((name) => results.push({ name, from: sub.name }));
+			if (!m || Number(m[1]) > level) return;
+			m[2].split('|').forEach((cell, i) => {
+				const group = columns.length > 1 ? columns[i] || '' : '';
+				parseSpellNames(cell).forEach((name) => results.push({ name, from: sub.name, ...(group ? { group, groupIndex: i } : {}) }));
+			});
 		});
+	});
+	// spells the subclass text grants in prose (see data/2014/classes/subclassSpellFixes.js)
+	Object.entries(sub.grantedSpells || {}).forEach(([lv, names]) => {
+		if (Number(lv) <= level) names.forEach((n) => { const s = findSpell(n); if (s) results.push({ name: s.name, from: sub.name }); });
 	});
 	// subclasses whose spells depend on a choice (Elemental Bloodline's ancestor): { choice, byChoice: { option: { level: [spells] } } }
 	if (sub.bonusSpells) {
@@ -130,7 +154,9 @@ function alwaysPreparedOf(character) {
 			if (Number(lv) <= level) names.forEach((n) => { const s = findSpell(n); if (s) results.push({ name: s.name, from: sub.name }); });
 		});
 	}
-	return results.filter((r, i) => results.findIndex((x) => x.name === r.name) === i);
+	// a Cleric's domain spells are always prepared; a Sorcerer's or Ranger's are simply known
+	const known = !PREPARING_CLASSES.includes(cls.name);
+	return results.filter((r, i) => results.findIndex((x) => x.name === r.name) === i).map((r) => ({ ...r, known }));
 }
 
 // ---- Sections shown on the Spells step -------------------------------------------------------------------------
@@ -204,6 +230,26 @@ export function getRaceSpellSections(character) {
 	}));
 }
 
+// ---- Spells the character already has from somewhere else -----------------------------------------------------
+
+// Every spell the character gets from a source other than a class's own picks, with where it comes from, so a spell
+// picker can mark it as already taken: Map(spell name -> 'Lunar Sorcery' | 'Aasimar' | 'Magic Initiate feat' ...).
+// skip leaves out one source, for that source's own picker: 'race:<section id>' or 'feat:<feat name>'.
+export function getGrantedSpellSources(character, { skip } = {}) {
+	const out = new Map();
+	if (character.edition !== '2014') return out;
+	const add = (name, label, key) => {
+		const s = findSpell(name);
+		if (s && key !== skip && !out.has(s.name)) out.set(s.name, label);
+	};
+	getAlwaysPrepared(character).forEach((a) => add(a.name, a.from, 'subclass'));
+	const raceName = getRaceRecord(character)?.name || 'your race';
+	getRaceSpellInfo(character).fixed.forEach((sp) => add(sp.name, raceName, 'race'));
+	getRaceSpellSections(character).forEach((sec) => sec.value.forEach((n) => add(n, `${raceName} (${sec.title})`, `race:${sec.id}`)));
+	getFeatGrantedSpells(character).forEach((sp) => add(sp.name, `${sp.from} feat`, `feat:${sp.from}`));
+	return out;
+}
+
 // ---- What the character has, for the sheet and PDF -------------------------------------------------------
 
 export function getChosenSpellNames(character) {
@@ -236,13 +282,19 @@ export function getSelectedSpells2014(character) {
 	// which class each spell was picked for (its spellcasting ability, save DC and attack bonus are that class's)
 	const casterOf = new Map();
 	getSpellSections(character).filter((s) => s.choiceId !== 'spellbook').forEach((s) => (s.value || []).forEach((n) => { if (!casterOf.has(n)) casterOf.set(n, s.classIndex); }));
-	getClassViews(character).forEach((view, vi) => alwaysPreparedOf(view).forEach((a) => { if (!casterOf.has(a.name)) casterOf.set(a.name, vi); }));
+	// subclass spells: which subclass (and table column, such as a Lunar Sorcery moon phase) they come from
+	const subclassOf = new Map();
+	getClassViews(character).forEach((view, vi) => alwaysPreparedOf(view).forEach((a) => {
+		if (!casterOf.has(a.name)) casterOf.set(a.name, vi);
+		if (!subclassOf.has(a.name)) subclassOf.set(a.name, a);
+	}));
 	return getChosenSpellNames(character)
 		.map(findSpell).filter(Boolean)
 		.map((s) => {
 			const d = details?.[s.name] || {};
 			return {
 				name: s.name, level: s.level, school: s.school, classes: s.classes, casterIndex: casterOf.get(s.name),
+				fromSubclass: subclassOf.get(s.name)?.from || '', subclassGroup: subclassOf.get(s.name)?.group || '', subclassGroupIndex: subclassOf.get(s.name)?.groupIndex ?? -1,
 				castingTime: d.castingTime || '', range: d.range || '', components: d.components || '', duration: d.duration || '',
 				concentration: !!d.concentration, ritual: !!d.ritual, description: d.description || '', higherLevels: d.higherLevels || '',
 			};

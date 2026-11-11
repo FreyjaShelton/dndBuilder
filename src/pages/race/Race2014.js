@@ -14,7 +14,7 @@ import {
 	getSubraceRecord, getSubraceTraits, getVersion, isCustomizing,
 } from '../../utils/raceChoices';
 import { getSwapOptions, parseSwap, profId } from '../../utils/customOrigin';
-import { getRaceSpellSections } from '../../utils/spells2014';
+import { getGrantedSpellSources, getRaceSpellSections } from '../../utils/spells2014';
 import useSpellDetails from '../../utils/useSpellDetails';
 import SpellPicker2014 from '../spells/SpellPicker2014';
 import RaceChoice from './RaceChoices2014';
@@ -205,6 +205,7 @@ function RaceSpellPickers({ character, updateRace }) {
 			key={section.id}
 			section={section}
 			details={details}
+			taken={getGrantedSpellSources(character, { skip: `race:${section.id}` })}
 			onChange={(updater) => updateRace((race) => ({ choices: { ...(race.choices || {}), [section.id]: updater((race.choices || {})[section.id] || []) } }))}
 		/>
 	));

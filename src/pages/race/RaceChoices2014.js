@@ -148,7 +148,7 @@ export default function RaceChoice({ def, character, value, onChange }) {
 				)}
 				{inc && inc.options.length === 1 && <Typography variant="body2" color="text.secondary">This feat also raises {ABILITY_NAMES[inc.options[0]]} by 1.</Typography>}
 				{feat && <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{feat.prerequisite ? `Prerequisite: ${feat.prerequisite}\n` : ''}{feat.description}</Typography>}
-					{feat && <FeatSpellChoices featName={feat.name} edition={character.edition} state={values['feat:spells']} onChange={(update) => onChange('feat:spells', update)} />}
+					{feat && <FeatSpellChoices featName={feat.name} edition={character.edition} character={character} state={values['feat:spells']} onChange={(update) => onChange('feat:spells', update)} />}
 			</Box>
 		);
 	}

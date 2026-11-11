@@ -5,7 +5,7 @@ import { useCharacter } from '../../context/CharacterContext';
 import { getStepEyebrow } from '../../data/wizardSteps';
 import { getClass, getSpellSlots, getSpellcastingStatsList } from '../../utils/characterCalc';
 import { formatSigned } from '../../utils/abilityScore';
-import { getAlwaysPrepared, getSpellSections } from '../../utils/spells2014';
+import { findSpell, getAlwaysPrepared, getGrantedSpellSources, getSpellSections } from '../../utils/spells2014';
 import { getRaceSpellInfo } from '../../utils/raceChoices';
 import { USE_TEXT, getFeatGrantedSpells } from '../../utils/featSpells';
 import useSpellDetails from '../../utils/useSpellDetails';
@@ -33,6 +33,17 @@ export default function Spells2014() {
 	const sections = getSpellSections(character);
 	const casterNames = [...new Set(sections.map((s) => s.className))]; // the classes that have spells to choose
 	const always = getAlwaysPrepared(character);
+	// spells the subclass, race or feats already give: marked in the pickers so they aren't picked twice
+	const taken = getGrantedSpellSources(character);
+	// a sorcerer or ranger knows its subclass spells; a cleric, druid, paladin or artificer has them prepared
+	const alwaysHow = always.every((s) => s.known) ? 'known' : always.some((s) => s.known) ? 'mixed' : 'prepared';
+	// grouped by spell level; a spell from a table with several columns carries the column's name (a Lunar Sorcery moon phase)
+	const alwaysByLevel = Object.entries(always.reduce((acc, s) => {
+		const lv = findSpell(s.name)?.level ?? 0;
+		(acc[lv] ||= []).push(s);
+		return acc;
+	}, {})).sort(([a], [b]) => Number(a) - Number(b));
+	const groupNames = [...new Set(always.map((s) => s.group).filter(Boolean))];
 	const racial = getRaceSpellInfo(character).fixed;
 	const featGranted = getFeatGrantedSpells(character);
 	const cls = getClass(character);
@@ -92,7 +103,7 @@ export default function Spells2014() {
 			)}
 
 			{sections.map((section) => (
-				<SpellPicker2014 key={section.id} section={section} details={details} onChange={(updater) => setSection(section, updater)} />
+				<SpellPicker2014 key={section.id} section={section} details={details} taken={taken} onChange={(updater) => setSection(section, updater)} />
 			))}
 
 			{racial.length > 0 && (
@@ -128,13 +139,30 @@ export default function Spells2014() {
 			{always.length > 0 && (
 				<Card sx={{ marginBottom: 2, backgroundColor: 'background.paper' }}>
 					<CardContent>
-						<Typography variant="h6" sx={{ fontWeight: 700 }}>Always prepared</Typography>
+						<Typography variant="h6" sx={{ fontWeight: 700 }}>{alwaysHow === 'mixed' ? 'Subclass spells' : `Always ${alwaysHow}`}</Typography>
 						<Typography variant="body2" sx={{ color: 'text.secondary', marginBottom: 1 }}>
-							{[...new Set(always.map((a) => a.from))].join(' and ')} spells are always prepared and don&apos;t count against your limit.
+							{[...new Set(always.map((a) => a.from))].join(' and ')} spells are always {alwaysHow === 'mixed' ? 'known or prepared' : alwaysHow} and don&apos;t count against your limit.
 						</Typography>
-						<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-							{always.map((s) => <Chip key={s.name} size="small" label={s.name} />)}
-						</Box>
+						{groupNames.length > 0 && (
+							<Typography variant="body2" sx={{ color: 'text.secondary', marginBottom: 1 }}>
+								Each spell is tagged with its column of the subclass table ({groupNames.join(', ')}).
+								{always.some((s) => s.from === 'Lunar Sorcery') && ' You know all of them. After each long rest you choose a lunar phase, and you can cast one 1st-level spell of that phase once without a spell slot.'}
+							</Typography>
+						)}
+						{alwaysByLevel.map(([lv, list]) => (
+							<Box key={lv} sx={{ marginTop: 1 }}>
+								<Typography variant="subtitle2" sx={{ color: 'primary.main' }}>{Number(lv) === 0 ? 'Cantrips' : `Level ${lv}`}</Typography>
+								<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, marginTop: 0.5 }}>
+									{list.map((s) => (
+										<Chip
+											key={s.name}
+											size="small"
+											label={s.group ? <span>{s.name} <Box component="span" sx={{ opacity: 0.7 }}>· {s.group}</Box></span> : s.name}
+										/>
+									))}
+								</Box>
+							</Box>
+						))}
 					</CardContent>
 				</Card>
 			)}

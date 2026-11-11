@@ -12,8 +12,9 @@ import sorcerer from './sorcerer';
 import warlock from './warlock';
 import wizard from './wizard';
 import homebrewSubclasses from '../homebrew';
+import applySubclassSpellFixes from './subclassSpellFixes';
 
-const classes = {
+const classes = applySubclassSpellFixes({
 	Artificer: artificer,
 	Barbarian: barbarian,
 	Bard: bard,
@@ -27,7 +28,7 @@ const classes = {
 	Sorcerer: sorcerer,
 	Warlock: warlock,
 	Wizard: wizard,
-};
+});
 
 // Homebrew subclasses are added to the end of their class's list (they carry homebrew: true).
 homebrewSubclasses.forEach(({ className, subclass }) => {

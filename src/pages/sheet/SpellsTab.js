@@ -37,6 +37,14 @@ const damageOf = (spell) => {
 	const m = spell.description.match(/(\d+d\d+(?:\s*\+\s*\d+)?)\s+([A-Z][a-z]+)\s+damage/);
 	return m ? { expr: m[1].replace(/\s+/g, ''), type: m[2] } : null;
 };
+// Within a level: spells in alphabetical order, then the ones tagged with a column of their subclass table (Lunar
+// Sorcery's moon phases) together at the bottom, in the table's column order.
+const bySheetOrder = (a, b) => {
+	const ga = a.subclassGroup ? 1 : 0;
+	const gb = b.subclassGroup ? 1 : 0;
+	return ga - gb || (ga && (a.subclassGroupIndex - b.subclassGroupIndex)) || a.name.localeCompare(b.name);
+};
+
 const saveOf = (spell) => {
 	const m = spell.description.match(/(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw/);
 	return m ? m[1].slice(0, 3).toUpperCase() : null;
@@ -63,9 +71,14 @@ function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, on
 			    Two lines so every spell looks the same on a phone: the name and arrow, then the range with the buttons. */}
 			<Box onClick={() => setOpen(!open)} sx={{ cursor: 'pointer' }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-					<Typography sx={{ flex: 1, minWidth: 0, fontWeight: 600, overflowWrap: 'anywhere' }}>{spell.name}</Typography>
-					{spell.concentration && <Chip size="small" label="C" title="Concentration" />}
-					{spell.ritual && <Chip size="small" label="R" title="Ritual" />}
+					{/* the name with its tags right after it (they wrap under it on a narrow screen); the arrow stays at the far right */}
+					<Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1, rowGap: 0.5 }}>
+						<Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{spell.name}</Typography>
+						{spell.concentration && <Chip size="small" label="C" title="Concentration" />}
+						{spell.ritual && <Chip size="small" label="R" title="Ritual" />}
+						{/* a subclass spell from a table with several columns: which one (a Lunar Sorcery moon phase) */}
+						{spell.subclassGroup && <Chip size="small" variant="outlined" color="secondary" label={spell.subclassGroup} title={`${spell.fromSubclass}: ${spell.subclassGroup}`} />}
+					</Box>
 					<IconButton size="small" aria-label={open ? 'Hide spell description' : 'Show spell description'} aria-expanded={open} sx={{ transform: open ? 'rotate(180deg)' : 'none' }}>
 						<ExpandMoreIcon />
 					</IconButton>
@@ -226,7 +239,7 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 					<Typography variant="subtitle2" sx={{ color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1 }}>
 						{lvl === 0 ? 'Cantrips' : `Level ${lvl}`}
 					</Typography>
-					{d.spells.filter((s) => s.level === lvl).map((s) => (
+					{d.spells.filter((s) => s.level === lvl).sort(bySheetOrder).map((s) => (
 						<SpellCard
 							key={s.name}
 							spell={s}

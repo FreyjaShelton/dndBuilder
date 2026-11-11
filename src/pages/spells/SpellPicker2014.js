@@ -34,20 +34,34 @@ function SpellDetails({ spell, details }) {
 }
 
 // Memoised on plain values so picking one spell re-renders only the rows that changed.
-const Row = React.memo(function Row({ name, checked, disabled, onToggle, details, showLevel }) {
+// takenBy: where the character already gets this spell (a subclass, race or feat). It can't be picked again here; a pick
+// made before the spell was granted stays checked, so it can be removed.
+const Row = React.memo(function Row({ name, checked, disabled, onToggle, details, showLevel, takenBy }) {
 	const [open, setOpen] = React.useState(false);
 	const spell = findSpell(name) || { name, level: 0, school: '', classes: [] };
 	const d = details?.[name];
+	const locked = (disabled || !!takenBy) && !checked;
 	return (
 		<Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-				<Checkbox checked={checked} disabled={disabled && !checked} onChange={() => onToggle(name)} />
-				<Typography
-					onClick={() => { if (checked || !disabled) onToggle(name); }}
-					sx={{ flex: 1, minWidth: 0, fontWeight: checked ? 600 : 400, cursor: 'pointer', userSelect: 'none' }}
-				>
-					{name}
-				</Typography>
+				<Checkbox checked={checked} disabled={locked} onChange={() => onToggle(name)} />
+				<Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1, rowGap: 0.5 }}>
+					<Typography
+						onClick={() => { if (!locked) onToggle(name); }}
+						sx={{ fontWeight: checked ? 600 : 400, cursor: locked ? 'default' : 'pointer', userSelect: 'none', color: takenBy && !checked ? 'text.secondary' : 'inherit' }}
+					>
+						{name}
+					</Typography>
+					{takenBy && (
+						<Chip
+							size="small"
+							variant="outlined"
+							color={checked ? 'warning' : 'secondary'}
+							label={`From ${takenBy}`}
+							title={checked ? `You already get ${name} from ${takenBy}, so this pick adds nothing. Uncheck it to pick another spell.` : `You already get ${name} from ${takenBy}.`}
+						/>
+					)}
+				</Box>
 				<Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
 					{showLevel && <Chip size="small" variant="outlined" label={spell.level === 0 ? 'Cantrip' : `L${spell.level}`} />}
 					<Chip size="small" variant="outlined" label={spell.school} sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
@@ -67,7 +81,8 @@ const Row = React.memo(function Row({ name, checked, disabled, onToggle, details
 // section: { title, subtitle, note, count, options, value, openEnded? }
 // openEnded: `count` is what the class gives for free, but more can be added (a wizard's spellbook can hold any number of copied spells).
 // onChange receives an updater (currentNames) => newNames, so two quick clicks never overwrite each other.
-export default function SpellPicker2014({ section, onChange, details }) {
+// taken: Map(spell name -> source) of spells the character already gets elsewhere (see getGrantedSpellSources).
+export default function SpellPicker2014({ section, onChange, details, taken }) {
 	const { title, subtitle, note, count, options, value, openEnded } = section;
 	const [query, setQuery] = React.useState('');
 	const [levelFilter, setLevelFilter] = React.useState('all');
@@ -166,6 +181,7 @@ export default function SpellPicker2014({ section, onChange, details }) {
 							onToggle={toggle}
 							details={details}
 							showLevel={levels.length > 1}
+							takenBy={taken?.get(o.name) || ''}
 						/>
 					))}
 					{rows.length === 0 && <Typography variant="body2" sx={{ padding: 2, color: 'text.secondary' }}>No spells match.</Typography>}

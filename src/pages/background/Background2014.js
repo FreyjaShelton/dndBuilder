@@ -195,6 +195,7 @@ export default function Background2014() {
 										<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{featRecord.description}</Typography>
 										<FeatSpellChoices
 											featName={featRecord.name}
+											character={character}
 											edition="2014"
 											variantPrefix={bgFeat.variantPrefix}
 											state={values['feat:spells']}
