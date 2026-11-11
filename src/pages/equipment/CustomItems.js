@@ -468,7 +468,7 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>
-				<Button variant="contained" disabled={!!nameError || !!regainError} onClick={() => onSave(cleanItem(draft), original?.name)}>{editing ? 'Save' : 'Create'}</Button>
+				<Button variant="contained" disabled={!!nameError || !!regainError} onClick={() => onSave(cleanItem(draft), original)}>{editing ? 'Save' : 'Create'}</Button>
 			</DialogActions>
 		</Dialog>
 	);
@@ -485,7 +485,11 @@ export default function CustomItems({ character, updateEquipment }) {
 	const gear = getCustomGear(character); // this character's copies
 	const attunedNames = getAttunedNames(character);
 	const selected = getSelected(character);
-	const copyOf = (item) => gear.find((g) => g.libId === item.libId) || gear.find((g) => g.name === item.name);
+	// this character's copy of a library item: the one linked to it, else (a copy saved before items had ids) the one with its name,
+	// but only when no other library item has that name, so two items with the same name never share a copy
+	const copyOf = (item) => gear.find((g) => g.libId === item.libId)
+		|| (items.filter((i) => i.name === item.name).length === 1 ? gear.find((g) => !g.libId && g.name === item.name) : null)
+		|| null;
 
 	// an equipment change that keeps the worn armor and carried shield consistent with what is now owned
 	const apply = (makePatch) => updateEquipment((eq) => {
