@@ -67,6 +67,7 @@ export default function NavBar() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { character } = useCharacter();
+	const characterName = character.info?.name?.trim() || 'Unnamed character';
 	const pages = getWizardSteps(character);
 	const stepLabel = (page) => (page === 'Race' ? getEditionData(character.edition).raceLabel : page);
 
@@ -120,15 +121,26 @@ export default function NavBar() {
 						>
 							<MenuIcon />
 						</IconButton>
-						<Typography
-							variant="h6"
-							component="a"
-							href="#/home"
-							noWrap
-							sx={{ color: 'text.primary', textDecoration: 'none', fontWeight: 700, flexGrow: 1, minWidth: 0, fontSize: { xs: '1.05rem', sm: '1.25rem' } }}
-						>
-							D&D 5e Builder
-						</Typography>
+						{/* the app name, then the character being edited: beside it, or under it on a phone; cut short with … if it still doesn't fit */}
+						<Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'baseline' }, columnGap: 1, flexGrow: 1, minWidth: 0 }}>
+							<Typography
+								variant="h6"
+								component="a"
+								href="#/home"
+								noWrap
+								sx={{ color: 'text.primary', textDecoration: 'none', fontWeight: 700, flexShrink: 0, lineHeight: { xs: 1.25, sm: 1.6 }, fontSize: { xs: '1.05rem', sm: '1.25rem' } }}
+							>
+								D&D 5e Builder
+							</Typography>
+							<Typography
+								noWrap
+								title={characterName}
+								data-testid="header-character-name"
+								sx={{ color: 'text.secondary', minWidth: 0, maxWidth: '100%', lineHeight: { xs: 1.25, sm: 1.5 }, fontSize: { xs: '0.8rem', sm: '1rem' }, fontStyle: character.info?.name ? 'normal' : 'italic' }}
+							>
+								{characterName}
+							</Typography>
+						</Box>
 						<Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', lg: 'block' }, marginRight: 1 }}>
 							Step {currentIndex + 1} of {pages.length}
 						</Typography>
