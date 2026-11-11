@@ -6,6 +6,7 @@ import { getClassFeatureNames, getOriginFeats } from '../../utils/characterCalc'
 import { getSheetFeatures } from '../../utils/classChoices';
 import { getRaceChoiceSummaries } from '../../utils/raceChoices';
 import { getBackgroundChoiceSummaries } from '../../utils/backgroundChoices';
+import { getOriginFeatEntries, getRacePickEntries } from '../../utils/originFeatures';
 import { describeMagicItem, getAttunedNames } from '../../utils/equipment';
 import { getSpellRecord } from '../../utils/spells2014';
 import { abilityMaxUses, getFeatureItems } from './itemCharges';
@@ -112,10 +113,15 @@ export default function FeaturesTab({ character, d, play }) {
 		});
 	}
 	const traits = d.race ? [...d.race.traits, ...(d.subrace?.traits || [])] : [];
-	const feats = getOriginFeats(character).map((n) => {
-		const base = baseName(n);
-		return { name: n, description: data.feats.find((f) => f.name === base)?.description };
-	});
+	const is2014 = character.edition === '2014';
+	// 2024: origin feats; 2014: feats from the race and background (ASI feats are listed with the class features)
+	const feats = is2014
+		? getOriginFeatEntries(character).map((f) => ({ name: `${f.name} (from ${f.from})`, description: f.description }))
+		: getOriginFeats(character).map((n) => {
+			const base = baseName(n);
+			return { name: n, description: data.feats.find((f) => f.name === base)?.description };
+		});
+	const racePicks = is2014 ? getRacePickEntries(character) : [];
 
 	return (
 		<Box>
@@ -129,10 +135,11 @@ export default function FeaturesTab({ character, d, play }) {
 					{character.race.lineage && (
 						<Typography variant="body2" sx={{ marginBottom: 0.5 }}>{d.race.lineage?.label}: <strong>{character.race.lineage}</strong></Typography>
 					)}
-					{character.edition === '2014' && getRaceChoiceSummaries(character).map((line) => (
+					{is2014 && getRaceChoiceSummaries(character, { skipDescribed: true }).map((line) => (
 						<Typography key={line} variant="body2" sx={{ marginBottom: 0.5 }}>{line}</Typography>
 					))}
 					{traits.map((t) => <Entry key={t.name} title={t.name}>{t.description}</Entry>)}
+					{racePicks.map((p) => <Entry key={p.name} title={p.name}>{p.description}</Entry>)}
 				</Section>
 			)}
 			{character.edition === '2014' && play && <MagicItemFeatures character={character} d={d} play={play} />}

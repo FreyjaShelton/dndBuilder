@@ -321,7 +321,7 @@ export default function Race2014() {
 								</Box>
 								{defs.filter((d) => d.kind !== 'spells').map((def) => (
 									<Box key={def.id}>
-										{def.kind !== 'option' && def.kind !== 'skills' && def.kind !== 'tools' && def.kind !== 'languages' && def.kind !== 'feat' && def.kind !== 'spells' && (
+										{def.kind !== 'option' && def.kind !== 'skills' && def.kind !== 'tools' && def.kind !== 'weapons' && def.kind !== 'skilled' && def.kind !== 'languages' && def.kind !== 'feat' && def.kind !== 'spells' && (
 											<Typography variant="subtitle2" sx={{ marginBottom: 1, color: 'primary.main' }}>{def.label}</Typography>
 										)}
 										{def.kind === 'feat' && <Typography variant="subtitle2" sx={{ marginBottom: 1, color: 'primary.main' }}>{def.trait}: choose a feat</Typography>}

@@ -9,6 +9,7 @@ import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS } from './abilityScore';
 import { getClassViews } from './multiclass';
+import { splitSkilled } from './customOrigin';
 
 // Most functions here describe ONE class: the one in character.classInfo (for a multiclassed character, pass the class's view
 // from getClassViews). The ones that say so in their comment cover every class the character has.
@@ -347,6 +348,22 @@ export function getChoiceSkills(character) {
 			(Array.isArray(v) ? v : [v]).filter(Boolean).forEach((s) => out.push(s));
 		});
 	});
+	return [...out, ...getAsiSkilled(character).skills];
+}
+
+// Skills and tools picked for the Skilled feat taken at an Ability Score Improvement, in every class.
+export function getAsiSkilled(character) {
+	const out = { skills: [], tools: [] };
+	getClassViews(character).forEach((view) => {
+		const values = getChoiceValues(view);
+		getAsiLevels(view).forEach((l) => {
+			const v = values[`asi-${l}`];
+			if (v?.type !== 'feat' || v.feat !== 'Skilled') return;
+			const { skills, tools } = splitSkilled(v.skilled);
+			out.skills.push(...skills);
+			out.tools.push(...tools);
+		});
+	});
 	return out;
 }
 
@@ -387,7 +404,7 @@ function choiceSummariesOf(character) {
 	});
 	getAsiLevels(character).forEach((l) => {
 		const v = values[`asi-${l}`];
-		if (v?.type === 'feat' && v.feat) lines.push(`Feat (level ${l}): ${v.feat}`);
+		if (v?.type === 'feat' && v.feat) lines.push(`Feat (level ${l}): ${v.feat}${v.feat === 'Skilled' && (v.skilled || []).length ? ` (${v.skilled.join(', ')})` : ''}`);
 	});
 	return lines;
 }

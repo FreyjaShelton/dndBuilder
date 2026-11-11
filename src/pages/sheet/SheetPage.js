@@ -14,6 +14,7 @@ import { getSpellRoll, rollSpell } from './spellDice';
 import { getAttunedNames } from '../../utils/equipment';
 import { itemSpellKey } from '../../utils/itemSpells';
 import { abilityMaxUses, abilityUsesKey, itemMaxCharges, itemSpellStats, rechargeOnRest } from './itemCharges';
+import { resetTraitUses, traitUsesKey } from '../../utils/originFeatures';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
 import ActionsTab from './ActionsTab';
@@ -182,9 +183,22 @@ export default function SheetPage() {
 		addLog(`${item.name}: ${ability.name}`, rolled ? rolled.total : '—', [dice, cost > 0 ? `${cost} charge${cost === 1 ? '' : 's'}` : '', ability.resource, ability.activation].filter(Boolean).join(' · '));
 	};
 
+	// a racial trait used in play (Radiant Soul, Healing Hands...): spends one of its limited uses and notes it in the log
+	const useTrait = (action) => {
+		const key = traitUsesKey(action);
+		const max = action.uses ? abilityMaxUses(action, d.prof) : null;
+		const used = Number((play.charges || {})[key]) || 0;
+		if (max !== null && used >= max) return;
+		if (max !== null) setPlay({ charges: { ...(play.charges || {}), [key]: used + 1 } });
+		addLog(action.name, '—', [action.activation, max !== null ? `${max - used - 1} of ${max} uses left` : ''].filter(Boolean).join(' · '));
+	};
+
 	const rest = (type) => {
-		const recharged = rechargeOnRest(character, play.items, play.charges, type === 'short' ? 'short' : 'long');
-		recharged.notes.forEach((note) => addLog('Item charges', '—', note));
+		const items = rechargeOnRest(character, play.items, play.charges, type === 'short' ? 'short' : 'long');
+		const traits = resetTraitUses(view, items.charges, type === 'short' ? 'short' : 'long');
+		const recharged = { charges: traits.charges, notes: [...items.notes, ...traits.notes] };
+		items.notes.forEach((note) => addLog('Item charges', '—', note));
+		traits.notes.forEach((note) => addLog('Racial traits', '—', note));
 		if (type === 'short') {
 			setPlay({ pactUsed: 0, ...(recharged.notes.length ? { charges: recharged.charges } : {}) });
 			addLog('Short rest', '—', 'Pact Magic slots restored');
@@ -294,7 +308,7 @@ export default function SheetPage() {
 							{tabNames.map((t) => <Tab key={t} label={t} value={t} />)}
 						</Tabs>
 						{activeTab === 'Stats' && <AbilityPanels d={d} play={play} setPlay={setPlay} onRoll={roll} showRollMode={false} />}
-						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} onCastItemSpell={castItemSpell} />}
+						{activeTab === 'Actions' && <ActionsTab character={view} d={d} play={play} setPlay={setPlay} onAttack={roll} onDamage={damage} onUseAbility={useItemAbility} onCastItemSpell={castItemSpell} onUseTrait={useTrait} />}
 						{activeTab === 'Spells' && <SpellsTab character={view} setPrepared={setPrepared} d={d} play={play} setPlay={setPlay} onCast={cast} onCastItemSpell={castItemSpell} onAttack={roll} onDamage={damage} />}
 						{activeTab === 'Inventory' && <InventoryTab character={character} d={d} play={play} setPlay={setPlay} />}
 						{activeTab === 'Features' && <FeaturesTab character={view} d={d} play={play} />}

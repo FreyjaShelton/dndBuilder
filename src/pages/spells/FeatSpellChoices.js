@@ -7,9 +7,9 @@ import SpellPicker2014 from './SpellPicker2014';
 // The spells a feat gives (2014): a dropdown for the feat's variant (Magic Initiate's class...), the spells it grants
 // automatically, and a spell picker for each spell the player chooses. Shown where the feat is chosen.
 // state: { variant, picks: { [pickId]: [names] } }; onChange receives an updater (currentState) => newState.
-function Body({ featName, state, onChange }) {
+function Body({ featName, state, onChange, variantPrefix }) {
 	const details = useSpellDetails();
-	const r = resolveFeatSpells(featName, state);
+	const r = resolveFeatSpells(featName, state, variantPrefix);
 	const { grant, variant, variants } = r;
 
 	return (
@@ -54,7 +54,8 @@ function Body({ featName, state, onChange }) {
 }
 
 // A separate wrapper so the spell text only loads for feats that actually grant spells.
-export default function FeatSpellChoices({ featName, edition, state, onChange }) {
+// variantPrefix limits the variants on offer (a Lorehold Student's Strixhaven Initiate is always Lorehold).
+export default function FeatSpellChoices({ featName, edition, state, onChange, variantPrefix }) {
 	if (edition !== '2014' || !getFeatSpellGrant(featName)) return null;
-	return <Body featName={featName} state={state} onChange={onChange} />;
+	return <Body featName={featName} state={state} onChange={onChange} variantPrefix={variantPrefix} />;
 }

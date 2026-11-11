@@ -18,7 +18,7 @@ function OptionPicker({ label, value, options, onChange }) {
 			<FormControl size="small" fullWidth>
 				<InputLabel>{label}</InputLabel>
 				<Select label={label} value={hit ? value : ''} onChange={(e) => onChange(e.target.value)} MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}>
-					{options.map((o) => <MenuItem key={o.name} value={o.name}>{o.name}</MenuItem>)}
+					{options.map((o) => <MenuItem key={o.name} value={o.name}>{o.label || o.name}</MenuItem>)}
 				</Select>
 			</FormControl>
 			{hit?.description && <Typography variant="body2" sx={{ marginTop: 1, color: 'text.secondary', whiteSpace: 'pre-line' }}>{hit.description}</Typography>}
@@ -119,6 +119,11 @@ export default function RaceChoice({ def, character, value, onChange }) {
 		(Array.isArray(value) ? value : []).forEach((s) => taken.delete(s));
 		return <MultiPicker label={def.label} value={value} options={toOptions(def.from.filter((s) => !taken.has(s)))} count={def.count} onChange={(v) => onChange(def.id, v)} />;
 	}
+	if (def.kind === 'skilled') {
+		(Array.isArray(value) ? value : []).forEach((s) => taken.delete(s));
+		return <MultiPicker label={def.label} value={value} options={toOptions(def.from.filter((s) => !taken.has(s)))} count={def.count} onChange={(v) => onChange(def.id, v)} />;
+	}
+	if (def.kind === 'weapons') return <MultiPicker label={def.label} value={value} options={toOptions(def.from)} count={def.count} onChange={(v) => onChange(def.id, v)} />;
 	if (def.kind === 'tools') return <MultiPicker label={def.label} value={value} options={toOptions(def.from)} count={def.count} onChange={(v) => onChange(def.id, v)} />;
 	if (def.kind === 'languages') {
 		const fixed = new Set(getRaceLanguages(character).fixed);
@@ -132,7 +137,7 @@ export default function RaceChoice({ def, character, value, onChange }) {
 		const values = getRaceChoices(character);
 		return (
 			<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-				<FeatPicker edition={character.edition} value={value} onChange={(name) => { onChange('feat', name); onChange('featAbility', ''); onChange('feat:spells', undefined); }} />
+				<FeatPicker edition={character.edition} value={value} onChange={(name) => { onChange('feat', name); onChange('featAbility', ''); onChange('feat:spells', undefined); onChange('feat:skilled', []); }} />
 				{inc && inc.options.length > 1 && (
 					<FormControl size="small" sx={{ maxWidth: 260 }}>
 						<InputLabel>Ability score +1</InputLabel>

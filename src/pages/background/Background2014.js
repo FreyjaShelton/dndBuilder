@@ -14,6 +14,11 @@ import {
 	getBackgroundRecord, getBackgroundSkillList, getBackgroundTools, getVariant,
 } from '../../utils/backgroundChoices';
 import { MultiPicker, OptionPicker } from '../race/RaceChoices2014';
+import { FeatPicker } from '../class/ChoiceControls';
+import FeatSpellChoices from '../spells/FeatSpellChoices';
+import { getEditionData } from '../../data';
+import { ABILITY_NAMES } from '../../utils/abilityScore';
+import { getBackgroundFeat } from '../../utils/featSpells';
 
 const toOptions = (names) => names.map((name) => ({ name }));
 const RESET = { variant: '', choices: {}, customSkills: [], abilityPlus2: '', abilityPlus1: '', abilityPlus1b: '', originFeat: '' };
@@ -74,6 +79,8 @@ export default function Background2014() {
 	const tools = rec ? getBackgroundTools(character) : [];
 	const skills = rec ? getBackgroundSkillList(character) : [];
 	const proficient = new Set(getProficientSkills(character));
+	const bgFeat = rec ? getBackgroundFeat(character) : null;
+	const featRecord = bgFeat?.name ? getEditionData('2014').feats.find((f) => f.name === bgFeat.name) : null;
 
 	return (
 		<>
@@ -129,7 +136,7 @@ export default function Background2014() {
 						</CardContent>
 					</Card>
 
-					{defs.some((d) => d.kind !== 'variant') && (
+					{(defs.some((d) => d.kind !== 'variant') || featRecord) && (
 						<Card sx={{ backgroundColor: 'background.paper', marginBottom: 2 }}>
 							<CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
 								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -146,6 +153,30 @@ export default function Background2014() {
 										const fixed = new Set(d.kind === 'languages' ? langs.fixed : []);
 										return <MultiPicker key={d.id} label={d.label} value={values[d.id]} options={toOptions(d.from.filter((x) => !fixed.has(x)))} count={d.count} onChange={(v) => setChoice(d.id, v)} />;
 									}
+									if (d.kind === 'option') {
+										return <OptionPicker key={d.id} label={d.optional ? `${d.label} (optional)` : d.label} value={values[d.id] || ''} options={d.options} onChange={(v) => setChoice(d.id, v)} />;
+									}
+									if (d.kind === 'feat') {
+										// a new feat starts with fresh feat choices
+										return (
+											<FeatPicker
+												key={d.id}
+												edition="2014"
+												label={d.label}
+												only={d.from}
+												value={values.feat || ''}
+												onChange={(name) => updateBackground((b) => ({ choices: { ...(b.choices || {}), feat: name, featAbility: '', 'feat:spells': undefined, 'feat:skilled': [] } }))}
+											/>
+										);
+									}
+									if (d.kind === 'featAbility') {
+										return <OptionPicker key={d.id} label={d.label} value={values.featAbility || ''} options={d.options.map((k) => ({ name: k, label: ABILITY_NAMES[k] }))} onChange={(v) => setChoice('featAbility', v)} />;
+									}
+									if (d.kind === 'skilled') {
+										const taken = new Set([...proficient, ...tools]);
+										(values[d.id] || []).forEach((x) => taken.delete(x));
+										return <MultiPicker key={d.id} label={d.label} value={values[d.id]} options={toOptions(d.from.filter((x) => !taken.has(x)))} count={d.count} onChange={(v) => setChoice(d.id, v)} />;
+									}
 									if (d.kind === 'roll') {
 										return (
 											<Box key={d.id} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
@@ -158,6 +189,19 @@ export default function Background2014() {
 									}
 									return null;
 								})}
+								{featRecord && (
+									<Box>
+										<Typography variant="subtitle2" sx={{ color: 'primary.main' }}>{bgFeat.trait}: {featRecord.name} feat</Typography>
+										<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{featRecord.description}</Typography>
+										<FeatSpellChoices
+											featName={featRecord.name}
+											edition="2014"
+											variantPrefix={bgFeat.variantPrefix}
+											state={values['feat:spells']}
+											onChange={(update) => updateBackground((b) => ({ choices: { ...(b.choices || {}), 'feat:spells': update((b.choices || {})['feat:spells']) } }))}
+										/>
+									</Box>
+								)}
 							</CardContent>
 						</Card>
 					)}

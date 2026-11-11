@@ -6,6 +6,7 @@ import { getEditionData } from '../../data';
 import { ABILITY_KEYS, ABILITY_NAMES } from '../../utils/abilityScore';
 import { getProficientSkills } from '../../utils/characterCalc';
 import FeatSpellChoices from '../spells/FeatSpellChoices';
+import { SKILLED_COUNT, SKILLED_FROM } from '../../utils/customOrigin';
 import {
 	allLanguages, getChoiceOptions, getClassSkillPool, getOptionDescription, resolveCount,
 } from '../../utils/classChoices';
@@ -107,8 +108,9 @@ function MultiSelect({ label, value, options, count, onChange, descriptions }) {
 	);
 }
 
-function FeatPicker({ edition, value, onChange }) {
-	const feats = getEditionData(edition).feats;
+// only: limit the list to these feat names (a background that offers a choice of three feats)
+function FeatPicker({ edition, value, onChange, only, label }) {
+	const feats = getEditionData(edition).feats.filter((f) => !only || only.includes(f.name));
 	const sources = ["Player's Handbook", "Xanathar's Guide to Everything", "Tasha's Cauldron of Everything"];
 	const rank = (s) => { const i = sources.indexOf(s); return i < 0 ? sources.length : i; };
 	const sorted = [...feats].sort((a, b) => rank(a.source) - rank(b.source) || a.name.localeCompare(b.name));
@@ -133,7 +135,7 @@ function FeatPicker({ edition, value, onChange }) {
 					</li>
 				);
 			}}
-			renderInput={(params) => <TextField {...params} label="Feat" />}
+			renderInput={(params) => <TextField {...params} label={label || 'Feat'} />}
 		/>
 	);
 }
@@ -184,6 +186,20 @@ function AsiControl({ character, value, onChange }) {
 							{feat.prerequisite ? `Prerequisite: ${feat.prerequisite}\n` : ''}{feat.description}
 						</Typography>
 					)}
+					{feat?.name === 'Skilled' && (() => {
+						// skills the character already has are left out (except this feat's own picks)
+						const taken = new Set(getProficientSkills(character));
+						(v.skilled || []).forEach((s) => taken.delete(s));
+						return (
+							<MultiSelect
+								label="Skilled: skills or tools"
+								value={v.skilled}
+								options={SKILLED_FROM.filter((n) => !taken.has(n)).map((name) => ({ name }))}
+								count={SKILLED_COUNT}
+								onChange={(list) => onChange({ ...v, skilled: list.slice(0, SKILLED_COUNT) })}
+							/>
+						);
+					})()}
 					{feat && (
 						<FeatSpellChoices
 							featName={feat.name}

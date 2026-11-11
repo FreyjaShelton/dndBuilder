@@ -2,8 +2,9 @@ import * as React from 'react';
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { signed } from './dice';
 import ItemAbilities from './ItemAbilities';
+import TraitActions from './TraitActions';
 
-export default function ActionsTab({ character, d, play, setPlay, onAttack, onDamage, onUseAbility, onCastItemSpell }) {
+export default function ActionsTab({ character, d, play, setPlay, onAttack, onDamage, onUseAbility, onCastItemSpell, onUseTrait }) {
 	const strMod = d.mods.str;
 	const unarmed = {
 		name: 'Unarmed Strike',
@@ -45,6 +46,7 @@ export default function ActionsTab({ character, d, play, setPlay, onAttack, onDa
 				</TableBody>
 			</Table>
 			</TableContainer>
+			<TraitActions character={character} play={play} setPlay={setPlay} prof={d.prof} onUse={onUseTrait} />
 			<ItemAbilities character={character} play={play} setPlay={setPlay} onUse={onUseAbility} onCastSpell={onCastItemSpell} spellSaveDc={d.spellStats?.saveDc} prof={d.prof} d={d} />
 			{d.spellStats && (
 				<Typography variant="body2" sx={{ marginTop: 2, color: 'text.secondary' }}>

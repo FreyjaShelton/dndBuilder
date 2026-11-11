@@ -3,6 +3,7 @@ import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
 import { getArmorData, getItemBonuses, getOwnedItems, getRemainingGold, getWeaponData, getWeaponNames, getWornArmorName, hasShield } from './equipment';
 import { averageHitDie, parseHpOverride } from './hitPoints';
+import { getBackgroundFeat, getCharacterFeats } from './featSpells';
 import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
 import {
 	getRaceAbilityBonuses, getRaceArmor, getRaceArmorProficiencies, getRaceHpPerLevel, getRaceLanguages, getRaceSkills, getRaceTraitTexts,
@@ -12,7 +13,7 @@ import {
 	casterKind, casterLevelContribution, getClassLevelOf, getClassViews, getExtraClassViews, getMulticlassProficiencies, getTotalLevel, multiclassSlots,
 	thirdCasterSlots,
 } from './multiclass';
-import { getChoiceLanguages, getChoiceSkills, getChoiceWeaponProficiencies, getChosenFeats, getSubclassProficiencyText, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
+import { getAsiSkilled, getChoiceLanguages, getChoiceSkills, getChoiceWeaponProficiencies, getSubclassProficiencyText, getClassAbilityEffects, getExpertiseSkills } from './classChoices';
 
 const abilityKeyByName = Object.fromEntries(Object.entries(ABILITY_NAMES).map(([k, v]) => [v, k]));
 const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
@@ -63,6 +64,13 @@ export function getAbilityBonuses(character) {
 		// 2014: add Ability Score Improvements, half-feats and fixed class increases chosen on the Class page.
 		const { bonuses: classBonuses } = getClassAbilityEffects(character);
 		ABILITY_KEYS.forEach((k) => { bonuses[k] += classBonuses[k]; });
+		// a half-feat granted by the background
+		const bgFeat = getBackgroundFeat(character);
+		const inc = bgFeat?.name && getEditionData('2014').feats.find((f) => f.name === bgFeat.name)?.abilityIncrease;
+		if (inc) {
+			const key = inc.options.length === 1 ? inc.options[0] : character.background.choices?.featAbility;
+			if (key && inc.options.includes(key)) bonuses[key] += inc.amount || 1;
+		}
 	}
 	return bonuses;
 }
@@ -304,7 +312,8 @@ export function getCalculatedHitPoints(character) {
 	const conMod = getAbilityMods(character).con;
 	const racialHp = is2024(character) ? (character.race.name === 'Dwarf' ? level : 0) : getRaceHpPerLevel(character) * level;
 	const { hpMethod } = character.classInfo;
-	const toughFeat = !is2024(character) && getChosenFeats(character).includes('Tough') ? 2 * level : 0;
+	// Tough from any source: a class ASI, the race (Variant Human) or the background (Ruined, Wildspacer)
+	const toughFeat = !is2024(character) && getCharacterFeats(character).some((f) => f.feat === 'Tough') ? 2 * level : 0;
 	let base = Math.max(1, cls.hitDie + conMod);
 	getClassViews(character).forEach((view, i) => {
 		const viewClass = getClass(view);
@@ -501,6 +510,7 @@ export function getClassToolProficiencies(character) {
 		getMulticlassProficiencies(v.classInfo.className).tools.forEach((t) => { if (!textCovers(parts.join(', '), t)) parts.push(t); });
 		if (v.classInfo.instrument) parts.push(v.classInfo.instrument);
 	});
+	if (!is2024(character)) getAsiSkilled(character).tools.forEach((t) => { if (!textCovers(parts.join(', '), t)) parts.push(t); });
 	return parts.join(', ');
 }
 

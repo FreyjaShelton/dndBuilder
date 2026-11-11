@@ -142,7 +142,7 @@ function isAsiDone(v) {
 	if (!v) return false;
 	if (v.type === 'two') return !!v.a;
 	if (v.type === 'split') return !!v.a && !!v.b;
-	if (v.type === 'feat') return !!v.feat;
+	if (v.type === 'feat') return !!v.feat && (v.feat !== 'Skilled' || (v.skilled || []).length >= 3);
 	return false;
 }
 

@@ -17,6 +17,14 @@ const SKILL_NAMES = skills.map((s) => s.name);
 const OTHER_TOOLS = ['Disguise kit', 'Forgery kit', 'Herbalism kit', "Navigator's tools", "Poisoner's kit", "Thieves' tools", 'Vehicles (land)', 'Vehicles (water)'];
 export const ALL_TOOLS = [...artisanTools, ...gamingSets, ...musicalInstruments, ...OTHER_TOOLS];
 
+// The Skilled feat: "any combination of three skills or tools". splitSkilled sorts a stored pick list into the two.
+export const SKILLED_COUNT = 3;
+export const SKILLED_FROM = [...SKILL_NAMES, ...ALL_TOOLS];
+export function splitSkilled(picks) {
+	const list = (Array.isArray(picks) ? picks : []).filter((n) => SKILLED_FROM.includes(n)).slice(0, SKILLED_COUNT);
+	return { skills: list.filter((n) => SKILL_NAMES.includes(n)), tools: list.filter((n) => !SKILL_NAMES.includes(n)) };
+}
+
 export const ARMOR_TYPES = ['Light', 'Medium', 'Heavy'];
 
 // What each kind of racial proficiency may be swapped for: which kinds, and (for weapons) which categories.

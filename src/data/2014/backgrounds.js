@@ -3,7 +3,10 @@
 // (fixed grants plus picks), starting equipment and gold, its features, specialty roll tables,
 // variants, and suggested personality traits, ideals, bonds and flaws.
 // "Custom" follows the PHB "Customizing a Background" rule: any two skills and your own details.
+// backgroundFixes.js adds the feats and choices the generator left as plain text.
 import generated from './backgrounds.generated.json';
+import races from './races';
+import applyBackgroundFixes from './backgroundFixes';
 
 const custom = {
 	name: 'Custom',
@@ -21,6 +24,6 @@ const custom = {
 	traits: { personality: [], ideals: [], bonds: [], flaws: [] },
 };
 
-const backgrounds = Object.fromEntries([...generated, custom].map((b) => [b.name, b]));
+const backgrounds = Object.fromEntries([...applyBackgroundFixes(generated, Object.keys(races).filter((n) => n !== 'Custom')), custom].map((b) => [b.name, b]));
 
 export default backgrounds;

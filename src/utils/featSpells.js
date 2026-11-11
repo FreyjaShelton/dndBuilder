@@ -2,8 +2,10 @@
 // where the feat is chosen (the class's Ability Score Improvement card, or the race page for a racial feat) and stored
 // with it as { variant, picks: { [pickId]: [spellNames] } }:
 //   class ASI: classInfo.choices['asi-<level>'].spells      race feat: race.choices['feat:spells']
+//   background feat: background.choices['feat:spells']
 // (a later class of a multiclassed character keeps its own choices, in its entry of classInfo.multiclass.classes)
 import spellIndex from '../data/2014/spellIndex';
+import backgrounds2014 from '../data/2014/backgrounds';
 import { attackCantrips, featSpells, ritualSpells } from '../data/2014/featSpells';
 import { ABILITY_NAMES } from './abilityScore';
 import { getAsiLevels, getChoiceValues } from './classChoices';
@@ -56,20 +58,22 @@ export function getSpellAbilityText(ability) {
 // The variants a player can actually take: ones whose spell choices have enough legal spells (Spell Sniper has no
 // attack-roll cantrip on the bard or cleric list, so those two are not offered).
 const availableCache = new Map();
-export function getAvailableVariants(featName) {
+// variantPrefix keeps only the variants named after it (a Lorehold Student's Strixhaven Initiate offers only Lorehold).
+export function getAvailableVariants(featName, variantPrefix) {
 	const grant = getFeatSpellGrant(featName);
 	if (!grant) return [];
 	if (!availableCache.has(featName)) availableCache.set(featName, grant.variants.filter((v) => v.picks.every((p) => getPickOptions(p).length >= p.count)));
-	return availableCache.get(featName);
+	const all = availableCache.get(featName);
+	return variantPrefix ? all.filter((v) => v.name === variantPrefix || v.name.startsWith(`${variantPrefix} `)) : all;
 }
 
 // What a chosen feat gives, given the choices made so far:
 // { grant, variants (those on offer), variant (the one in use), needsVariant, fixed: [{ name, level, use }], picks: [{ id, title, count, use, options, value }], ability }
-export function resolveFeatSpells(featName, state) {
+export function resolveFeatSpells(featName, state, variantPrefix) {
 	const grant = getFeatSpellGrant(featName);
 	if (!grant) return null;
 	const s = state || {};
-	const variants = getAvailableVariants(featName);
+	const variants = getAvailableVariants(featName, variantPrefix);
 	const variant = variants.length === 1 ? variants[0] : variants.find((v) => v.name === s.variant) || null;
 	const out = { grant, variants, variant, needsVariant: !variant, fixed: [], picks: [], ability: variant ? getSpellAbilityText(variant.ability) : '' };
 	if (!variant) return out;
@@ -90,14 +94,25 @@ export function describeVariant(variant) {
 }
 
 // How many choices are still open: the variant, and spells not yet picked.
-export function getFeatSpellPending(featName, state) {
-	const r = resolveFeatSpells(featName, state);
+export function getFeatSpellPending(featName, state, variantPrefix) {
+	const r = resolveFeatSpells(featName, state, variantPrefix);
 	if (!r) return 0;
 	if (r.needsVariant) return 1;
 	return r.picks.reduce((n, p) => n + Math.max(0, p.count - p.value.length), 0);
 }
 
-// Every feat the 2014 character has, with where its spell choices are stored: [{ feat, source: 'asi-4' | 'race', state }]
+// The feat a 2014 background grants: { name, trait, from, variantPrefix } (name is '' until a pick is made), or null.
+export function getBackgroundFeat(character) {
+	if (character.edition !== '2014') return null;
+	const info = backgrounds2014[character.background?.name]?.feat;
+	if (!info) return null;
+	const picked = character.background?.choices?.feat;
+	const name = info.fixed || (info.from.includes(picked) ? picked : '');
+	return { ...info, name };
+}
+
+// Every feat the 2014 character has, with where its spell choices are stored:
+// [{ feat, source: 'asi-4' | 'race' | 'background', state, variantPrefix }]
 export function getCharacterFeats(character) {
 	if (character.edition !== '2014') return [];
 	const out = [];
@@ -110,6 +125,8 @@ export function getCharacterFeats(character) {
 	});
 	const rc = character.race?.choices || {};
 	if (rc.feat) out.push({ feat: rc.feat, source: 'race', state: rc['feat:spells'] });
+	const bgFeat = getBackgroundFeat(character);
+	if (bgFeat?.name) out.push({ feat: bgFeat.name, source: 'background', state: character.background.choices?.['feat:spells'], variantPrefix: bgFeat.variantPrefix });
 	return out;
 }
 
@@ -117,8 +134,8 @@ export function getCharacterFeats(character) {
 export function getFeatGrantedSpells(character) {
 	const seen = new Set();
 	const out = [];
-	getCharacterFeats(character).forEach(({ feat, state }) => {
-		const r = resolveFeatSpells(feat, state);
+	getCharacterFeats(character).forEach(({ feat, state, variantPrefix }) => {
+		const r = resolveFeatSpells(feat, state, variantPrefix);
 		if (!r || r.needsVariant) return;
 		const add = (name, use) => {
 			const s = byName.get(name);
@@ -133,7 +150,7 @@ export function getFeatGrantedSpells(character) {
 }
 
 // Open spell choices across the character's feats.
-export const getCharacterFeatSpellPending = (character) => getCharacterFeats(character).reduce((n, f) => n + getFeatSpellPending(f.feat, f.state), 0);
+export const getCharacterFeatSpellPending = (character) => getCharacterFeats(character).reduce((n, f) => n + getFeatSpellPending(f.feat, f.state, f.variantPrefix), 0);
 
 // Pending choices for the race page's feat only (the class page shows its own).
 export function getRaceFeatSpellPending(character) {

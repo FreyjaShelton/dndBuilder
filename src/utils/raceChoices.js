@@ -9,7 +9,7 @@ import { ABILITY_KEYS } from './abilityScore';
 import { getRaceFeatSpellPending } from './featSpells';
 import { allLanguages } from '../data/languages';
 import { artisanTools, gamingSets, musicalInstruments } from '../data/toolLists';
-import { applySwaps, parseRacialArmor, parseRacialWeapons } from './customOrigin';
+import { ALL_TOOLS, SKILLED_COUNT, SKILLED_FROM, applySwaps, parseRacialArmor, parseRacialWeapons, splitSkilled } from './customOrigin';
 import { getTotalLevel } from './multiclass';
 
 const raceOf = (character) => character.race || {};
@@ -63,10 +63,17 @@ export function getEffectiveAsi(character) {
 		(a.choose || []).forEach((g) => out.choose.push(g));
 		if (a.flex) out.flex = true;
 	};
-	if (!replacesAsi(sub)) add(v?.asi);
-	if (sub) add(sub.asi);
+	const replaced = collectEffects(character).find((fx) => fx.replaceAsi)?.replaceAsi;
+	if (replaced) add(replaced);
+	else {
+		if (!replacesAsi(sub)) add(v?.asi);
+		if (sub) add(sub.asi);
+	}
 	return out;
 }
+
+// The feat the race grants (Variant Human, Custom Lineage), as its full record, or null.
+export const getRaceFeat = (character) => (getRaceChoiceDefs(character).some((d) => d.kind === 'feat') ? chosenFeat(character) : null);
 
 function chosenFeat(character) {
 	const name = getRaceChoices(character).feat;
@@ -165,27 +172,43 @@ function languageCount(character) {
 	return n;
 }
 
+const ABILITY_CHOICE = /Intelligence, Wisdom, or Charisma[^.]*\(choose/;
+const ordinal = (n) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+
 function addTraitDefs(character, trait, ctx, defs, values, tables) {
 	const fx = trait.effects || {};
 	(fx.skillChoices || []).forEach((g, i) => defs.push({
 		id: `skills:${ctx}${trait.name}:${i}`, kind: 'skills', label: trait.name, trait: trait.name, count: g.count, from: g.from === 'any' ? SKILL_NAMES : g.from,
 	}));
 	(fx.toolChoices || []).forEach((g, i) => {
-		const from = Array.isArray(g.from) ? g.from : g.from === 'instrument' ? musicalInstruments : g.from === 'gaming' ? gamingSets : artisanTools;
+		const from = Array.isArray(g.from) ? g.from : g.from === 'instrument' ? musicalInstruments : g.from === 'gaming' ? gamingSets : g.from === 'any' ? ALL_TOOLS : artisanTools;
 		defs.push({ id: `tools:${ctx}${trait.name}:${i}`, kind: 'tools', label: trait.name, trait: trait.name, count: g.count, from });
 	});
+	(fx.weaponChoices || []).forEach((g, i) => {
+		const from = getEditionData('2014').equipment.weapons.filter((w) => !g.category || w.category === g.category).map((w) => w.name);
+		defs.push({ id: `weapons:${ctx}${trait.name}:${i}`, kind: 'weapons', label: trait.name, trait: trait.name, count: g.count, from });
+	});
+	// "Intelligence, Wisdom, or Charisma is your spellcasting ability for these spells (choose when you select this race)"
+	if (ABILITY_CHOICE.test(trait.description || '')) {
+		const what = /spellcasting ability/.test(trait.description) ? 'spellcasting ability' : 'ability';
+		defs.push({ id: `ability:${ctx}${trait.name}`, kind: 'option', label: `${trait.name}: ${what}`, trait: trait.name, options: ['Intelligence', 'Wisdom', 'Charisma'].map((name) => ({ name })) });
+	}
 	(fx.cantripChoices || []).forEach((g, i) => defs.push({
 		id: `cantrip:${ctx}${trait.name}:${i}`, kind: 'spells', label: `${trait.name}: cantrip`, trait: trait.name, count: g.count, classes: g.classes,
 	}));
 	if (fx.feat) defs.push({ id: 'feat', kind: 'feat', label: trait.name, trait: trait.name });
 	if (/Ancestry$/.test(trait.name) && ancestryOptions(tables).length) {
-		defs.push({ id: `ancestry:${ctx}${trait.name}`, kind: 'option', label: trait.name, trait: trait.name, options: ancestryOptions(tables) });
+		defs.push({ id: `ancestry:${ctx}${trait.name}`, kind: 'option', label: trait.name, trait: trait.name, traitDescription: trait.description, options: ancestryOptions(tables) });
 	}
 	if (trait.choose === 'option' && trait.options) {
 		const id = `option:${ctx}${trait.name}`;
-		defs.push({ id, kind: 'option', label: trait.name, trait: trait.name, options: trait.options });
+		const label = trait.choiceLabel || trait.name;
+		// a pick made at a later level (Aasimar's Celestial Revelation at 3rd) can be made early but is not missing until then
+		defs.push({
+			id, kind: 'option', label: trait.minLevel && !/level\)$/.test(label) ? `${label} (${ordinal(trait.minLevel)} level)` : label, trait: trait.name, traitDescription: trait.description, options: trait.options, minLevel: trait.minLevel,
+		});
 		const chosen = trait.options.find((o) => o.name === values[id]);
-		if (chosen) addTraitDefs(character, { name: chosen.name, effects: chosen.effects }, `${ctx}${trait.name}>`, defs, values, tables);
+		if (chosen) addTraitDefs(character, { name: chosen.name, effects: chosen.effects, description: chosen.description }, `${ctx}${trait.name}>`, defs, values, tables);
 	}
 }
 
@@ -207,6 +230,10 @@ export function getRaceChoiceDefs(character) {
 	const tables = [...(sub?.tables || []), ...(v.tables || [])];
 	getBaseTraits(character).forEach((t) => addTraitDefs(character, t, 'b:', defs, values, tables));
 	getSubraceTraits(character).forEach((t) => addTraitDefs(character, t, 's:', defs, values, tables));
+	// a racial feat of Skilled (Variant Human, Custom Lineage): three skills or tools
+	if (chosenFeat(character)?.name === 'Skilled' && defs.some((d) => d.kind === 'feat')) {
+		defs.push({ id: 'feat:skilled', kind: 'skilled', label: 'Skilled: skills or tools', count: SKILLED_COUNT, from: SKILLED_FROM });
+	}
 	const langs = languageCount(character) + getAllEffects(character).languagePicks;
 	if (langs > 0) defs.push({ id: 'languages', kind: 'languages', label: 'Languages', count: langs });
 	return defs;
@@ -231,11 +258,13 @@ function collectEffects(character) {
 }
 
 function getAllEffects(character) {
-	const out = { skills: [], tools: [], spells: [], hpPerLevel: 0, speedSet: 0, naturalArmor: null, acBonus: 0, languagePicks: 0 };
+	const out = { skills: [], tools: [], armor: [], spells: [], speeds: {}, hpPerLevel: 0, speedSet: 0, naturalArmor: null, acBonus: 0, languagePicks: 0 };
 	collectEffects(character).forEach((fx) => {
 		(fx.skills || []).forEach((s) => out.skills.push(s));
 		(fx.toolsFixed || []).forEach((t) => out.tools.push(t));
 		(fx.spells || []).forEach((s) => out.spells.push(s));
+		(fx.armor || []).forEach((a) => out.armor.push(a));
+		Object.assign(out.speeds, fx.speeds || {});
 		out.hpPerLevel += fx.hpPerLevel || 0;
 		if (fx.speedSet) out.speedSet = Math.max(out.speedSet, fx.speedSet);
 		if (fx.naturalArmor && (!out.naturalArmor || fx.naturalArmor.base > out.naturalArmor.base)) out.naturalArmor = fx.naturalArmor;
@@ -268,18 +297,21 @@ export function getRaceTraitTexts(character) {
 	return texts;
 }
 
+// The Skilled picks of a racial feat, split into skills and tools.
+const raceSkilled = (character) => (getRaceChoiceDefs(character).some((d) => d.kind === 'skilled') ? splitSkilled(getRaceChoices(character)['feat:skilled']) : { skills: [], tools: [] });
+
 // Fixed skills from traits plus the skills picked from the race's dropdowns.
 export function getRaceSkills(character) {
 	if (character.edition !== '2014') return [];
 	const values = getRaceChoices(character);
 	const picks = getRaceChoiceDefs(character).filter((d) => d.kind === 'skills').flatMap((d) => values[d.id] || []);
-	return [...new Set([...getRacialProficiencySet(character).skills, ...picks])];
+	return [...new Set([...getRacialProficiencySet(character).skills, ...picks, ...raceSkilled(character).skills])];
 }
 
 export function getRaceTools(character) {
 	const values = getRaceChoices(character);
 	const picks = getRaceChoiceDefs(character).filter((d) => d.kind === 'tools').flatMap((d) => values[d.id] || []);
-	return [...getRacialProficiencySet(character).tools, ...picks];
+	return [...getRacialProficiencySet(character).tools, ...picks, ...raceSkilled(character).tools];
 }
 
 // What the race trains the character in outright (not the dropdown picks): skills, tools, weapons and armor types.
@@ -292,7 +324,7 @@ export function getRacialProficiencies(character) {
 		...fx.skills.map((name) => ({ kind: 'skill', name })),
 		...fx.tools.map((name) => ({ kind: 'tool', name })),
 		...parseRacialWeapons(texts),
-		...parseRacialArmor(texts),
+		...[...new Set([...parseRacialArmor(texts).map((a) => a.name), ...fx.armor])].map((name) => ({ kind: 'armor', name })),
 	];
 }
 
@@ -302,7 +334,12 @@ export function getRacialProficiencySet(character) {
 	return applySwaps(getRacialProficiencies(character), swaps);
 }
 
-export const getRaceWeaponProficiencies = (character) => getRacialProficiencySet(character).weapons;
+// weapons the race trains outright plus the ones picked (Hobgoblin's two martial weapons)
+export function getRaceWeaponProficiencies(character) {
+	const values = getRaceChoices(character);
+	const picks = getRaceChoiceDefs(character).filter((d) => d.kind === 'weapons').flatMap((d) => values[d.id] || []);
+	return [...new Set([...getRacialProficiencySet(character).weapons, ...picks])];
+}
 export const getRaceArmorProficiencies = (character) => getRacialProficiencySet(character).armor;
 
 // { fixed: [names], picked: [names], pickCount }
@@ -334,8 +371,10 @@ export function getRaceSpeeds(character) {
 	const v = getVersion(character);
 	const sub = getSubraceRecord(character);
 	const speeds = { ...((sub?.replaces === 'all' && sub.speeds) ? sub.speeds : v?.speeds || {}) };
-	const set = getAllEffects(character).speedSet;
-	if (set) speeds.walk = set;
+	const fx = getAllEffects(character);
+	if (fx.speedSet) speeds.walk = fx.speedSet;
+	// speeds from a trait or a picked option: a number, or 'walk' for "equal to your walking speed"
+	Object.entries(fx.speeds).forEach(([kind, n]) => { speeds[kind] = Math.max(speeds[kind] || 0, n === 'walk' ? speeds.walk || 0 : n); });
 	return speeds;
 }
 
@@ -363,16 +402,31 @@ export function getRaceSpellInfo(character) {
 }
 
 // The race's pick for each defined choice, as "Trait: choice" lines for the sheet.
-export function getRaceChoiceSummaries(character) {
+// skipDescribed leaves out picks the sheet shows as entries of their own (see getRaceChoiceFeatures).
+export function getRaceChoiceSummaries(character, { skipDescribed = false } = {}) {
 	const values = getRaceChoices(character);
 	const lines = [];
+	const described = new Set(skipDescribed ? getRaceChoiceFeatures(character).map((f) => f.defId) : []);
 	getRaceChoiceDefs(character).forEach((d) => {
 		const v = values[d.id];
 		if (!v || (Array.isArray(v) && !v.length)) return;
-		if (d.kind === 'abilities' || d.kind === 'flex') return;
-		lines.push(`${d.label}: ${Array.isArray(v) ? v.join(', ') : v}`);
+		if (d.kind === 'abilities' || d.kind === 'flex' || described.has(d.id)) return;
+		if (skipDescribed && d.kind === 'feat') return;
+		lines.push(`${d.label.replace(/ \((?:\d+(?:st|nd|rd|th)) level\)$/, '')}: ${Array.isArray(v) ? v.join(', ') : v}`);
 	});
 	return lines;
+}
+
+// The options picked for traits that offer a list, when the option has rules of its own (Radiant Soul, a Shifting benefit, a
+// dragon ancestry): [{ defId, name, trait, description, traitDescription, minLevel }]. Picks for a level not reached yet are left out.
+export function getRaceChoiceFeatures(character) {
+	const values = getRaceChoices(character);
+	const lv = level(character);
+	return getRaceChoiceDefs(character).filter((d) => d.kind === 'option' && d.trait && (!d.minLevel || lv >= d.minLevel)).map((d) => {
+		const option = d.options.find((o) => o.name === values[d.id]);
+		if (!option?.description) return null;
+		return { defId: d.id, name: option.name, trait: d.trait, description: option.description, traitDescription: d.traitDescription || '', minLevel: d.minLevel };
+	}).filter(Boolean);
 }
 
 // How many picks are still missing, for a "to choose" badge.
@@ -380,11 +434,13 @@ export function getRacePending(character) {
 	const values = getRaceChoices(character);
 	// customized increases that have not been assigned yet
 	const customPending = customizingAsi(character) ? getRaceIncreases(character).filter((_, i) => !(getCustomize(character).asi || [])[i]).length : 0;
+	const lv = level(character);
 	return customPending + getRaceFeatSpellPending(character) + getRaceChoiceDefs(character).filter((d) => {
 		const v = values[d.id];
+		if (d.minLevel && lv < d.minLevel && !v) return false;
 		if (d.kind === 'abilities') return (Array.isArray(v) ? v.filter(Boolean).length : 0) < d.groups.reduce((n, g) => n + g.count, 0);
 		if (d.kind === 'flex') return !(v && ((v.mode === 'twoOne' && v.plus2 && v.plus1) || (v.mode === 'oneOneOne' && (v.picks || []).filter(Boolean).length === 3)));
-		if (['skills', 'tools', 'languages', 'spells'].includes(d.kind)) return !Array.isArray(v) || v.length < d.count;
+		if (['skills', 'tools', 'weapons', 'languages', 'spells', 'skilled'].includes(d.kind)) return !Array.isArray(v) || v.length < d.count;
 		return !v;
 	}).length;
 }
