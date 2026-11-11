@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Button, Chip, Typography } from '@mui/material';
-import { MAX_ATTUNED, describeMagicItem } from '../utils/equipment';
+import { MAX_ATTUNED, attunementRequirement, describeMagicItem } from '../utils/equipment';
 
 // The magic items a character is attuned to (a character can be attuned to three at most), with the carried items that
 // could be attuned. Used on the Equipment step and on the interactive sheet's Inventory tab.
@@ -55,7 +55,10 @@ export default function AttunementPanel({ candidates, attuned, onChange }) {
 					<Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}>Not attuned</Typography>
 					{waiting.map((item) => (
 						<Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', padding: '4px 0' }}>
-							<Typography sx={{ flex: '1 1 160px' }}>{item.name}</Typography>
+							<Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
+								<Typography>{item.name}</Typography>
+								{attunementRequirement(item) && <Typography variant="caption" sx={{ color: 'text.secondary' }}>Requires attunement by {attunementRequirement(item)}</Typography>}
+							</Box>
 							{item.rarity && <Chip size="small" variant="outlined" label={item.rarity} />}
 							<Button size="small" variant="outlined" disabled={full} onClick={() => onChange([...attuned, item.name])}>Attune</Button>
 						</Box>

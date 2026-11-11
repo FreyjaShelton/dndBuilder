@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Typography } from '@mui/material';
+import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Menu, MenuItem, Typography } from '@mui/material';
 import { MAX_ATTUNED, describeItemBonuses, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
 import { ABILITY_NAMES } from '../../utils/abilityScore';
 import { itemSpellKey } from '../../utils/itemSpells';
-import { abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
+import { abilityChargeOptions, abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
+import ItemSpellCast from './ItemSpellCast';
 
 const HEADING_SX = { color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 1 };
 
@@ -37,6 +38,10 @@ function Ability({ item, ability, active, left, dc, prof, charges, setCharges, o
 	const usesUsed = usesMax === null ? 0 : Math.min(usesMax, Number(charges[abilityUsesKey(item, ability)]) || 0);
 	const enough = active && (cost === 0 || left >= cost) && (usesMax === null || usesUsed < usesMax);
 	const [open, setOpen] = React.useState(false);
+	const [menu, setMenu] = React.useState(null);
+	// an ability that can take extra charges for more dice: a menu of how many to spend
+	const options = abilityChargeOptions(ability, left);
+	const pick = options.length > 1;
 	const save = ability.save ? `${ABILITY_NAMES[ability.save] ? ABILITY_NAMES[ability.save].slice(0, 3).toUpperCase() : ability.save} save${ability.dc ? ` DC ${ability.dc}` : dc ? ` DC ${dc}` : ''}` : '';
 	return (
 		<Box sx={{ borderTop: 1, borderColor: 'divider', padding: '8px 0', opacity: active ? 1 : 0.6 }}>
@@ -46,12 +51,19 @@ function Ability({ item, ability, active, left, dc, prof, charges, setCharges, o
 					<Typography variant="caption" sx={{ color: 'text.secondary' }}>{item.name}</Typography>
 				</Box>
 				{!active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
-				{cost > 0 && <Chip size="small" variant="outlined" color={left >= cost ? 'secondary' : 'default'} label={`${cost} charge${cost === 1 ? '' : 's'}`} />}
+				{cost > 0 && <Chip size="small" variant="outlined" color={left >= cost ? 'secondary' : 'default'} label={`${cost}${ability.extraCharges ? '+' : ''} charge${cost === 1 && !ability.extraCharges ? '' : 's'}`} />}
 				{ability.resource && <Chip size="small" variant="outlined" label={ability.resource} />}
 				{save && <Chip size="small" variant="outlined" label={save} />}
-				<Button size="small" variant="contained" disabled={!enough} onClick={() => onUse(item, ability)}>
-					{ability.dice ? `Use (${ability.dice})` : 'Use'}
+				<Button size="small" variant="contained" disabled={!enough} onClick={(e) => (pick ? setMenu(e.currentTarget) : onUse(item, ability))}>
+					{ability.dice && !pick ? `Use (${ability.dice})` : 'Use'}
 				</Button>
+				<Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)}>
+					{options.map((o) => (
+						<MenuItem key={o.charges} dense onClick={() => { setMenu(null); onUse(item, ability, o.charges); }}>
+							{o.charges} charge{o.charges === 1 ? '' : 's'}{o.dice ? `: ${o.dice}` : ''}
+						</MenuItem>
+					))}
+				</Menu>
 			</Box>
 			{usesMax !== null && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 0.5 }}>
@@ -75,7 +87,7 @@ function Ability({ item, ability, active, left, dc, prof, charges, setCharges, o
 }
 
 // A spell a magic item lets the character cast, among the actions: cast it with the spell's own uses (never a slot).
-function SpellRow({ spell, d, charges, setCharges, onCast }) {
+function SpellRow({ spell, d, charges, setCharges, onCast, itemChargesLeft }) {
 	const key = itemSpellKey({ name: spell.fromItem }, spell);
 	const usesMax = abilityMaxUses(spell, d.prof);
 	const usesUsed = usesMax === null ? 0 : Math.min(usesMax, Number(charges[key]) || 0);
@@ -95,7 +107,8 @@ function SpellRow({ spell, d, charges, setCharges, onCast }) {
 				{!spell.active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
 				{spell.concentration && <Chip size="small" variant="outlined" label="Concentration" />}
 				{saveMatch && stats && <Chip size="small" variant="outlined" label={`${saveMatch[1].slice(0, 3).toUpperCase()} save DC ${stats.saveDc}`} />}
-				<Button size="small" variant="contained" disabled={!ready} onClick={() => onCast(spell)}>Cast</Button>
+				{spell.cost > 0 && <Chip size="small" variant="outlined" color="secondary" label={`${spell.cost}${spell.upcast ? '+' : ''} charge${spell.cost === 1 && !spell.upcast ? '' : 's'}`} />}
+				<ItemSpellCast spell={spell} ready={ready} chargesLeft={itemChargesLeft} onCast={onCast} />
 			</Box>
 			{usesMax !== null && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', marginTop: 0.5 }}>
@@ -141,7 +154,10 @@ export default function ItemAbilities({ character, play, setPlay, onUse, onCastS
 				<Box key={section.id} sx={{ marginTop: 3 }} data-testid={`item-actions-${section.id}`}>
 					<Typography variant="subtitle2" sx={HEADING_SX}>{section.title} <Typography component="span" variant="caption" sx={{ textTransform: 'none', letterSpacing: 0, color: 'text.secondary' }}>from magic items</Typography></Typography>
 					{section.rows.map(({ item, ability, spell, active, max, used }, i) => (spell ? (
-						<SpellRow key={`spell${item.name}${spell.name}`} spell={spell} d={d} charges={charges} setCharges={setCharges} onCast={onCastSpell} />
+						<SpellRow
+							key={`spell${item.name}${spell.name}`} spell={spell} d={d} charges={charges} setCharges={setCharges} onCast={onCastSpell}
+							itemChargesLeft={(() => { const e = entries.find((x) => x.item.name === spell.fromItem); return e ? chargesLeft(e.max, e.used) : 0; })()}
+						/>
 					) : (
 						<Ability
 							key={`${item.name}${ability.name}${i}`} item={item} ability={ability} active={active} left={chargesLeft(max, used)} dc={spellSaveDc} prof={prof}

@@ -11,7 +11,7 @@ import UploadIcon from '@mui/icons-material/Upload';
 import { getItem, getItemIndex } from '../../utils/itemIndex';
 import spellIndex from '../../data/2014/spellIndex';
 import {
-	ITEM_BONUS_TARGETS, carryCustomItem, itemBonusTarget, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults,
+	ITEM_BONUS_TARGETS, attunementRequirement, attunementText, carryCustomItem, itemBonusTarget, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults,
 	itemBonusList, newCustomItem, refreshCustomCopy,
 } from '../../utils/equipment';
 import customItemLibrary from '../../utils/customItemLibrary';
@@ -54,13 +54,23 @@ function cleanItem(draft) {
 		name: a.name.trim(), activation: a.activation || '', cost: Math.max(0, Math.floor(num(a.cost))), dice: String(a.dice || '').trim(), diceLabel: String(a.diceLabel || '').trim(),
 		save: a.save || '', dc: a.dc === '' || a.dc === undefined || a.dc === null ? '' : Math.max(0, Math.floor(num(a.dc))), description: a.description || '',
 		...(String(a.resource || '').trim() ? { resource: a.resource.trim() } : {}),
+		// more charges than its cost can be spent for more dice (only when it costs charges)
+		...(a.extraCharges && Math.floor(num(a.cost)) > 0 ? {
+			extraCharges: true,
+			...(String(a.diceExtra || '').trim() ? { diceExtra: String(a.diceExtra).trim() } : {}),
+			...(Math.floor(num(a.maxCost)) > Math.floor(num(a.cost)) ? { maxCost: Math.floor(num(a.maxCost)) } : {}),
+		} : {}),
 		...(a.uses && (a.uses.perProficiency || num(a.uses.max) > 0) ? { uses: { max: a.uses.perProficiency ? null : Math.floor(num(a.uses.max)), perProficiency: !!a.uses.perProficiency, on: a.uses.on || 'Long rest' } } : {}),
 	}));
+	const hasCharges = perProficiency || maxCharges > 0;
 	const seenSpells = new Set();
 	const spells = (draft.spells || []).filter((s) => SPELL_LEVEL.has(s.name) && !seenSpells.has(s.name) && seenSpells.add(s.name)).map((s) => ({
 		name: s.name,
 		...(Number(s.level) > SPELL_LEVEL.get(s.name) ? { level: Math.min(9, Math.floor(Number(s.level))) } : {}),
 		...(s.ability ? { ability: s.ability } : {}),
+		// charges of the item each cast spends (only when the item has charges), and whether extra charges cast it higher
+		...(hasCharges && Math.floor(num(s.cost)) > 0 ? { cost: Math.floor(num(s.cost)) } : {}),
+		...(hasCharges && Math.floor(num(s.cost)) > 0 && s.upcast && SPELL_LEVEL.get(s.name) > 0 ? { upcast: true } : {}),
 		...(s.uses && (s.uses.perProficiency || num(s.uses.max) > 0) ? { uses: { max: s.uses.perProficiency ? null : Math.floor(num(s.uses.max)), perProficiency: !!s.uses.perProficiency, on: s.uses.on || 'Long rest' } } : {}),
 	}));
 	const bonuses = itemBonusList(draft.bonuses); // rows with no target picked or an amount of 0 are dropped
@@ -68,6 +78,7 @@ function cleanItem(draft) {
 		name: draft.name.trim(), group: draft.group, cost: String(draft.cost || '').trim(), weight: Math.max(0, Number(draft.weight) || 0),
 		homebrew: true, ...(draft.base ? { base: draft.base } : {}), ...(draft.description ? { description: draft.description } : {}),
 		...(draft.itemType ? { itemType: draft.itemType } : {}), ...(draft.rarity ? { rarity: draft.rarity } : {}), ...(draft.attunement ? { attunement: true } : {}),
+		...(draft.attunement && attunementRequirement(draft) ? { attunementRequirement: attunementRequirement(draft) } : {}),
 		...(perProficiency || maxCharges > 0 ? { charges: { max: perProficiency ? null : maxCharges, perProficiency, recharge: regainText(draft.charges), on: draft.charges?.on || 'Long rest' } } : {}),
 		...(abilities.length ? { abilities } : {}),
 		...(spells.length ? { spells } : {}),
@@ -256,6 +267,18 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 						</Select>
 					</FormControl>
 					<FormControlLabel control={<Checkbox checked={!!draft.attunement} onChange={(e) => set({ attunement: e.target.checked })} />} label="Requires attunement" />
+					{/* who can attune to it ("by a sorcerer"): leave empty when anyone can */}
+					{draft.attunement && (
+						<TextField
+							label="Attunement requirement (optional)"
+							size="small"
+							value={draft.attunementRequirement || ''}
+							onChange={(e) => set({ attunementRequirement: e.target.value })}
+							placeholder="a sorcerer"
+							helperText={attunementRequirement(draft) ? `Shown as "${attunementText(draft)}"` : 'Leave empty if anyone can attune to it'}
+							sx={{ flex: '1 1 260px' }}
+						/>
+					)}
 				</Box>
 
 				{weapon && (
@@ -463,6 +486,28 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 								</FormControl>
 								<TextField label="DC" size="small" type="number" value={a.dc ?? ''} onChange={(e) => setAbility(i, { dc: e.target.value })} helperText="Empty: your spell save DC" slotProps={{ htmlInput: { min: 0 } }} sx={{ flex: '0 1 110px' }} />
 							</Box>
+							{/* spending more than its cost: each extra charge adds dice, up to an optional most */}
+							{Math.floor(num(a.cost)) > 0 && (
+								<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }} data-testid="ability-extra-charges">
+									<FormControlLabel
+										control={<Checkbox checked={!!a.extraCharges} onChange={(e) => setAbility(i, { extraCharges: e.target.checked })} />}
+										label="Can spend more charges for more dice"
+									/>
+									{a.extraCharges && (
+										<>
+											<TextField
+												label="Extra dice per extra charge" size="small" value={a.diceExtra || ''} onChange={(e) => setAbility(i, { diceExtra: e.target.value })}
+												placeholder="1d6" error={!!String(a.diceExtra || '').trim() && !DICE.test(String(a.diceExtra).trim())}
+												helperText={String(a.diceExtra || '').trim() && !DICE.test(String(a.diceExtra).trim()) ? 'Use dice like 1d6 or 2d8+1' : ' '} sx={{ flex: '1 1 170px' }}
+											/>
+											<TextField
+												label="Most charges per use (optional)" size="small" type="number" value={a.maxCost ?? ''} onChange={(e) => setAbility(i, { maxCost: e.target.value })}
+												helperText={Math.floor(num(a.maxCost)) > Math.floor(num(a.cost)) ? ' ' : 'Empty: as many as the item has left'} slotProps={{ htmlInput: { min: 0 } }} sx={{ flex: '1 1 170px' }}
+											/>
+										</>
+									)}
+								</Box>
+							)}
 							<TextField label="What it does" size="small" multiline minRows={2} maxRows={6} value={a.description || ''} onChange={(e) => setAbility(i, { description: e.target.value })} />
 						</Box>
 					))}
@@ -474,7 +519,7 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 							<Button size="small" startIcon={<AddIcon />} onClick={addSpell}>Add a spell</Button>
 						</Box>
 						<Typography variant="caption" sx={{ color: 'text.secondary', marginTop: -1 }}>
-							Spells the item lets whoever carries it cast, whatever their class. They appear on the interactive sheet's Spells tab, and casting one uses up one of its own uses, never a spell slot.
+							Spells the item lets whoever carries it cast, whatever their class. They appear on the interactive sheet's Spells tab, and casting one uses up one of its own uses and/or the item&apos;s charges, never a spell slot.
 						</Typography>
 						{(draft.spells || []).map((s, i) => (
 							<Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, padding: 1.5, border: BORDER, borderRadius: 2 }}>
@@ -506,6 +551,29 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 										</Select>
 									</FormControl>
 								</Box>
+								{/* the item's charges: how many each cast spends, and (for a leveled spell) whether more charges cast it higher */}
+								{chargesMode === 'none' ? (
+									<Typography variant="caption" sx={{ color: 'text.secondary' }}>To have this spell use the item&apos;s charges, give the item charges in the Charges section.</Typography>
+								) : (
+									<Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }} data-testid="spell-charges">
+										<TextField
+											label="Charges per cast"
+											size="small"
+											type="number"
+											value={s.cost ?? ''}
+											onChange={(e) => setSpell(i, { cost: e.target.value })}
+											helperText={Math.floor(num(s.cost)) > 0 ? `Uses ${Math.floor(num(s.cost))} of the item's charges` : "Empty or 0: doesn't use charges"}
+											slotProps={{ htmlInput: { min: 0, step: 1 } }}
+											sx={{ flex: '0 1 170px' }}
+										/>
+										{Math.floor(num(s.cost)) > 0 && SPELL_LEVEL.get(s.name) > 0 && (
+											<FormControlLabel
+												control={<Checkbox checked={!!s.upcast} onChange={(e) => setSpell(i, { upcast: e.target.checked })} />}
+												label="Each extra charge casts it one level higher"
+											/>
+										)}
+									</Box>
+								)}
 							</Box>
 						))}
 					</Box>
@@ -657,7 +725,7 @@ export default function CustomItems({ character, updateEquipment }) {
 									{item.description && <Typography variant="body2" sx={{ marginTop: 0.5, whiteSpace: 'pre-line' }}>{item.description}</Typography>}
 									{item.attunement && have && (
 										<Typography variant="caption" sx={{ display: 'block', marginTop: 0.5, color: attunedNames.includes(name) ? 'success.main' : 'text.secondary' }}>
-											{attunedNames.includes(name) ? 'You are attuned to this item.' : 'Requires attunement: use the Attunement section above.'}
+											{attunedNames.includes(name) ? 'You are attuned to this item.' : `${attunementText(item).replace(/^r/, 'R')}: use the Attunement section above.`}
 										</Typography>
 									)}
 								</Box>

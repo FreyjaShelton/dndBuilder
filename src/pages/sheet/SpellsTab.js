@@ -8,7 +8,8 @@ import { signed } from './dice';
 import { getPreparedLimit2014, getPreparedSpells } from '../../utils/spells2014';
 import { getClassViews } from '../../utils/multiclass';
 import { itemSpellKey } from '../../utils/itemSpells';
-import { abilityMaxUses, itemSpellStats } from './itemCharges';
+import { abilityMaxUses, chargesLeft, getMagicItems, itemSpellStats } from './itemCharges';
+import ItemSpellCast from './ItemSpellCast';
 import PreparedSpellsEditor from './PreparedSpellsEditor';
 
 function SlotBubbles({ total, used, onChange }) {
@@ -50,7 +51,8 @@ const saveOf = (spell) => {
 	return m ? m[1].slice(0, 3).toUpperCase() : null;
 };
 
-function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, onAttack, onDamage }) {
+// itemChargesLeft: for a spell from a magic item, the charges that item has left (some item spells spend them)
+function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, onAttack, onDamage, itemChargesLeft = 0 }) {
 	const [open, setOpen] = React.useState(false);
 	const [anchor, setAnchor] = React.useState(null);
 	// a multiclassed character's spell uses the save DC and attack bonus of the class it was learned with
@@ -98,7 +100,7 @@ function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, on
 							</Button>
 						)}
 							{spell.fromItem ? (
-								<Button size="small" variant="contained" disabled={!itemReady} onClick={() => onCastItem(spell)}>Cast</Button>
+								<ItemSpellCast spell={spell} ready={itemReady} chargesLeft={itemChargesLeft} onCast={onCastItem} />
 							) : isCantrip ? (
 							<Button size="small" variant="contained" onClick={() => onCast(spell, 0)}>Cast</Button>
 						) : (
@@ -119,7 +121,10 @@ function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, on
 				{spell.fromItem && (
 					<Box onClick={(e) => e.stopPropagation()} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, marginTop: 0.5 }}>
 						<Typography variant="caption" sx={{ color: 'text.secondary' }}>
-							{[spell.fromItem, spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`, spell.castLevel > spell.level ? `cast at level ${spell.castLevel}` : ''].filter(Boolean).join(' · ')}
+							{[
+								spell.fromItem, spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`, spell.castLevel > spell.level ? `cast at level ${spell.castLevel}` : '',
+								spell.cost > 0 ? `${spell.cost} charge${spell.cost === 1 ? '' : 's'}${spell.upcast ? ' (+1 per level higher)' : ''}, ${itemChargesLeft} left` : '',
+							].filter(Boolean).join(' · ')}
 						</Typography>
 						{!spell.active && <Chip size="small" color="warning" variant="outlined" label="Needs attunement" />}
 						{usesMax !== null && (
@@ -147,6 +152,7 @@ function SpellCard({ spell, d, play, setPlay, castLevels, onCast, onCastItem, on
 }
 
 export default function SpellsTab({ character, setPrepared, d, play, setPlay, onCast, onCastItemSpell, onAttack, onDamage }) {
+	const magicItems = getMagicItems(character, play.items, play.charges); // their charges, for item spells that spend them
 	// the class whose prepared list is being edited (its index), or null
 	const [editing, setEditing] = React.useState(null);
 	const itemSpells = d.itemSpells || [];
@@ -269,6 +275,7 @@ export default function SpellsTab({ character, setPrepared, d, play, setPlay, on
 							onCastItem={onCastItemSpell}
 							onAttack={onAttack}
 							onDamage={onDamage}
+							itemChargesLeft={(() => { const e = magicItems.find((x) => x.item.name === s.fromItem); return e ? chargesLeft(e.max, e.used) : 0; })()}
 						/>
 					))}
 				</Box>

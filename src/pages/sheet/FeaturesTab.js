@@ -40,7 +40,9 @@ function abilityFacts(ability, prof) {
 	const max = abilityMaxUses(ability, prof);
 	return [
 		ability.activation,
-		cost > 0 && `${cost} charge${cost === 1 ? '' : 's'}`,
+		cost > 0 && `${cost}${ability.extraCharges ? '+' : ''} charge${cost === 1 && !ability.extraCharges ? '' : 's'}`,
+		cost > 0 && ability.extraCharges && (ability.diceExtra ? `+${ability.diceExtra} per extra charge` : 'can spend extra charges')
+			+ (Number(ability.maxCost) > cost ? ` (up to ${ability.maxCost})` : ''),
 		ability.resource,
 		max !== null && `${max} use${max === 1 ? '' : 's'}${ability.uses.perProficiency ? ' (your proficiency bonus)' : ''}${ability.uses.on ? ` per ${ability.uses.on === 'Dawn' ? 'dawn' : ability.uses.on.toLowerCase()}` : ''}`,
 		ability.dice && `${ability.dice}${ability.diceLabel ? ` ${ability.diceLabel}` : ''}`,

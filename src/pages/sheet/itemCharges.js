@@ -3,6 +3,8 @@
 //     (the most charges is a number, or the character's proficiency bonus when perProficiency is set)
 //   item.abilities  [{ name, activation, cost, resource, uses, dice, diceLabel, save, dc, description }]
 //     cost      charges of the item the ability spends
+//     extraCharges  true: more charges than `cost` can be spent on one use, each adding `diceExtra` ("1d6") to the dice,
+//                   up to `maxCost` charges in all (none: as many as the item has left)
 //     resource  text for a cost the sheet does not track ("6 sorcery points")
 //     uses      { max: number | null, perProficiency: bool, on: 'Short rest' | 'Long rest' | 'Dawn' }: a limited number of uses of its own
 //   item.spells     [{ name, level, ability, uses }]: spells the item lets the carrier cast (see utils/itemSpells.js)
@@ -10,9 +12,47 @@
 import { getCustomGear } from '../../utils/equipment';
 import { itemSpellKey } from '../../utils/itemSpells';
 import { getLevel, getProficiencyBonus } from '../../utils/characterCalc';
-import { rollExpression } from './dice';
+import { parseDice, rollExpression } from './dice';
 
 export const abilityUsesKey = (item, ability) => `${item.name}::${ability.name}`;
+
+// The dice of one use of an ability, in words, when `extra` charges beyond its cost are spent: "3d12", "3d12 + 2d6".
+export function abilityDiceText(ability, extra = 0) {
+	const base = String(ability.dice || '').trim();
+	const per = parseDice(ability.diceExtra);
+	if (!extra || !per || !String(ability.diceExtra || '').trim()) return base;
+	// the same kind of dice add up: 1d6 and two more 1d6 make 3d6
+	const own = parseDice(base);
+	if (own && own.count && per.count && own.sides === per.sides) {
+		const mod = own.mod + per.mod * extra;
+		return `${own.count + per.count * extra}d${own.sides}${mod ? `${mod > 0 ? '+' : '-'}${Math.abs(mod)}` : ''}`;
+	}
+	const more = per.count ? `${per.count * extra}d${per.sides}${per.mod ? `${per.mod > 0 ? '+' : '-'}${Math.abs(per.mod * extra)}` : ''}` : `${per.mod * extra}`;
+	return base ? `${base} + ${more}` : more;
+}
+
+// How many charges one use of an ability can spend: [{ charges, extra, dice }], cheapest first. Empty when the ability spends no
+// charges or there aren't enough left (`left`); one entry unless the ability can take extra charges.
+export function abilityChargeOptions(ability, left) {
+	const cost = Math.max(0, Math.floor(Number(ability.cost)) || 0);
+	if (!cost || left < cost) return [];
+	const most = ability.extraCharges ? Math.min(left, Number(ability.maxCost) > cost ? Math.floor(Number(ability.maxCost)) : left) : cost;
+	const out = [];
+	for (let c = cost; c <= most; c += 1) out.push({ charges: c, extra: c - cost, dice: abilityDiceText(ability, c - cost) });
+	return out;
+}
+
+// Rolls the dice of one use of an ability with `extra` charges beyond its cost: { total, detail } or null when it has no dice.
+export function rollAbilityDice(ability, extra = 0) {
+	const parts = [];
+	if (String(ability.dice || '').trim()) parts.push({ expr: ability.dice, times: 1 });
+	if (extra > 0 && String(ability.diceExtra || '').trim()) parts.push({ expr: ability.diceExtra, times: extra });
+	const rolled = parts.flatMap(({ expr, times }) => Array.from({ length: times }, () => rollExpression(expr))).filter(Boolean);
+	if (!rolled.length) return null;
+	const rolls = rolled.flatMap((r) => r.rolls);
+	const mod = rolled.reduce((n, r) => n + r.mod, 0);
+	return { total: rolled.reduce((n, r) => n + r.total, 0), detail: `${abilityDiceText(ability, extra)} [${rolls.join(', ')}]${mod ? ` ${mod > 0 ? '+' : ''}${mod}` : ''}` };
+}
 
 // The most times an ability can be used between rests, or null when it has no limit of its own.
 export function abilityMaxUses(ability, proficiencyBonus) {

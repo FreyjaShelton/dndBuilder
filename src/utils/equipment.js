@@ -303,8 +303,18 @@ export function getEquipmentLines(character) {
 }
 
 // Short stats line for the item list: damage and properties, or AC and requirements.
-// "Wondrous item, Rare, requires attunement": what a magic item is, when it has been described that way
-export const describeMagicItem = (item) => [item.itemType, item.rarity, item.attunement && 'requires attunement'].filter(Boolean).join(', ');
+// Who can attune to an item, as typed ("a sorcerer"; a leading "by" is dropped), or '' when anyone can.
+export const attunementRequirement = (item) => String(item?.attunementRequirement || '').trim().replace(/^by\s+/i, '');
+
+// "requires attunement" or "requires attunement by a sorcerer" ('' for an item that needs no attunement)
+export const attunementText = (item) => {
+	if (!item?.attunement) return '';
+	const req = attunementRequirement(item);
+	return req ? `requires attunement by ${req}` : 'requires attunement';
+};
+
+// "Wondrous item, Rare, requires attunement by a sorcerer": what a magic item is, when it has been described that way
+export const describeMagicItem = (item) => [item.itemType, item.rarity, attunementText(item)].filter(Boolean).join(', ');
 
 export function formatItemStats(item) {
 	const base = formatBaseStats(item);

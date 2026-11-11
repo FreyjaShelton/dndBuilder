@@ -11,9 +11,9 @@ import { getClassViews } from '../../utils/multiclass';
 import { withEquipFlags } from './inventory';
 import { viewCharacter } from './sheetSync';
 import { getSpellRoll, rollSpell } from './spellDice';
-import { getAttunedNames } from '../../utils/equipment';
+import { getAttunedNames, getCustomGear } from '../../utils/equipment';
 import { itemSpellKey } from '../../utils/itemSpells';
-import { abilityMaxUses, abilityUsesKey, itemMaxCharges, itemSpellStats, rechargeOnRest } from './itemCharges';
+import { abilityMaxUses, abilityUsesKey, itemMaxCharges, itemSpellStats, rechargeOnRest, rollAbilityDice } from './itemCharges';
 import { resetTraitUses, traitUsesKey } from '../../utils/originFeatures';
 import HeaderPanel from './HeaderPanel';
 import AbilityPanels, { RollModeToggle } from './AbilityPanels';
@@ -162,11 +162,13 @@ export default function SheetPage() {
 	};
 
 	// Using a magic item's ability: spends its charges and rolls its dice, if it has any
-	const useItemAbility = (item, ability) => {
+	// charges: how many of the item's charges to spend (an ability that can take extra charges rolls more dice for each)
+	const useItemAbility = (item, ability, charges) => {
 		// an item that needs attunement does nothing until the character is attuned to it
 		const carried = new Set((play.items || []).filter((i) => Number(i.qty) > 0).map((i) => i.name));
 		if (item.attunement && !getAttunedNames(view, carried).includes(item.name)) return;
-		const cost = Number(ability.cost) || 0;
+		const base = Number(ability.cost) || 0;
+		const cost = base > 0 && ability.extraCharges ? Math.max(base, Math.floor(Number(charges)) || base) : base;
 		const used = Number((play.charges || {})[item.name]) || 0;
 		const max = itemMaxCharges(item, d.prof);
 		if (cost > 0 && max - used < cost) return;
@@ -178,9 +180,10 @@ export default function SheetPage() {
 		if (cost > 0 || usesMax !== null) {
 			setPlay({ charges: { ...(play.charges || {}), ...(cost > 0 ? { [item.name]: used + cost } : {}), ...(usesMax !== null ? { [useKey]: usesUsed + 1 } : {}) } });
 		}
-		const rolled = ability.dice ? rollExpression(ability.dice) : null;
-		const dice = rolled ? `${ability.dice}${ability.diceLabel ? ` ${ability.diceLabel}` : ''} [${rolled.rolls.join(', ')}]${rolled.mod ? ` ${rolled.mod > 0 ? '+' : ''}${rolled.mod}` : ''}` : '';
-		addLog(`${item.name}: ${ability.name}`, rolled ? rolled.total : '—', [dice, cost > 0 ? `${cost} charge${cost === 1 ? '' : 's'}` : '', ability.resource, ability.activation].filter(Boolean).join(' · '));
+		// the dice: its own, plus its extra dice for each charge spent beyond its cost
+		const rolled = rollAbilityDice(ability, cost - base);
+		const dice = rolled ? `${rolled.detail}${ability.diceLabel ? ` ${ability.diceLabel}` : ''}` : '';
+		addLog(`${item.name}: ${ability.name}`, rolled ? rolled.total : '—', [dice, cost > 0 ? `${cost} charge${cost === 1 ? '' : 's'} (${max - used - cost}/${max} left)` : '', ability.resource, ability.activation].filter(Boolean).join(' · '));
 	};
 
 	// a racial trait used in play (Radiant Soul, Healing Hands...): spends one of its limited uses and notes it in the log
@@ -239,17 +242,31 @@ export default function SheetPage() {
 
 	// Casting a spell a magic item grants: it spends one of the spell's own uses (never a spell slot) and rolls its dice at the level
 	// the item casts it at
-	const castItemSpell = (spell) => {
+	// charges: how many of the item's charges to spend (a spell that uses charges; more than its cost casts it higher when allowed)
+	const castItemSpell = (spell, charges) => {
 		if (!spell.active) return;
 		const key = itemSpellKey({ name: spell.fromItem }, spell);
 		const usesMax = abilityMaxUses(spell, d.prof);
 		const usesUsed = Number((play.charges || {})[key]) || 0;
 		if (usesMax !== null && usesUsed >= usesMax) return;
-		if (usesMax !== null) setPlay({ charges: { ...(play.charges || {}), [key]: usesUsed + 1 } });
+		// the item's charges
+		const item = getCustomGear(view).find((i) => i.name === spell.fromItem);
+		const spend = spell.cost > 0 ? Math.max(spell.cost, Number(charges) || spell.cost) : 0;
+		const chargesUsed = Number((play.charges || {})[spell.fromItem]) || 0;
+		const chargesMax = item ? itemMaxCharges(item, d.prof) : 0;
+		if (spend > 0 && chargesMax - chargesUsed < spend) return;
+		const castLevel = Math.min(9, spell.castLevel + (spell.upcast ? spend - spell.cost : 0));
+		if (usesMax !== null || spend > 0) {
+			setPlay({ charges: { ...(play.charges || {}), ...(usesMax !== null ? { [key]: usesUsed + 1 } : {}), ...(spend > 0 ? { [spell.fromItem]: chargesUsed + spend } : {}) } });
+		}
 		if (spell.concentration) setPlay({ concentration: spell.name });
 		const stats = itemSpellStats(d, spell);
-		const dice = getSpellRoll(spell, { slotLevel: spell.castLevel, characterLevel: d.level, abilityMod: stats ? stats.mod : 0 });
-		const how = [spell.level === 0 ? 'cantrip' : `cast at level ${spell.castLevel}`, spell.fromItem, usesMax !== null ? `${usesMax - usesUsed - 1}/${usesMax} left` : ''].filter(Boolean).join(' · ');
+		const dice = getSpellRoll(spell, { slotLevel: castLevel, characterLevel: d.level, abilityMod: stats ? stats.mod : 0 });
+		const how = [
+			spell.level === 0 ? 'cantrip' : `cast at level ${castLevel}`, spell.fromItem,
+			spend > 0 ? `${spend} charge${spend === 1 ? '' : 's'} (${chargesMax - chargesUsed - spend}/${chargesMax} left)` : '',
+			usesMax !== null ? `${usesMax - usesUsed - 1}/${usesMax} uses left` : '',
+		].filter(Boolean).join(' · ');
 		if (dice) {
 			const rolled = rollSpell(dice);
 			addLog(`Cast ${spell.name}`, rolled.total, `${rolled.detail} · ${how}`);
