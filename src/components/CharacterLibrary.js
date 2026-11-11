@@ -81,39 +81,46 @@ function SyncPanel({ sync, configured }) {
 
 	return (
 		<Paper variant="outlined" sx={{ padding: 2 }}>
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-				<Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>
-					{sync.status === 'syncing' ? 'Syncing with Google Drive…'
-						: sync.status === 'needsAuth' ? 'Google Drive is paused'
-							: sync.status === 'error' ? 'Google Drive sync hit a problem'
-								: 'Synced with Google Drive'}
-				</Typography>
-				{sync.status !== 'needsAuth' && <Button size="small" onClick={() => syncEngine.syncNow()} disabled={sync.status === 'syncing'}>Sync now</Button>}
-			</Box>
+			<Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+				{sync.status === 'syncing' ? 'Syncing with Google Drive…'
+					: sync.status === 'needsAuth' ? 'Google Drive is paused'
+						: sync.status === 'error' ? 'Google Drive sync hit a problem'
+							: 'Synced with Google Drive'}
+			</Typography>
 			<Typography variant="body2" color="text.secondary" sx={{ marginTop: 0.5 }}>
 				{sync.status === 'needsAuth'
 					? 'Google needs you to sign in again (this happens about once an hour on some browsers). Your characters are saved on this device and will upload as soon as you do.'
 					: `Last synced ${timeAgo(sync.lastSyncAt)}. A character uploads when you reach the Finalize step, and again if you change it and finalize again. Changes on the interactive sheet upload 20 seconds after your last change.`}
 			</Typography>
-			{sync.error && <Alert severity={sync.status === 'error' ? 'error' : 'warning'} sx={{ marginTop: 1 }}>{sync.error}</Alert>}
-			{sync.status === 'needsAuth' && (
+			{/* the main button sits where "Sign in with Google" sits when signed out: under the text */}
 			<Box sx={{ marginTop: 1.5 }}>
-			<Button variant="contained" onClick={signIn} disabled={busy} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}>Sign in with Google</Button>
+				{sync.status === 'needsAuth' ? (
+					<Button variant="contained" onClick={signIn} disabled={busy} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}>Sign in with Google</Button>
+				) : (
+					<Button
+						variant="contained"
+						onClick={() => syncEngine.syncNow()}
+						disabled={sync.status === 'syncing'}
+						startIcon={sync.status === 'syncing' ? <CircularProgress size={16} color="inherit" /> : undefined}
+					>
+						Sync now
+					</Button>
+				)}
 			</Box>
-			)}
+			{sync.error && <Alert severity={sync.status === 'error' ? 'error' : 'warning'} sx={{ marginTop: 1.5 }}>{sync.error}</Alert>}
 			<Box sx={{ marginTop: 1 }}>
-			<Button
-			size="small"
-			variant="outlined"
+				<Button
+					size="small"
+					variant="outlined"
 					color="inherit"
 					startIcon={<CloudOffOutlinedIcon />}
 					onClick={() => { if (window.confirm('Stop syncing on this device? Your characters stay here and in Google Drive.')) syncEngine.disconnect(); }}
 				>
 					Stop syncing on this device
 				</Button>
-				</Box>
-				<GoogleDataNote />
-				</Paper>
+			</Box>
+			<GoogleDataNote />
+		</Paper>
 				);
 				}
 
