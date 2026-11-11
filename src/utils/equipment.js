@@ -1,4 +1,6 @@
 import { getEditionData } from '../data';
+import skills from '../data/skills';
+import { ABILITY_KEYS, ABILITY_NAMES } from './abilityScore';
 import { parseCostToGold } from './currency';
 import { getItem, getItemIndex } from './itemIndex';
 import { getKitGold, getKitItems } from './startingKit';
@@ -178,16 +180,66 @@ export function toggleAttunement(list, name) {
 	return names.length >= MAX_ATTUNED ? names : [...names, name];
 }
 
-// What the custom magic items the character carries add to the numbers: { ac, spellSaveDc, spellAttack, saves }.
+// What a custom item can add to: a few numbers of its own, an ability score, one ability's saving throws, one skill's checks, a
+// movement speed or darkvision. An item stores its bonuses as a list, [{ target, amount }]; target is one of these ids.
+// Targets with unit 'ft' are counted in feet (a swimming speed of +30 ft. gives a character without one a 30 ft. swimming speed).
+export const SPEED_TYPES = [['walk', 'Walking'], ['swim', 'Swimming'], ['climb', 'Climbing'], ['fly', 'Flying'], ['burrow', 'Burrowing']];
+export const ITEM_BONUS_TARGETS = [
+	{ id: 'ac', label: 'Armor Class', group: 'General' },
+	{ id: 'spellSaveDc', label: 'Spell save DC', group: 'General' },
+	{ id: 'spellAttack', label: 'Spell attack rolls', group: 'General' },
+	{ id: 'saves', label: 'All saving throws', group: 'General' },
+	...ABILITY_KEYS.map((k) => ({ id: `ability:${k}`, label: `${ABILITY_NAMES[k]} score`, group: 'Ability scores' })),
+	...ABILITY_KEYS.map((k) => ({ id: `save:${k}`, label: `${ABILITY_NAMES[k]} saving throws`, group: 'Saving throws' })),
+	...skills.map((sk) => ({ id: `skill:${sk.name}`, label: `${sk.name} checks`, group: 'Skill checks' })),
+	...SPEED_TYPES.map(([k, name]) => ({ id: `speed:${k}`, label: `${name} speed`, group: 'Speed', unit: 'ft' })),
+	{ id: 'darkvision', label: 'Darkvision', group: 'Senses', unit: 'ft' },
+];
+const TARGET_BY_ID = new Map(ITEM_BONUS_TARGETS.map((t) => [t.id, t]));
+export const itemBonusTarget = (id) => TARGET_BY_ID.get(id) || null;
+
+// One bonus in words: "+2 Stealth checks", "+30 ft. swimming speed".
+export function describeItemBonus({ target, amount }) {
+	const t = TARGET_BY_ID.get(target);
+	const sign = amount > 0 ? '+' : '';
+	return t.unit === 'ft' ? `${sign}${amount} ft. ${t.label.toLowerCase()}` : `${sign}${amount} ${t.label}`;
+}
+
+// An item's bonuses as a list of valid { target, amount } (amount a whole number, not 0). Items made before bonuses were a list
+// kept them as { ac, spellSaveDc, spellAttack, saves }; those are read the same way.
+export function itemBonusList(bonuses) {
+	const raw = Array.isArray(bonuses) ? bonuses : Object.entries(bonuses || {}).map(([target, amount]) => ({ target, amount }));
+	return raw
+		.map((b) => ({ target: b?.target, amount: Math.trunc(Number(b?.amount) || 0) }))
+		.filter((b) => TARGET_BY_ID.has(b.target) && b.amount !== 0);
+}
+
+// "+1 Armor Class, +2 Stealth checks" ('' for none).
+export const describeItemBonuses = (bonuses) => itemBonusList(bonuses).map(describeItemBonus).join(', ');
+
+// What the custom magic items the character carries add to the numbers:
+// { ac, spellSaveDc, spellAttack, saves, abilities: { str... }, saveBy: { str... }, skills: { 'Stealth': n },
+//   speeds: { walk, swim, climb, fly, burrow } (feet), darkvision (feet) }.
 // An item that needs attunement counts only while the character is attuned to it (equipment.attuned: [names]).
 export function getItemBonuses(character) {
-	const out = { ac: 0, spellSaveDc: 0, spellAttack: 0, saves: 0 };
-	if (character.edition !== '2014' || !getCustomGear(character).some((i) => i.bonuses)) return out;
+	const zero = () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
+	const out = {
+		ac: 0, spellSaveDc: 0, spellAttack: 0, saves: 0, abilities: zero(), saveBy: zero(), skills: {},
+		speeds: Object.fromEntries(SPEED_TYPES.map(([k]) => [k, 0])), darkvision: 0,
+	};
+	if (character.edition !== '2014' || !getCustomGear(character).some((i) => itemBonusList(i.bonuses).length)) return out;
 	const attuned = getAttuned(character);
 	const carried = new Set(getOwnedItems(character).filter((i) => i.quantity > 0).map((i) => i.name));
 	getCustomGear(character).forEach((item) => {
-		if (!item.bonuses || !carried.has(item.name) || (item.attunement && !attuned.includes(item.name))) return;
-		Object.keys(out).forEach((k) => { out[k] += Number(item.bonuses[k]) || 0; });
+		if (!carried.has(item.name) || (item.attunement && !attuned.includes(item.name))) return;
+		itemBonusList(item.bonuses).forEach(({ target, amount }) => {
+			const [kind, key] = target.split(':');
+			if (kind === 'ability') out.abilities[key] += amount;
+			else if (kind === 'save') out.saveBy[key] += amount;
+			else if (kind === 'skill') out.skills[key] = (out.skills[key] || 0) + amount;
+			else if (kind === 'speed') out.speeds[key] += amount;
+			else out[kind] += amount;
+		});
 	});
 	return out;
 }

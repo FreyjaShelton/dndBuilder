@@ -1,7 +1,7 @@
 import { getEditionData } from '../data';
 import skills from '../data/skills';
 import { ABILITY_KEYS, ABILITY_NAMES, getModifier, formatSigned } from './abilityScore';
-import { getArmorData, getItemBonuses, getOwnedItems, getRemainingGold, getWeaponData, getWeaponNames, getWornArmorName, hasShield } from './equipment';
+import { SPEED_TYPES, getArmorData, getItemBonuses, getOwnedItems, getRemainingGold, getWeaponData, getWeaponNames, getWornArmorName, hasShield } from './equipment';
 import { averageHitDie, parseHpOverride } from './hitPoints';
 import { getBackgroundFeat, getCharacterFeats } from './featSpells';
 import { getBackgroundLanguages, getBackgroundSkillList, resolveBackground } from './backgroundChoices';
@@ -64,6 +64,9 @@ export function getAbilityBonuses(character) {
 		// 2014: add Ability Score Improvements, half-feats and fixed class increases chosen on the Class page.
 		const { bonuses: classBonuses } = getClassAbilityEffects(character);
 		ABILITY_KEYS.forEach((k) => { bonuses[k] += classBonuses[k]; });
+		// magic items that raise an ability score (only while carried, and attuned when they need it)
+		const itemAbilities = getItemBonuses(character).abilities;
+		ABILITY_KEYS.forEach((k) => { bonuses[k] += itemAbilities[k] || 0; });
 		// a half-feat granted by the background
 		const bgFeat = getBackgroundFeat(character);
 		const inc = bgFeat?.name && getEditionData('2014').feats.find((f) => f.name === bgFeat.name)?.abilityIncrease;
@@ -340,8 +343,46 @@ export function getHitDice(character) {
 	return [...byDie.entries()].map(([die, count]) => ({ die, count })).sort((a, b) => b.die - a.die);
 }
 
+// The walking speed in feet ('' before a race is picked), with what carried magic items add.
 export function getSpeed(character) {
-	return getRace(character)?.speed ?? '';
+	if (!getRace(character)) return '';
+	return getSpeeds(character).walk;
+}
+
+// Every movement speed the character has, in feet: { walk, swim?, climb?, fly?, burrow? }. The race's speeds, plus what carried
+// magic items add (an item can give a speed the race doesn't have).
+export function getSpeeds(character) {
+	const race = getRace(character);
+	const base = race?.speeds && Object.keys(race.speeds).length ? race.speeds : { walk: race?.speed };
+	const out = Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Number(v) || 0]));
+	if (!out.walk) out.walk = 0;
+	const items = getItemBonuses(character).speeds;
+	SPEED_TYPES.forEach(([k]) => { if (items[k]) out[k] = (out[k] || 0) + items[k]; });
+	Object.keys(out).forEach((k) => { if (k !== 'walk' && out[k] <= 0) delete out[k]; });
+	out.walk = Math.max(0, out.walk);
+	return out;
+}
+
+// Senses from the race's traits ("Darkvision 60 ft."): a trait named for the sense, or one that says you have it.
+// Darkvision also counts what carried magic items add. { darkvision: 60, blindsight: 10 ... } in feet.
+const SENSES = ['darkvision', 'blindsight', 'tremorsense', 'truesight'];
+export function getSenseRanges(character) {
+	const found = {};
+	const traits = [...(getRace(character)?.traits || []), ...(getSubrace(character)?.traits || [])];
+	traits.forEach((t) => {
+		const text = `${t.name}. ${t.description || ''}`;
+		const low = text.toLowerCase();
+		SENSES.forEach((sense) => {
+			const at = low.indexOf(sense);
+			if (at < 0) return;
+			const m = text.slice(at, at + 400).match(/(\d+)\s*(?:feet|foot|ft)/i);
+			if (m) found[sense] = Math.max(found[sense] || 0, Number(m[1]));
+		});
+	});
+	const extra = getItemBonuses(character).darkvision;
+	if (extra) found.darkvision = Math.max(0, (found.darkvision || 0) + extra);
+	if (!found.darkvision) delete found.darkvision;
+	return found;
 }
 
 // Unarmored Defense comes from the first class that has it; a later class does not give it again (multiclassing rules).
@@ -382,21 +423,23 @@ export function getSkillBonuses(character) {
 	const prof = getProficiencyBonus(getLevel(character));
 	const proficient = getProficientSkills(character);
 	const expertise = is2024(character) ? [] : isSkillOverride(character) ? (character.skills.manualExpertise || []) : getExpertiseSkills(character);
+	const itemSkills = getItemBonuses(character).skills; // magic items that add to one skill's checks
 	return skills.map((s) => {
 		const isProf = proficient.includes(s.name);
 		const isExpert = isProf && expertise.includes(s.name);
-		return { ...s, proficient: isProf, expertise: isExpert, bonus: mods[s.ability] + (isProf ? prof : 0) + (isExpert ? prof : 0) };
+		return { ...s, proficient: isProf, expertise: isExpert, bonus: mods[s.ability] + (isProf ? prof : 0) + (isExpert ? prof : 0) + (itemSkills[s.name] || 0) };
 	});
 }
 
 export function getSavingThrows(character) {
-	const itemSaves = getItemBonuses(character).saves; // magic items that add to every saving throw
+	// magic items that add to every saving throw, or to one ability's
+	const { saves: itemSaves, saveBy } = getItemBonuses(character);
 	const cls = getClass(character);
 	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(getLevel(character));
 	return ABILITY_KEYS.map((k) => {
 		const isProf = !!cls && cls.savingThrows.includes(ABILITY_NAMES[k]);
-		return { key: k, name: ABILITY_NAMES[k], proficient: isProf, bonus: mods[k] + (isProf ? prof : 0) + itemSaves };
+		return { key: k, name: ABILITY_NAMES[k], proficient: isProf, bonus: mods[k] + (isProf ? prof : 0) + itemSaves + (saveBy[k] || 0) };
 	});
 }
 

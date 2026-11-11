@@ -1,18 +1,21 @@
 import * as React from 'react';
 import {
-	Autocomplete, Box, Button, Card, CardContent, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControl,
-	FormControlLabel, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip, Typography,
+	Alert, Autocomplete, Box, Button, Card, CardContent, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl,
+	FormControlLabel, IconButton, InputLabel, ListSubheader, MenuItem, Select, TextField, Tooltip, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
-import { getItemIndex } from '../../utils/itemIndex';
+import UploadIcon from '@mui/icons-material/Upload';
+import { getItem, getItemIndex } from '../../utils/itemIndex';
 import spellIndex from '../../data/2014/spellIndex';
 import {
-	carryCustomItem, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults, newCustomItem,
-	refreshCustomCopy,
+	ITEM_BONUS_TARGETS, carryCustomItem, itemBonusTarget, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults,
+	itemBonusList, newCustomItem, refreshCustomCopy,
 } from '../../utils/equipment';
 import customItemLibrary from '../../utils/customItemLibrary';
+import { downloadText, itemFileName, itemFromFile, itemToFile } from '../../utils/customItemFile';
 
 const LIBRARY_GROUP = 'Your custom items';
 
@@ -60,7 +63,7 @@ function cleanItem(draft) {
 		...(s.ability ? { ability: s.ability } : {}),
 		...(s.uses && (s.uses.perProficiency || num(s.uses.max) > 0) ? { uses: { max: s.uses.perProficiency ? null : Math.floor(num(s.uses.max)), perProficiency: !!s.uses.perProficiency, on: s.uses.on || 'Long rest' } } : {}),
 	}));
-	const bonuses = Object.fromEntries(['ac', 'spellSaveDc', 'spellAttack', 'saves'].map((k) => [k, num(draft.bonuses?.[k])]).filter(([, v]) => v));
+	const bonuses = itemBonusList(draft.bonuses); // rows with no target picked or an amount of 0 are dropped
 	const out = {
 		name: draft.name.trim(), group: draft.group, cost: String(draft.cost || '').trim(), weight: Math.max(0, Number(draft.weight) || 0),
 		homebrew: true, ...(draft.base ? { base: draft.base } : {}), ...(draft.description ? { description: draft.description } : {}),
@@ -68,7 +71,7 @@ function cleanItem(draft) {
 		...(perProficiency || maxCharges > 0 ? { charges: { max: perProficiency ? null : maxCharges, perProficiency, recharge: regainText(draft.charges), on: draft.charges?.on || 'Long rest' } } : {}),
 		...(abilities.length ? { abilities } : {}),
 		...(spells.length ? { spells } : {}),
-		...(Object.keys(bonuses).length ? { bonuses } : {}),
+		...(bonuses.length ? { bonuses } : {}),
 	};
 	if (draft.group === 'Weapons') {
 		const properties = (draft.properties || []).filter(Boolean);
@@ -90,6 +93,22 @@ function cleanItem(draft) {
 		};
 	}
 	return out;
+}
+
+// What a bonus adds to: grouped (General, Ability scores, Saving throws, Skill checks).
+const BONUS_GROUPS = [...new Set(ITEM_BONUS_TARGETS.map((t) => t.group))];
+function BonusTargetSelect({ value, onChange }) {
+	return (
+		<FormControl size="small" sx={{ flex: '1 1 220px' }}>
+			<InputLabel>Adds to</InputLabel>
+			<Select label="Adds to" value={value || ''} onChange={(e) => onChange(e.target.value)} MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}>
+				{BONUS_GROUPS.flatMap((g) => [
+					<ListSubheader key={`h-${g}`}>{g}</ListSubheader>,
+					...ITEM_BONUS_TARGETS.filter((t) => t.group === g).map((t) => <MenuItem key={t.id} value={t.id}>{t.label}</MenuItem>),
+				])}
+			</Select>
+		</FormControl>
+	);
 }
 
 // How often something can be used between rests: no limit, a number equal to the proficiency bonus, or a number of your own, and
@@ -133,11 +152,15 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 		? {
 			...original, properties: [...(original.properties || [])], abilities: (original.abilities || []).map((a) => ({ ...a, uses: a.uses ? { ...a.uses } : undefined })),
 			spells: (original.spells || []).map((s) => ({ ...s, uses: s.uses ? { ...s.uses } : undefined })),
-			charges: original.charges ? { ...original.charges } : undefined, bonuses: original.bonuses ? { ...original.bonuses } : undefined,
+			charges: original.charges ? { ...original.charges } : undefined, bonuses: itemBonusList(original.bonuses),
 		}
 		: newCustomItem(character, '', libraryNames)));
 	const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
-	const setBonus = (patch) => setDraft((d) => ({ ...d, bonuses: { ...(d.bonuses || {}), ...patch } }));
+	// bonuses: a list of { target, amount } rows (see ITEM_BONUS_TARGETS)
+	const bonusRows = Array.isArray(draft.bonuses) ? draft.bonuses : itemBonusList(draft.bonuses);
+	const setBonusRow = (i, patch) => setDraft((d) => ({ ...d, bonuses: (Array.isArray(d.bonuses) ? d.bonuses : itemBonusList(d.bonuses)).map((b, k) => (k === i ? { ...b, ...patch } : b)) }));
+	const addBonus = () => setDraft((d) => ({ ...d, bonuses: [...(Array.isArray(d.bonuses) ? d.bonuses : itemBonusList(d.bonuses)), { target: '', amount: 1 }] }));
+	const removeBonus = (i) => setDraft((d) => ({ ...d, bonuses: (Array.isArray(d.bonuses) ? d.bonuses : itemBonusList(d.bonuses)).filter((_, k) => k !== i) }));
 	// an ability's (or a spell's) limited uses: undefined removes the limit
 	const withUses = (obj, uses) => { const next = { ...obj }; delete next.uses; return uses ? { ...next, uses } : next; };
 	const setAbilityUses = (i, uses) => setDraft((d) => ({ ...d, abilities: (d.abilities || []).map((a, k) => (k === i ? withUses(a, uses) : a)) }));
@@ -325,14 +348,37 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2, border: BORDER, borderRadius: 2 }}>
 					<Typography variant="subtitle2">Bonuses it gives (optional)</Typography>
 					<Typography variant="caption" sx={{ color: 'text.secondary', marginTop: -1 }}>
-						Added to your numbers while you carry it{draft.attunement ? ' and are attuned to it' : ''}.
+						Added to your numbers while you carry it{draft.attunement ? ' and are attuned to it' : ''}. Pick what each bonus adds to and how much; add as many as you like. Speeds and darkvision are in feet, and give the speed or sense if the character doesn't have it.
+						An ability score bonus still stops at the usual maximum of 20.
 					</Typography>
-					<Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-						<TextField label="Armor Class" size="small" type="number" value={draft.bonuses?.ac ?? ''} onChange={(e) => setBonus({ ac: e.target.value })} sx={{ flex: '1 1 100px' }} />
-						<TextField label="Spell save DC" size="small" type="number" value={draft.bonuses?.spellSaveDc ?? ''} onChange={(e) => setBonus({ spellSaveDc: e.target.value })} sx={{ flex: '1 1 100px' }} />
-						<TextField label="Spell attack rolls" size="small" type="number" value={draft.bonuses?.spellAttack ?? ''} onChange={(e) => setBonus({ spellAttack: e.target.value })} sx={{ flex: '1 1 100px' }} />
-						<TextField label="Saving throws" size="small" type="number" value={draft.bonuses?.saves ?? ''} onChange={(e) => setBonus({ saves: e.target.value })} sx={{ flex: '1 1 100px' }} />
-					</Box>
+					{bonusRows.map((b, i) => {
+						// speeds and darkvision are counted in feet
+						const feet = itemBonusTarget(b.target)?.unit === 'ft';
+						const amount = Math.trunc(Number(b.amount));
+						const pickTarget = (target) => {
+							const t = itemBonusTarget(target);
+							// a row still at the starting +1 gets a starting amount that suits feet
+							const start = t?.unit === 'ft' && Number(b.amount) === 1 ? { amount: target === 'darkvision' ? 60 : 10 } : {};
+							setBonusRow(i, { target, ...start });
+						};
+						return (
+							<Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', flexWrap: 'wrap' }} data-testid="bonus-row">
+								<BonusTargetSelect value={b.target} onChange={pickTarget} />
+								<TextField
+									label={feet ? 'Bonus (feet)' : 'Bonus'}
+									size="small"
+									type="number"
+									value={b.amount ?? ''}
+									onChange={(e) => setBonusRow(i, { amount: e.target.value })}
+									helperText={amount ? `${amount > 0 ? '+' : ''}${amount}${feet ? ' ft.' : ''}` : 'Not 0'}
+									slotProps={{ htmlInput: { step: feet ? 5 : 1 } }}
+									sx={{ flex: '0 1 120px' }}
+								/>
+								<Tooltip title="Remove this bonus"><IconButton aria-label="Remove this bonus" onClick={() => removeBonus(i)} sx={{ marginTop: 0.25 }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+							</Box>
+						);
+					})}
+					<Box><Button size="small" startIcon={<AddIcon />} onClick={addBonus}>{bonusRows.length ? 'Add another bonus' : 'Add a bonus'}</Button></Box>
 				</Box>
 
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 2, border: BORDER, borderRadius: 2 }}>
@@ -491,6 +537,49 @@ export default function CustomItems({ character, updateEquipment }) {
 		|| (items.filter((i) => i.name === item.name).length === 1 ? gear.find((g) => !g.libId && g.name === item.name) : null)
 		|| null;
 
+	// ---- Import and export --------------------------------------------------------------------------------------------
+	// An item is exported on its own as a file (see utils/customItemFile.js). An imported item is cleaned like an edited one and
+	// added to your custom items (not carried: tick it to carry it). A name already used by a catalog item gets " (imported)";
+	// a name you already use for one of your items asks whether to replace that item or keep both.
+	const fileInput = React.useRef(null);
+	const [pendingImport, setPendingImport] = React.useState(null); // { item, existing } while asking about a name you already use
+	const [importNote, setImportNote] = React.useState(null); // { severity, text }
+	const exportItem = (item) => downloadText(itemToFile(item), itemFileName(item));
+	const freeName = (base) => {
+		const taken = items.map((i) => i.name);
+		if (!checkCustomName(character, base, '', taken)) return base;
+		for (let n = 2; ; n += 1) if (!checkCustomName(character, `${base} (${n})`, '', taken)) return `${base} (${n})`;
+	};
+	const finishImport = (item, replace) => {
+		if (replace) {
+			const stored = customItemLibrary.save({ ...item, libId: replace.libId });
+			if (copyOf(replace)) apply((eq) => refreshCustomCopy(eq, stored));
+			setImportNote({ severity: 'success', text: `Replaced your "${replace.name}" with the imported item.` });
+		} else {
+			customItemLibrary.save(item);
+			setImportNote({ severity: 'success', text: `Imported "${item.name}". Tick it below to carry it on this character.` });
+		}
+		setPendingImport(null);
+	};
+	const importFile = (file) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const raw = itemFromFile(String(reader.result));
+				let item = cleanItem({ ...raw, name: raw.name.trim(), group: groups.includes(raw.group) ? raw.group : 'Adventuring Gear' });
+				// a catalog item already has this name: the import gets its own
+				if (getItem(character.edition, item.name)) item = { ...item, name: freeName(`${item.name} (imported)`) };
+				const existing = items.find((i) => i.name === item.name);
+				if (existing) setPendingImport({ item, existing });
+				else finishImport(item, null);
+			} catch (e) {
+				setImportNote({ severity: 'error', text: e.message || 'That file could not be imported.' });
+			}
+		};
+		reader.onerror = () => setImportNote({ severity: 'error', text: 'That file could not be read.' });
+		reader.readAsText(file);
+	};
+
 	// an equipment change that keeps the worn armor and carried shield consistent with what is now owned
 	const apply = (makePatch) => updateEquipment((eq) => {
 		const patch = makePatch(eq);
@@ -521,8 +610,18 @@ export default function CustomItems({ character, updateEquipment }) {
 			<CardContent sx={{ padding: 3 }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
 					<Typography variant="h6" sx={{ flex: 1 }}>Custom items</Typography>
+					<Button variant="outlined" startIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>Import an item</Button>
 					<Button variant="outlined" startIcon={<AddIcon />} onClick={() => setEditor({})}>Create a custom item</Button>
+					<input
+						ref={fileInput}
+						type="file"
+						accept="application/json,.json"
+						hidden
+						data-testid="import-item-file"
+						onChange={(e) => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; }}
+					/>
 				</Box>
+				{importNote && <Alert severity={importNote.severity} onClose={() => setImportNote(null)} sx={{ marginTop: 1.5 }}>{importNote.text}</Alert>}
 				<Typography variant="body2" sx={{ color: 'text.secondary', marginTop: 0.5 }}>
 					Make your own item, or start from an existing one and change anything: its name, cost, weight, damage, properties, Armor Class and more.
 					Your custom items are available to every character on this device: tick one to carry it on this character.
@@ -562,6 +661,7 @@ export default function CustomItems({ character, updateEquipment }) {
 										</Typography>
 									)}
 								</Box>
+								<Tooltip title="Export to a file"><IconButton size="small" aria-label={`Export ${item.name}`} onClick={() => exportItem(item)}><DownloadIcon fontSize="small" /></IconButton></Tooltip>
 								<Tooltip title="Edit"><IconButton size="small" aria-label={`Edit ${item.name}`} onClick={() => setEditor({ original: item })}><EditIcon fontSize="small" /></IconButton></Tooltip>
 								<Tooltip title="Delete from your custom items"><IconButton size="small" aria-label={`Delete ${item.name}`} onClick={() => remove(item)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
 							</Box>
@@ -574,6 +674,21 @@ export default function CustomItems({ character, updateEquipment }) {
 				</Typography>
 			</CardContent>
 			{editor && <ItemEditor character={character} groups={groups} catalog={all} libraryItems={items} original={editor.original} onClose={() => setEditor(null)} onSave={save} />}
+			{pendingImport && (
+				<Dialog open onClose={() => setPendingImport(null)} maxWidth="xs" fullWidth>
+					<DialogTitle>You already have &quot;{pendingImport.item.name}&quot;</DialogTitle>
+					<DialogContent>
+						<DialogContentText>
+							Replace your item with the imported one (characters carrying it get the new version), or keep both and name the imported one &quot;{freeName(pendingImport.item.name)}&quot;.
+						</DialogContentText>
+					</DialogContent>
+					<DialogActions>
+						<Button onClick={() => setPendingImport(null)}>Cancel</Button>
+						<Button onClick={() => finishImport({ ...pendingImport.item, name: freeName(pendingImport.item.name) }, null)}>Keep both</Button>
+						<Button variant="contained" onClick={() => finishImport(pendingImport.item, pendingImport.existing)}>Replace</Button>
+					</DialogActions>
+				</Dialog>
+			)}
 		</Card>
 	);
 }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Typography } from '@mui/material';
-import { MAX_ATTUNED, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
+import { MAX_ATTUNED, describeItemBonuses, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
 import { ABILITY_NAMES } from '../../utils/abilityScore';
 import { itemSpellKey } from '../../utils/itemSpells';
 import { abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
@@ -120,8 +120,8 @@ function SpellRow({ spell, d, charges, setCharges, onCast }) {
 	);
 }
 
-export const BONUS_TEXT = { ac: 'Armor Class', spellSaveDc: 'spell save DC', spellAttack: 'spell attack rolls', saves: 'saving throws' };
-export const bonusText = (bonuses) => Object.entries(bonuses || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${BONUS_TEXT[k] || k}`).join(', ');
+// "+1 Armor Class, +2 Stealth checks": what an item's bonuses add (see utils/equipment.js)
+export const bonusText = describeItemBonuses;
 
 // The carried magic items' abilities, under the kind of action they are (Actions, Bonus actions, Reactions...), then each item's
 // charges, attunement and bonuses. On the Actions tab.

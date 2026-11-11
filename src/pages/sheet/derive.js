@@ -1,6 +1,6 @@
 import {
 	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getFinalAbilities, getHitDice, getHitPoints,
-	getLevel, getProficiencyBonus, getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots,
+	getLevel, getProficiencyBonus, getRace, getSavingThrows, getSenseRanges, getSkillBonuses, getSpeed, getSpeeds, getSpellSlots,
 	getSpellcastingStats, getSpellcastingStatsList, getSubrace,
 } from '../../utils/characterCalc';
 import { getClassSummary } from '../../utils/multiclass';
@@ -32,6 +32,8 @@ export function derive(character, items) {
 		hpMax: cls ? getHitPoints(character) : 0,
 		ac: getArmorClass(character, equipped ? { armor: equipped.armor, shield: equipped.shield } : undefined),
 		speed: getSpeed(character),
+		speeds: getSpeeds(character), // every movement speed, in feet (walk, swim, climb, fly, burrow)
+		senses: getSenseRanges(character), // darkvision and other senses, in feet
 		initiative: mods.dex,
 		passivePerception: 10 + (perception ? perception.bonus : 0),
 		attacks: getAttacks(character, equipped ? equipped.weapons : undefined),

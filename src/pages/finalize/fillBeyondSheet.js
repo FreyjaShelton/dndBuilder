@@ -5,7 +5,7 @@
 import { ABILITY_KEYS, formatSigned, getModifier } from '../../utils/abilityScore';
 import {
 	getAbilityMods, getArmorClass, getArmorProficiencies, getAttacks, getBackground, getClass, getClassFeatureNames, getFinalAbilities,
-	getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus, getRace, getSavingThrows, getSkillBonuses, getSpeed,
+	getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus, getRace, getSavingThrows, getSenseRanges, getSkillBonuses, getSpeeds,
 	getSpellcastingStats, getSpellcastingStatsList, getSpellSlots, getSubrace, getWeaponProficiencies, getCarriedGold, getClassToolProficiencies,
 	getHitDice, is2024,
 } from '../../utils/characterCalc';
@@ -15,7 +15,7 @@ import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../ut
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
-import { describeMagicItem, getAttunedNames, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
+import { describeItemBonuses, describeMagicItem, getAttunedNames, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
 import { abilityMaxUses, itemMaxCharges } from '../sheet/itemCharges';
 import { getItemSpells } from '../../utils/itemSpells';
 import { splitGold } from '../../utils/currency';
@@ -164,24 +164,9 @@ const traitsOf = (character) => {
 	return [...(race?.traits || []), ...(sub?.traits || [])];
 };
 
-const SENSES = ['darkvision', 'blindsight', 'tremorsense', 'truesight'];
-
-// Senses such as "Darkvision 60 ft." from the race's traits: a trait named for the sense, or one that says you have it.
+// Senses such as "Darkvision 60 ft.": the race's traits plus what carried magic items add (see getSenseRanges).
 export function getSenses(character) {
-	const found = new Map();
-	traitsOf(character).forEach((t) => {
-		const text = `${t.name}. ${t.description || ''}`;
-		const low = text.toLowerCase();
-		SENSES.forEach((sense) => {
-			const at = low.indexOf(sense);
-			if (at < 0) return;
-			const m = text.slice(at, at + 400).match(/(\d+)\s*(?:feet|foot|ft)/i);
-			if (!m) return;
-			const range = Number(m[1]);
-			if (!found.has(sense) || found.get(sense) < range) found.set(sense, range);
-		});
-	});
-	return [...found.entries()].map(([k, r]) => `${k.charAt(0).toUpperCase()}${k.slice(1)} ${r} ft.`);
+	return Object.entries(getSenseRanges(character)).map(([k, r]) => `${k.charAt(0).toUpperCase()}${k.slice(1)} ${r} ft.`);
 }
 
 // Damage resistances / immunities and "advantage on saving throws against..." lines from the race's traits.
@@ -325,7 +310,12 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 		f.text('AbilitySaveScore2', castingList[1].ability.slice(0, 3).toUpperCase(), { max: 7 });
 		f.text('AbilitySaveDC2', castingList[1].saveDc, { max: 11 });
 	}
-	if (race) f.block('Speed', `${getSpeed(character)} ft. (Walking)`, { max: 9 });
+	if (race) {
+		// walking first, then any other speed the race or a magic item gives
+		const names = { walk: 'Walking', swim: 'Swimming', climb: 'Climbing', fly: 'Flying', burrow: 'Burrowing' };
+		const speeds = getSpeeds(character);
+		f.block('Speed', Object.keys(names).filter((k) => k in speeds).map((k) => `${speeds[k]} ft. (${names[k]})`).join('\n'), { max: 9 });
+	}
 	if (picked) {
 		f.text('MaxHP', getHitPoints(character), { max: 15 });
 		f.text('Total', getHitDice(character).map((x) => `${x.count}d${x.die}`).join(' + '), { max: 9 });
@@ -410,7 +400,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	const carriedNames = new Set(getOwnedItems(character).map((i) => i.name));
 	const magic = getCustomGear(character).filter((i) => carriedNames.has(i.name) && (i.description || i.abilities?.length || i.spells?.length || itemMaxCharges(i, prof) > 0 || i.bonuses));
 	const attunedNow = getAttunedNames(character, carriedNames);
-	const bonusLine = (b) => Object.entries(b || {}).filter(([, v]) => Number(v)).map(([k, v]) => `${Number(v) > 0 ? '+' : ''}${v} ${{ ac: 'AC', spellSaveDc: 'spell save DC', spellAttack: 'spell attack', saves: 'saves' }[k] || k}`).join(', ');
+	const bonusLine = describeItemBonuses;
 	const usesLine = (a) => { const max = abilityMaxUses(a, prof); return max === null ? '' : ` [${max}/${a.uses.on ? a.uses.on.toLowerCase() : 'rest'}]`; };
 	if (magic.length) {
 		featureBlocks.push({

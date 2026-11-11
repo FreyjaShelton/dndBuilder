@@ -10,6 +10,14 @@ export const CONDITIONS = [
 	'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious',
 ];
 
+const OTHER_SPEEDS = [['swim', 'Swim'], ['climb', 'Climb'], ['fly', 'Fly'], ['burrow', 'Burrow']];
+const SENSE_NAMES = { darkvision: 'Darkvision', blindsight: 'Blindsight', tremorsense: 'Tremorsense', truesight: 'Truesight' };
+// "Swim 30 ft · Climb 30 ft · Darkvision 60 ft" ('' when there is nothing beyond walking)
+const movementLine = (d) => [
+	...OTHER_SPEEDS.filter(([k]) => d.speeds?.[k]).map(([k, name]) => `${name} ${d.speeds[k]} ft`),
+	...Object.entries(d.senses || {}).map(([k, r]) => `${SENSE_NAMES[k] || k} ${r} ft`),
+].join(' · ');
+
 function Stat({ label, value, onClick }) {
 	return (
 		<Box
@@ -56,6 +64,11 @@ export default function HeaderPanel({ character, d, play, setPlay, hp, onRoll, o
 						<Box><Checkbox size="small" checked={play.inspiration} onChange={(e) => setPlay({ inspiration: e.target.checked })} sx={{ padding: 0.5 }} /></Box>
 					</Box>
 				</Box>
+
+				{/* speeds other than walking, and senses such as darkvision (from the race and carried magic items) */}
+				{movementLine(d) && (
+					<Typography variant="body2" sx={{ color: 'text.secondary', marginTop: -1, marginBottom: 2 }} data-testid="movement-senses">{movementLine(d)}</Typography>
+				)}
 
 				<Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, padding: 1.5 }}>
 					<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
