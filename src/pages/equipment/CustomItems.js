@@ -17,6 +17,9 @@ import {
 	itemBonusList, itemNeedsSkillPick, newCustomItem, refreshCustomCopy, setItemSkillPick,
 } from '../../utils/equipment';
 import customItemLibrary from '../../utils/customItemLibrary';
+import RichText from '../../components/RichText';
+import RichTextField from '../../components/RichTextField';
+import { normalizeRichText } from '../../utils/richText';
 import { downloadText, itemFileName, itemFromFile, itemToFile } from '../../utils/customItemFile';
 
 const LIBRARY_GROUP = 'Your custom items';
@@ -54,7 +57,7 @@ function cleanItem(draft) {
 	const maxCharges = Math.max(0, Math.floor(num(draft.charges?.max)));
 	const abilities = (draft.abilities || []).filter((a) => String(a.name || '').trim()).map((a) => ({
 		name: a.name.trim(), activation: a.activation || '', cost: Math.max(0, Math.floor(num(a.cost))), dice: String(a.dice || '').trim(), diceLabel: String(a.diceLabel || '').trim(),
-		save: a.save || '', dc: a.dc === '' || a.dc === undefined || a.dc === null ? '' : Math.max(0, Math.floor(num(a.dc))), description: a.description || '',
+		save: a.save || '', dc: a.dc === '' || a.dc === undefined || a.dc === null ? '' : Math.max(0, Math.floor(num(a.dc))), description: normalizeRichText(a.description),
 		...(String(a.resource || '').trim() ? { resource: a.resource.trim() } : {}),
 		// more charges than its cost can be spent for more dice (only when it costs charges)
 		...(a.extraCharges && Math.floor(num(a.cost)) > 0 ? {
@@ -78,7 +81,7 @@ function cleanItem(draft) {
 	const bonuses = itemBonusList(draft.bonuses); // rows with no target picked or an amount of 0 are dropped
 	const out = {
 		name: draft.name.trim(), group: draft.group, cost: String(draft.cost || '').trim(), weight: Math.max(0, Number(draft.weight) || 0),
-		homebrew: true, ...(draft.base ? { base: draft.base } : {}), ...(draft.description ? { description: draft.description } : {}),
+		homebrew: true, ...(draft.base ? { base: draft.base } : {}), ...(normalizeRichText(draft.description) ? { description: normalizeRichText(draft.description) } : {}),
 		...(draft.itemType ? { itemType: draft.itemType } : {}), ...(draft.rarity ? { rarity: draft.rarity } : {}), ...(draft.attunement ? { attunement: true } : {}),
 		...(draft.attunement && attunementRequirement(draft) ? { attunementRequirement: attunementRequirement(draft) } : {}),
 		...(perProficiency || maxCharges > 0 ? { charges: { max: perProficiency ? null : maxCharges, perProficiency, recharge: regainText(draft.charges), on: draft.charges?.on || 'Long rest' } } : {}),
@@ -249,8 +252,17 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 	const armor = draft.group === 'Armor';
 	const shield = armor && draft.type === 'Shield';
 
+	// Clicking outside the box (or pressing Escape) never closes it on the spot: it always asks first, so nothing is lost by accident.
+	// The Cancel button is a deliberate choice and closes straight away.
+	const [confirmClose, setConfirmClose] = React.useState(false);
+	const requestClose = (event, reason) => {
+		if (reason === 'backdropClick' || reason === 'escapeKeyDown') setConfirmClose(true);
+		else onClose();
+	};
+
 	return (
-		<Dialog open onClose={onClose} fullWidth maxWidth="md">
+		<>
+		<Dialog open onClose={requestClose} fullWidth maxWidth="md">
 			<DialogTitle>{editing ? `Edit ${original.name}` : 'Create a custom item'}</DialogTitle>
 			<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: '8px !important' }}>
 				{!editing ? (
@@ -545,7 +557,7 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 									)}
 								</Box>
 							)}
-							<TextField label="What it does" size="small" multiline minRows={2} maxRows={6} value={a.description || ''} onChange={(e) => setAbility(i, { description: e.target.value })} />
+							<RichTextField label="What it does" minRows={2} maxHeight={200} value={a.description || ''} onChange={(description) => setAbility(i, { description })} />
 						</Box>
 					))}
 				</Box>
@@ -615,13 +627,26 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 						))}
 					</Box>
 
-				<TextField label="Description" size="small" multiline minRows={2} maxRows={8} value={draft.description || ''} onChange={(e) => set({ description: e.target.value })} />
+				<RichTextField label="Description" minRows={4} maxHeight={300} value={draft.description || ''} onChange={(description) => set({ description })} />
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>
 				<Button variant="contained" disabled={!!nameError || !!regainError} onClick={() => onSave(cleanItem(draft), original)}>{editing ? 'Save' : 'Create'}</Button>
 			</DialogActions>
 		</Dialog>
+		<Dialog open={confirmClose} onClose={() => setConfirmClose(false)} maxWidth="xs" fullWidth>
+			<DialogTitle>Close without saving?</DialogTitle>
+			<DialogContent>
+				<DialogContentText>
+					{editing ? `Anything you changed on "${original.name}" will be lost.` : 'This item has not been created yet, and what you entered will be lost.'}
+				</DialogContentText>
+			</DialogContent>
+			<DialogActions>
+				<Button onClick={() => setConfirmClose(false)} autoFocus>Keep editing</Button>
+				<Button color="error" onClick={onClose}>Discard</Button>
+			</DialogActions>
+		</Dialog>
+		</>
 	);
 }
 
@@ -765,7 +790,7 @@ export default function CustomItems({ character, updateEquipment }) {
 									<Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
 										{[item.cost || '—', item.weight ? `${item.weight} lb.` : '', formatItemStats(item)].filter(Boolean).join(' · ')}
 									</Typography>
-									{item.description && <Typography variant="body2" sx={{ marginTop: 0.5, whiteSpace: 'pre-line' }}>{item.description}</Typography>}
+									{item.description && <RichText value={item.description} sx={{ marginTop: 0.5 }} />}
 									{have && itemNeedsSkillPick(item) && (
 										<FormControl size="small" sx={{ marginTop: 1, minWidth: 220 }} error={!getItemSkillPick(character, name)}>
 											<InputLabel>Proficient skill</InputLabel>

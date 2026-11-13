@@ -11,6 +11,7 @@ import { describeMagicItem, getAttunedNames, getItemSkillPick } from '../../util
 import { getSpellRecord } from '../../utils/spells2014';
 import { abilityMaxUses, getFeatureItems } from './itemCharges';
 import { bonusText } from './ItemAbilities';
+import RichText from '../../components/RichText';
 
 const baseName = (n) => n.replace(/\s*\(.*\)\s*$/, '').trim();
 
@@ -19,7 +20,7 @@ function Entry({ title, children }) {
 		<Accordion disableGutters sx={{ backgroundColor: 'transparent' }}>
 			<AccordionSummary expandIcon={<ExpandMoreIcon />}><Typography>{title}</Typography></AccordionSummary>
 			<AccordionDetails>
-				<Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{children || 'No description available.'}</Typography>
+				<Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-line' }}>{children || 'No description available.'}</Typography>
 			</AccordionDetails>
 		</Accordion>
 	);
@@ -89,7 +90,12 @@ function MagicItemFeatures({ character, d, play }) {
 						})}
 						{(item.abilities || []).map((a, i) => (
 							<Entry key={`${a.name}${i}`} title={`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}`}>
-								{[abilityFacts(a, d.prof), a.description].filter(Boolean).join('\n\n')}
+								{a.description ? (
+									<>
+										{abilityFacts(a, d.prof) && <Box sx={{ marginBottom: 1 }}>{abilityFacts(a, d.prof)}</Box>}
+										<RichText value={a.description} />
+									</>
+								) : abilityFacts(a, d.prof)}
 							</Entry>
 						))}
 					</Box>

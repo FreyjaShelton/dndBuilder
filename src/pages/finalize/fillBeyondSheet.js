@@ -15,6 +15,7 @@ import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../ut
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
+import { richToPlain } from '../../utils/richText';
 import { describeItemBonuses, describeMagicItem, getAttunedNames, getCustomGear, getItemSkillPick, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
 import { abilityMaxUses, itemMaxCharges } from '../sheet/itemCharges';
 import { getItemSpells } from '../../utils/itemSpells';
@@ -409,9 +410,9 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 				text: [
 					itemMaxCharges(item, prof) > 0 ? `Charges: ${itemMaxCharges(item, prof)}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
 					bonusLine(item.bonuses, getItemSkillPick(character, item.name)) ? `Bonus${item.attunement ? ' while attuned' : ''}: ${bonusLine(item.bonuses, getItemSkillPick(character, item.name))}.` : '',
-					item.description || '',
+					richToPlain(item.description),
 					...(item.spells || []).map((sp) => { const max = abilityMaxUses(sp, prof); return `Casts ${sp.name}${Number(sp.level) > 0 ? ` at level ${sp.level}` : ''}: ${max === null ? 'no limit' : `${max}/${sp.uses.on ? sp.uses.on.toLowerCase() : 'rest'}`}${sp.ability ? ` (${sp.ability.toUpperCase()})` : ''}.`; }),
-					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}${usesLine(a)}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
+					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}${usesLine(a)}:`, richToPlain(a.description), a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),
 				].filter(Boolean).join('\n'),
 			})),
 		});

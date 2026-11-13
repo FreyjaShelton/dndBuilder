@@ -5,6 +5,7 @@ import { ABILITY_NAMES } from '../../utils/abilityScore';
 import { itemSpellKey } from '../../utils/itemSpells';
 import { abilityChargeOptions, abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
 import ItemSpellCast from './ItemSpellCast';
+import RichText from '../../components/RichText';
 
 const HEADING_SX = { color: 'primary.main', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 1 };
 
@@ -78,7 +79,7 @@ function Ability({ item, ability, active, left, dc, prof, charges, setCharges, o
 				<>
 					<Button size="small" onClick={() => setOpen((o) => !o)} sx={{ paddingX: 0.5, minWidth: 0 }}>{open ? 'Hide details' : 'Details'}</Button>
 					<Collapse in={open} unmountOnExit>
-						<Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary' }}>{ability.description}</Typography>
+						<RichText value={ability.description} sx={{ color: 'text.secondary' }} />
 					</Collapse>
 				</>
 			)}
@@ -211,7 +212,7 @@ export default function ItemAbilities({ character, play, setPlay, onUse, onCastS
 								<>
 									<Button size="small" onClick={() => setOpen((o) => ({ ...o, [item.name]: !o[item.name] }))} sx={{ paddingX: 0.5, minWidth: 0 }}>{open[item.name] ? 'Hide description' : 'Description'}</Button>
 									<Collapse in={!!open[item.name]} unmountOnExit>
-										<Typography variant="body2" sx={{ whiteSpace: 'pre-line', marginBottom: 1 }}>{item.description}</Typography>
+										<RichText value={item.description} sx={{ marginBottom: 1 }} />
 									</Collapse>
 								</>
 							)}
