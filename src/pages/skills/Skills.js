@@ -106,6 +106,11 @@ export default function Skills() {
 							</Box>
 						</>
 					)}
+					{bonuses.some((s) => s.fromItem) && (
+						<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginTop: 2 }}>
+							{bonuses.filter((s) => s.fromItem).map((s) => <Chip key={`item-${s.name}`} size="small" color="secondary" variant="outlined" label={`${s.name} (magic item)`} />)}
+						</Box>
+					)}
 					{!override && <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginTop: 2 }}>
 						{fromBackground.map((n) => <Chip key={`bg-${n}`} size="small" label={`${n} (background)`} />)}
 						{fromRace.map((n) => <Chip key={`race-${n}`} size="small" label={`${n} (race)`} />)}

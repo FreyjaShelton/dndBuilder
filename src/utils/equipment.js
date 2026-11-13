@@ -13,6 +13,7 @@ import { getKitGold, getKitItems } from './startingKit';
 //   kit: { choices, picks },                   choices made in the starting kit (see startingKit.js)
 //   added, removed, customItems, carried       changes made on the interactive sheet (see getOwnedItems and sheetSync.js)
 //   attuned: [name]                             the custom magic items the character is attuned to (at most 3)
+//   itemSkills: { [item name]: skill }          the skill each carried item with a "proficiency in a skill of your choice" bonus gives
 //   customGear: [item]                          items the player made up (2014), usually starting from a catalog item: the same fields
 //                                               as a catalog item plus { homebrew: true, base: 'Longsword' }. They are bought through
 //                                               `selected` like any item, and every lookup by name finds them (getCharacterItem)
@@ -82,22 +83,44 @@ export function saveCustomItem(eq, item, original) {
 	const nextSelected = original && original !== item.name
 		? selected.map((s) => (s.name === original ? { ...s, name: item.name, group: item.group } : { ...s }))
 		: selected.map((s) => (s.name === item.name ? { ...s, group: item.group } : s));
+	const renamed = original && original !== item.name;
 	return {
 		customGear,
 		// a new item goes straight into the inventory
 		selected: !original && !hasIt ? [...nextSelected, { name: item.name, group: item.group, quantity: 1 }] : nextSelected,
-		...(original && original !== item.name && eq.armor === original ? { armor: item.name } : {}),
+		...(renamed && eq.armor === original ? { armor: item.name } : {}),
+		// the skill picked for the item follows it to its new name
+		...(renamed && eq.itemSkills?.[original] ? { itemSkills: renameKey(eq.itemSkills, original, item.name) } : {}),
 	};
 }
 
+const renameKey = (obj, from, to) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k === from ? to : k, v]));
+
+// The equipment patch that records the skill a carried item makes the character proficient in ('' clears it).
+export function setItemSkillPick(eq, itemName, skill) {
+	const next = { ...(eq.itemSkills || {}) };
+	if (skill) next[itemName] = skill; else delete next[itemName];
+	return { itemSkills: next };
+}
+
+// The skill picked for an item ('' when none, or when it is no longer a skill).
+export const getItemSkillPick = (character, itemName) => {
+	const skill = character.equipment?.itemSkills?.[itemName];
+	return skills.some((s) => s.name === skill) ? skill : '';
+};
+
 // Puts a library item (see customItemLibrary.js) on the character: its copy is added or brought up to date, and it is bought
-// (carried) like any item.
-export function carryCustomItem(eq, item) {
+// (carried) like any item. `skill` is the skill picked for an item that gives proficiency in a skill of the player's choice.
+export function carryCustomItem(eq, item, skill) {
 	const list = Array.isArray(eq.customGear) ? eq.customGear : [];
 	const copy = list.find((i) => item.libId && i.libId === item.libId) || list.find((i) => i.name === item.name);
 	const patch = saveCustomItem(eq, item, copy ? copy.name : undefined);
 	const selected = patch.selected || eq.selected || [];
-	return { ...patch, selected: selected.some((s) => s.name === item.name) ? selected : [...selected, { name: item.name, group: item.group, quantity: 1 }] };
+	return {
+		...patch,
+		selected: selected.some((s) => s.name === item.name) ? selected : [...selected, { name: item.name, group: item.group, quantity: 1 }],
+		...(skill ? setItemSkillPick({ ...eq, ...patch }, item.name, skill) : {}),
+	};
 }
 
 // Brings the character's copy of a library item up to date (nothing when the character has no copy).
@@ -112,6 +135,7 @@ export const deleteCustomItem = (eq, name) => ({
 	customGear: (eq.customGear || []).filter((i) => i.name !== name),
 	selected: (eq.selected || []).filter((s) => s.name !== name),
 	...(eq.armor === name ? { armor: '' } : {}),
+	...(eq.itemSkills?.[name] ? setItemSkillPick(eq, name, '') : {}),
 });
 
 export const isKit = (character) => character.equipment?.goldMethod === 'kit';
@@ -183,12 +207,16 @@ export function toggleAttunement(list, name) {
 // What a custom item can add to: a few numbers of its own, an ability score, one ability's saving throws, one skill's checks, a
 // movement speed or darkvision. An item stores its bonuses as a list, [{ target, amount }]; target is one of these ids.
 // Targets with unit 'ft' are counted in feet (a swimming speed of +30 ft. gives a character without one a 30 ft. swimming speed).
+export const SKILL_PROFICIENCY = 'skillProf';
 export const SPEED_TYPES = [['walk', 'Walking'], ['swim', 'Swimming'], ['climb', 'Climbing'], ['fly', 'Flying'], ['burrow', 'Burrowing']];
 export const ITEM_BONUS_TARGETS = [
 	{ id: 'ac', label: 'Armor Class', group: 'General' },
 	{ id: 'spellSaveDc', label: 'Spell save DC', group: 'General' },
 	{ id: 'spellAttack', label: 'Spell attack rolls', group: 'General' },
+	{ id: 'initiative', label: 'Initiative', group: 'General' },
 	{ id: 'saves', label: 'All saving throws', group: 'General' },
+	// not a number: the item makes the character proficient in one skill, which the player picks when the item is added
+	{ id: SKILL_PROFICIENCY, label: 'Proficiency in a skill of your choice', group: 'Skill checks', choice: true },
 	...ABILITY_KEYS.map((k) => ({ id: `ability:${k}`, label: `${ABILITY_NAMES[k]} score`, group: 'Ability scores' })),
 	...ABILITY_KEYS.map((k) => ({ id: `save:${k}`, label: `${ABILITY_NAMES[k]} saving throws`, group: 'Saving throws' })),
 	...skills.map((sk) => ({ id: `skill:${sk.name}`, label: `${sk.name} checks`, group: 'Skill checks' })),
@@ -198,33 +226,42 @@ export const ITEM_BONUS_TARGETS = [
 const TARGET_BY_ID = new Map(ITEM_BONUS_TARGETS.map((t) => [t.id, t]));
 export const itemBonusTarget = (id) => TARGET_BY_ID.get(id) || null;
 
-// One bonus in words: "+2 Stealth checks", "+30 ft. swimming speed".
-export function describeItemBonus({ target, amount }) {
+// One bonus in words: "+2 Stealth checks", "+30 ft. swimming speed", "Proficiency in Stealth". `skill` is the skill picked for
+// a skill proficiency bonus (without one it reads "Proficiency in a skill of your choice").
+export function describeItemBonus({ target, amount }, skill) {
 	const t = TARGET_BY_ID.get(target);
+	if (target === SKILL_PROFICIENCY) return skill ? `Proficiency in ${skill}` : t.label;
 	const sign = amount > 0 ? '+' : '';
 	return t.unit === 'ft' ? `${sign}${amount} ft. ${t.label.toLowerCase()}` : `${sign}${amount} ${t.label}`;
 }
 
 // An item's bonuses as a list of valid { target, amount } (amount a whole number, not 0). Items made before bonuses were a list
-// kept them as { ac, spellSaveDc, spellAttack, saves }; those are read the same way.
+// kept them as { ac, spellSaveDc, spellAttack, saves }; those are read the same way. A skill proficiency has no amount (it is
+// always 1) and an item has at most one.
 export function itemBonusList(bonuses) {
 	const raw = Array.isArray(bonuses) ? bonuses : Object.entries(bonuses || {}).map(([target, amount]) => ({ target, amount }));
+	let hasSkill = false;
 	return raw
-		.map((b) => ({ target: b?.target, amount: Math.trunc(Number(b?.amount) || 0) }))
-		.filter((b) => TARGET_BY_ID.has(b.target) && b.amount !== 0);
+		.map((b) => ({ target: b?.target, amount: b?.target === SKILL_PROFICIENCY ? 1 : Math.trunc(Number(b?.amount) || 0) }))
+		.filter((b) => TARGET_BY_ID.has(b.target) && b.amount !== 0)
+		.filter((b) => b.target !== SKILL_PROFICIENCY || (!hasSkill && (hasSkill = true)));
 }
 
-// "+1 Armor Class, +2 Stealth checks" ('' for none).
-export const describeItemBonuses = (bonuses) => itemBonusList(bonuses).map(describeItemBonus).join(', ');
+// Does this item make the player pick a skill when it is added?
+export const itemNeedsSkillPick = (item) => itemBonusList(item?.bonuses).some((b) => b.target === SKILL_PROFICIENCY);
+
+// "+1 Armor Class, +2 Stealth checks" ('' for none). `skill`: the skill picked for the item, if any.
+export const describeItemBonuses = (bonuses, skill) => itemBonusList(bonuses).map((b) => describeItemBonus(b, skill)).join(', ');
 
 // What the custom magic items the character carries add to the numbers:
-// { ac, spellSaveDc, spellAttack, saves, abilities: { str... }, saveBy: { str... }, skills: { 'Stealth': n },
+// { ac, spellSaveDc, spellAttack, initiative, saves, abilities: { str... }, saveBy: { str... }, skills: { 'Stealth': n },
+//   skillProfs: ['Stealth'] (skills the items make the character proficient in, as picked),
 //   speeds: { walk, swim, climb, fly, burrow } (feet), darkvision (feet) }.
 // An item that needs attunement counts only while the character is attuned to it (equipment.attuned: [names]).
 export function getItemBonuses(character) {
 	const zero = () => Object.fromEntries(ABILITY_KEYS.map((k) => [k, 0]));
 	const out = {
-		ac: 0, spellSaveDc: 0, spellAttack: 0, saves: 0, abilities: zero(), saveBy: zero(), skills: {},
+		ac: 0, spellSaveDc: 0, spellAttack: 0, initiative: 0, saves: 0, abilities: zero(), saveBy: zero(), skills: {}, skillProfs: [],
 		speeds: Object.fromEntries(SPEED_TYPES.map(([k]) => [k, 0])), darkvision: 0,
 	};
 	if (character.edition !== '2014' || !getCustomGear(character).some((i) => itemBonusList(i.bonuses).length)) return out;
@@ -233,6 +270,11 @@ export function getItemBonuses(character) {
 	getCustomGear(character).forEach((item) => {
 		if (!carried.has(item.name) || (item.attunement && !attuned.includes(item.name))) return;
 		itemBonusList(item.bonuses).forEach(({ target, amount }) => {
+			if (target === SKILL_PROFICIENCY) {
+				const pick = getItemSkillPick(character, item.name);
+				if (pick && !out.skillProfs.includes(pick)) out.skillProfs.push(pick);
+				return;
+			}
 			const [kind, key] = target.split(':');
 			if (kind === 'ability') out.abilities[key] += amount;
 			else if (kind === 'save') out.saveBy[key] += amount;

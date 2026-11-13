@@ -4,10 +4,10 @@
 // page is a table whose rows are listed in beyondSpellRows.js.
 import { ABILITY_KEYS, formatSigned, getModifier } from '../../utils/abilityScore';
 import {
-	getAbilityMods, getArmorClass, getArmorProficiencies, getAttacks, getBackground, getClass, getClassFeatureNames, getFinalAbilities,
+	getArmorClass, getArmorProficiencies, getAttacks, getBackground, getClass, getClassFeatureNames, getFinalAbilities,
 	getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus, getRace, getSavingThrows, getSenseRanges, getSkillBonuses, getSpeeds,
 	getSpellcastingStats, getSpellcastingStatsList, getSpellSlots, getSubrace, getWeaponProficiencies, getCarriedGold, getClassToolProficiencies,
-	getHitDice, is2024,
+	getHitDice, getInitiative, is2024,
 } from '../../utils/characterCalc';
 import { getEditionData } from '../../data';
 import { getClassLevelOf, getClassViews } from '../../utils/multiclass';
@@ -15,7 +15,7 @@ import { getActiveChoiceDefs, getChoiceValues, getSheetFeatures } from '../../ut
 import { getBackgroundChoiceSummaries, getBackgroundTools } from '../../utils/backgroundChoices';
 import { getRaceChoiceSummaries, getRaceSpellInfo, getRaceTools } from '../../utils/raceChoices';
 import { getCharacterFeats, getFeatGrantedSpells } from '../../utils/featSpells';
-import { describeItemBonuses, describeMagicItem, getAttunedNames, getCustomGear, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
+import { describeItemBonuses, describeMagicItem, getAttunedNames, getCustomGear, getItemSkillPick, getOwnedItems, getTotalWeight, getWeaponData, getWornArmorName } from '../../utils/equipment';
 import { abilityMaxUses, itemMaxCharges } from '../sheet/itemCharges';
 import { getItemSpells } from '../../utils/itemSpells';
 import { splitGold } from '../../utils/currency';
@@ -243,7 +243,6 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	const bg = getBackground(character);
 	const level = getLevel(character);
 	const finals = getFinalAbilities(character);
-	const mods = getAbilityMods(character);
 	const prof = getProficiencyBonus(level);
 	const picked = !!cls;
 	const edition2024 = is2024(character);
@@ -296,7 +295,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 	f.block('AdditionalSenses', getSenses(character).join('\n'), { max: 8 });
 
 	// ---- combat numbers
-	if (finals.dex !== '') f.text('Init', formatSigned(mods.dex), { max: 14 });
+	if (finals.dex !== '') f.text('Init', formatSigned(getInitiative(character)), { max: 14 });
 	f.text('AC', picked || finals.dex !== '' ? getArmorClass(character) : '', { max: 15 });
 	if (picked) f.text('ProfBonus', formatSigned(prof), { max: 11 });
 	const casting = getSpellcastingStats(character);
@@ -409,7 +408,7 @@ export function fillBeyondSheet(pdfDoc, character, font) {
 				name: [item.name, describeMagicItem(item) && `(${describeMagicItem(item)})`, item.attunement && (attunedNow.includes(item.name) ? '[attuned]' : '[not attuned]')].filter(Boolean).join(' '),
 				text: [
 					itemMaxCharges(item, prof) > 0 ? `Charges: ${itemMaxCharges(item, prof)}${item.charges.recharge ? `, regains ${item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.` : '',
-					bonusLine(item.bonuses) ? `Bonus${item.attunement ? ' while attuned' : ''}: ${bonusLine(item.bonuses)}.` : '',
+					bonusLine(item.bonuses, getItemSkillPick(character, item.name)) ? `Bonus${item.attunement ? ' while attuned' : ''}: ${bonusLine(item.bonuses, getItemSkillPick(character, item.name))}.` : '',
 					item.description || '',
 					...(item.spells || []).map((sp) => { const max = abilityMaxUses(sp, prof); return `Casts ${sp.name}${Number(sp.level) > 0 ? ` at level ${sp.level}` : ''}: ${max === null ? 'no limit' : `${max}/${sp.uses.on ? sp.uses.on.toLowerCase() : 'rest'}`}${sp.ability ? ` (${sp.ability.toUpperCase()})` : ''}.`; }),
 					...(item.abilities || []).map((a) => [`${a.name}${a.activation ? ` (${a.activation.toLowerCase()})` : ''}${a.cost ? ` [${a.cost} charge${a.cost === 1 ? '' : 's'}]` : ''}${usesLine(a)}:`, a.description, a.dice ? `Roll ${a.dice} ${a.diceLabel || ''}.` : ''].filter(Boolean).join(' ')),

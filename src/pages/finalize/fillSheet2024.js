@@ -2,7 +2,7 @@ import { rgb } from 'pdf-lib';
 import { ABILITY_KEYS, ABILITY_NAMES, formatSigned } from '../../utils/abilityScore';
 import {
 	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
-	getFinalAbilities, getHitPoints, getLanguages, getLevel, getOriginFeats, getProficiencyBonus,
+	getFinalAbilities, getHitPoints, getInitiative, getLanguages, getLevel, getOriginFeats, getProficiencyBonus,
 	getRace, getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getCarriedGold, getArmorProficiencies, getWeaponProficiencies,
 } from '../../utils/characterCalc';
 import { getEquipmentLines } from '../../utils/equipment';
@@ -91,7 +91,7 @@ export function fillSheet2024(pdfDoc, character, font) {
 	put('hpMax', hp);
 	put('hitDiceMax', picked ? `${level}d${cls.hitDie}` : '');
 	put('proficiencyBonus', picked ? formatSigned(prof) : '');
-	put('initiative', finals.dex === '' ? '' : formatSigned(mods.dex));
+	put('initiative', finals.dex === '' ? '' : formatSigned(getInitiative(character)));
 	put('speed', race ? `${getSpeed(character)} ft.` : '');
 	put('size', race?.size);
 

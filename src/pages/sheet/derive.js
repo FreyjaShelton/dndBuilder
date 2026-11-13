@@ -1,5 +1,5 @@
 import {
-	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getFinalAbilities, getHitDice, getHitPoints,
+	getAbilityMods, getArmorClass, getAttacks, getBackground, getClass, getFinalAbilities, getHitDice, getHitPoints, getInitiative,
 	getLevel, getProficiencyBonus, getRace, getSavingThrows, getSenseRanges, getSkillBonuses, getSpeed, getSpeeds, getSpellSlots,
 	getSpellcastingStats, getSpellcastingStatsList, getSubrace,
 } from '../../utils/characterCalc';
@@ -34,7 +34,7 @@ export function derive(character, items) {
 		speed: getSpeed(character),
 		speeds: getSpeeds(character), // every movement speed, in feet (walk, swim, climb, fly, burrow)
 		senses: getSenseRanges(character), // darkvision and other senses, in feet
-		initiative: mods.dex,
+		initiative: getInitiative(character),
 		passivePerception: 10 + (perception ? perception.bonus : 0),
 		attacks: getAttacks(character, equipped ? equipped.weapons : undefined),
 		spellStats: getSpellcastingStats(character), // the first class that casts

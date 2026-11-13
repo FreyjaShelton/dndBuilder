@@ -19,7 +19,7 @@ import {
 	getArmorClass, getAttacks, getBackground, getClass, getClassFeatureNames,
 	getFinalAbilities, getHitPoints, getLanguages, getLevel, getProficiencyBonus, getRace,
 	getSavingThrows, getSkillBonuses, getSpeed, getSpellSlots, getSpellcastingStats, getSpellcastingStatsList, getSubrace, getHitDice, getClassToolProficiencies,
-	getAbilityMods, getArmorProficiencies, getCarriedGold, getOriginFeats, getWeaponProficiencies, is2024,
+	getArmorProficiencies, getCarriedGold, getInitiative, getOriginFeats, getWeaponProficiencies, is2024,
 } from '../../utils/characterCalc';
 import { getSheetFeatures } from '../../utils/classChoices';
 import { getClassSummary } from '../../utils/multiclass';
@@ -109,7 +109,6 @@ const PdfEditor = () => {
 		const bg = getBackground(character);
 		const level = getLevel(character);
 		const finals = getFinalAbilities(character);
-		const mods = getAbilityMods(character);
 		const profBonus = getProficiencyBonus(level);
 		const classPicked = !!cls;
 
@@ -157,7 +156,7 @@ const PdfEditor = () => {
 
 		// #region Combat
 		setText('AC', getArmorClass(character));
-		setText('Initiative', finals.dex === '' ? '' : formatSigned(mods.dex));
+		setText('Initiative', finals.dex === '' ? '' : formatSigned(getInitiative(character)));
 		setText('Speed', getSpeed(character));
 		const hp = classPicked ? getHitPoints(character) : '';
 		setText('HPMax', hp);

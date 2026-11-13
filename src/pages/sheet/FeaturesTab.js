@@ -7,7 +7,7 @@ import { getSheetFeatures } from '../../utils/classChoices';
 import { getRaceChoiceSummaries } from '../../utils/raceChoices';
 import { getBackgroundChoiceSummaries } from '../../utils/backgroundChoices';
 import { getOriginFeatEntries, getRacePickEntries } from '../../utils/originFeatures';
-import { describeMagicItem, getAttunedNames } from '../../utils/equipment';
+import { describeMagicItem, getAttunedNames, getItemSkillPick } from '../../utils/equipment';
 import { getSpellRecord } from '../../utils/spells2014';
 import { abilityMaxUses, getFeatureItems } from './itemCharges';
 import { bonusText } from './ItemAbilities';
@@ -60,7 +60,7 @@ function MagicItemFeatures({ character, d, play }) {
 	return (
 		<Section title="Magic item features">
 			{items.map(({ item, max }) => {
-				const bonuses = bonusText(item.bonuses);
+				const bonuses = bonusText(item.bonuses, getItemSkillPick(character, item.name));
 				const active = !item.attunement || attuned.includes(item.name);
 				return (
 					<Box key={item.name} sx={{ marginBottom: 2 }}>
@@ -70,7 +70,7 @@ function MagicItemFeatures({ character, d, play }) {
 							{item.attunement && <Chip size="small" variant="outlined" color={active ? 'success' : 'warning'} label={active ? 'Attuned' : 'Not attuned'} />}
 						</Box>
 						{!active && <Typography variant="caption" sx={{ display: 'block', color: 'warning.main' }}>Attune to this item (Inventory tab) to get its bonuses and use its abilities.</Typography>}
-						{bonuses && <Entry title={`Bonus: ${bonuses}`}>{`While you carry this item${item.attunement ? ' and are attuned to it' : ''}, you get ${bonuses}.`}</Entry>}
+						{bonuses && <Entry title={`Bonus: ${bonuses}`}>{`While you carry this item${item.attunement ? ' and are attuned to it' : ''}, you get: ${bonuses}.`}</Entry>}
 						{max > 0 && (
 							<Entry title={`${max} charges${item.charges.perProficiency ? ' (your proficiency bonus)' : ''}`}>
 								{`This item holds up to ${max} charges${item.charges.recharge ? ` and regains ${String(item.charges.recharge).toLowerCase() === 'all' ? 'all of them' : item.charges.recharge} after a ${String(item.charges.on || 'Long rest').toLowerCase()}` : ''}.`}

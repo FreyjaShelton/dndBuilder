@@ -10,9 +10,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import UploadIcon from '@mui/icons-material/Upload';
 import { getItem, getItemIndex } from '../../utils/itemIndex';
 import spellIndex from '../../data/2014/spellIndex';
+import skills from '../../data/skills';
+import { getProficientSkills } from '../../utils/characterCalc';
 import {
-	ITEM_BONUS_TARGETS, attunementRequirement, attunementText, carryCustomItem, itemBonusTarget, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getSelected, getWearDefaults,
-	itemBonusList, newCustomItem, refreshCustomCopy,
+	ITEM_BONUS_TARGETS, SKILL_PROFICIENCY, attunementRequirement, attunementText, carryCustomItem, itemBonusTarget, checkCustomName, deleteCustomItem, formatItemStats, getAttunedNames, getCustomGear, getItemSkillPick, getSelected, getWearDefaults,
+	itemBonusList, itemNeedsSkillPick, newCustomItem, refreshCustomCopy, setItemSkillPick,
 } from '../../utils/equipment';
 import customItemLibrary from '../../utils/customItemLibrary';
 import { downloadText, itemFileName, itemFromFile, itemToFile } from '../../utils/customItemFile';
@@ -108,17 +110,44 @@ function cleanItem(draft) {
 
 // What a bonus adds to: grouped (General, Ability scores, Saving throws, Skill checks).
 const BONUS_GROUPS = [...new Set(ITEM_BONUS_TARGETS.map((t) => t.group))];
-function BonusTargetSelect({ value, onChange }) {
+// `skillTaken`: another row already gives the skill proficiency (an item gives only one).
+function BonusTargetSelect({ value, onChange, skillTaken }) {
 	return (
 		<FormControl size="small" sx={{ flex: '1 1 220px' }}>
 			<InputLabel>Adds to</InputLabel>
 			<Select label="Adds to" value={value || ''} onChange={(e) => onChange(e.target.value)} MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}>
 				{BONUS_GROUPS.flatMap((g) => [
 					<ListSubheader key={`h-${g}`}>{g}</ListSubheader>,
-					...ITEM_BONUS_TARGETS.filter((t) => t.group === g).map((t) => <MenuItem key={t.id} value={t.id}>{t.label}</MenuItem>),
+					...ITEM_BONUS_TARGETS.filter((t) => t.group === g).map((t) => <MenuItem key={t.id} value={t.id} disabled={t.id === SKILL_PROFICIENCY && skillTaken}>{t.label}</MenuItem>),
 				])}
 			</Select>
 		</FormControl>
+	);
+}
+
+// Asks which skill an item's "proficiency in a skill of your choice" applies to. `initial` is the skill picked before, if any.
+function SkillPickDialog({ character, item, initial, onCancel, onPick }) {
+	const [skill, setSkill] = React.useState(initial || '');
+	const proficient = new Set(getProficientSkills(character));
+	return (
+		<Dialog open onClose={onCancel} maxWidth="xs" fullWidth>
+			<DialogTitle>Choose a skill for {item.name}</DialogTitle>
+			<DialogContent>
+				<DialogContentText sx={{ marginBottom: 2 }}>
+					{item.name} makes you proficient in a skill of your choice{item.attunement ? ' while you are attuned to it' : ' while you carry it'}. Pick the skill now; you can change it later from the item&apos;s entry.
+				</DialogContentText>
+				<FormControl size="small" fullWidth>
+					<InputLabel>Skill</InputLabel>
+					<Select label="Skill" value={skill} onChange={(e) => setSkill(e.target.value)} MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}>
+						{skills.map((s) => <MenuItem key={s.name} value={s.name}>{s.name}{proficient.has(s.name) ? ' (already proficient)' : ''}</MenuItem>)}
+					</Select>
+				</FormControl>
+			</DialogContent>
+			<DialogActions>
+				<Button onClick={onCancel}>Cancel</Button>
+				<Button variant="contained" disabled={!skill} onClick={() => onPick(skill)}>Add item</Button>
+			</DialogActions>
+		</Dialog>
 	);
 }
 
@@ -372,11 +401,13 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 					<Typography variant="subtitle2">Bonuses it gives (optional)</Typography>
 					<Typography variant="caption" sx={{ color: 'text.secondary', marginTop: -1 }}>
 						Added to your numbers while you carry it{draft.attunement ? ' and are attuned to it' : ''}. Pick what each bonus adds to and how much; add as many as you like. Speeds and darkvision are in feet, and give the speed or sense if the character doesn't have it.
+						Initiative adds to the initiative roll. Proficiency in a skill of your choice lets the player pick the skill when they add the item.
 						An ability score bonus still stops at the usual maximum of 20.
 					</Typography>
 					{bonusRows.map((b, i) => {
 						// speeds and darkvision are counted in feet
 						const feet = itemBonusTarget(b.target)?.unit === 'ft';
+						const isSkillProf = b.target === SKILL_PROFICIENCY;
 						const amount = Math.trunc(Number(b.amount));
 						const pickTarget = (target) => {
 							const t = itemBonusTarget(target);
@@ -386,17 +417,23 @@ function ItemEditor({ character, groups, catalog, libraryItems, original, onClos
 						};
 						return (
 							<Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', flexWrap: 'wrap' }} data-testid="bonus-row">
-								<BonusTargetSelect value={b.target} onChange={pickTarget} />
-								<TextField
-									label={feet ? 'Bonus (feet)' : 'Bonus'}
-									size="small"
-									type="number"
-									value={b.amount ?? ''}
-									onChange={(e) => setBonusRow(i, { amount: e.target.value })}
-									helperText={amount ? `${amount > 0 ? '+' : ''}${amount}${feet ? ' ft.' : ''}` : 'Not 0'}
-									slotProps={{ htmlInput: { step: feet ? 5 : 1 } }}
-									sx={{ flex: '0 1 120px' }}
-								/>
+								<BonusTargetSelect value={b.target} onChange={pickTarget} skillTaken={bonusRows.some((r, k) => k !== i && r.target === SKILL_PROFICIENCY)} />
+								{isSkillProf ? (
+									<Typography variant="caption" sx={{ flex: '0 1 220px', color: 'text.secondary', alignSelf: 'center' }}>
+										The player picks the skill when they add this item.
+									</Typography>
+								) : (
+									<TextField
+										label={feet ? 'Bonus (feet)' : 'Bonus'}
+										size="small"
+										type="number"
+										value={b.amount ?? ''}
+										onChange={(e) => setBonusRow(i, { amount: e.target.value })}
+										helperText={amount ? `${amount > 0 ? '+' : ''}${amount}${feet ? ' ft.' : ''}` : 'Not 0'}
+										slotProps={{ htmlInput: { step: feet ? 5 : 1 } }}
+										sx={{ flex: '0 1 120px' }}
+									/>
+								)}
 								<Tooltip title="Remove this bonus"><IconButton aria-label="Remove this bonus" onClick={() => removeBonus(i)} sx={{ marginTop: 0.25 }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
 							</Box>
 						);
@@ -656,16 +693,22 @@ export default function CustomItems({ character, updateEquipment }) {
 
 	// A new item goes into the library and into this character's inventory; an edit changes the library's item, and this
 	// character's copy of it (other characters pick up the change when they are opened).
+	// An item that gives proficiency in a skill of the player's choice asks for the skill before it goes into the inventory.
+	const [skillPrompt, setSkillPrompt] = React.useState(null); // null | { item, initial }
+	const carry = (item, skill) => apply((eq) => carryCustomItem(eq, item, skill));
 	const save = (cleaned, original) => {
 		const stored = customItemLibrary.save({ ...cleaned, ...(original ? { libId: original.libId } : {}) });
-		apply((eq) => (original ? refreshCustomCopy(eq, stored) : carryCustomItem(eq, stored)));
+		if (original) apply((eq) => refreshCustomCopy(eq, stored));
+		else if (itemNeedsSkillPick(stored)) setSkillPrompt({ item: stored, initial: '' });
+		else carry(stored);
 		setEditor(null);
 	};
 	const toggle = (item) => {
 		const copy = copyOf(item);
 		const have = copy && selected.some((s) => s.name === copy.name);
 		if (have) apply((eq) => ({ selected: (eq.selected || []).filter((s) => s.name !== copy.name) }));
-		else apply((eq) => carryCustomItem(eq, item));
+		else if (itemNeedsSkillPick(item)) setSkillPrompt({ item, initial: getItemSkillPick(character, copy ? copy.name : item.name) });
+		else carry(item);
 	};
 	const remove = (item) => {
 		customItemLibrary.remove(item.libId);
@@ -723,6 +766,19 @@ export default function CustomItems({ character, updateEquipment }) {
 										{[item.cost || '—', item.weight ? `${item.weight} lb.` : '', formatItemStats(item)].filter(Boolean).join(' · ')}
 									</Typography>
 									{item.description && <Typography variant="body2" sx={{ marginTop: 0.5, whiteSpace: 'pre-line' }}>{item.description}</Typography>}
+									{have && itemNeedsSkillPick(item) && (
+										<FormControl size="small" sx={{ marginTop: 1, minWidth: 220 }} error={!getItemSkillPick(character, name)}>
+											<InputLabel>Proficient skill</InputLabel>
+											<Select
+												label="Proficient skill"
+												value={getItemSkillPick(character, name)}
+												onChange={(e) => apply((eq) => setItemSkillPick(eq, name, e.target.value))}
+												MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+											>
+												{skills.map((s) => <MenuItem key={s.name} value={s.name}>{s.name}</MenuItem>)}
+											</Select>
+										</FormControl>
+									)}
 									{item.attunement && have && (
 										<Typography variant="caption" sx={{ display: 'block', marginTop: 0.5, color: attunedNames.includes(name) ? 'success.main' : 'text.secondary' }}>
 											{attunedNames.includes(name) ? 'You are attuned to this item.' : `${attunementText(item).replace(/^r/, 'R')}: use the Attunement section above.`}
@@ -741,7 +797,16 @@ export default function CustomItems({ character, updateEquipment }) {
 					updates it for every character the next time that character is opened. Deleting it removes it from your list; characters that already carry it keep their copy.
 				</Typography>
 			</CardContent>
-			{editor && <ItemEditor character={character} groups={groups} catalog={all} libraryItems={items} original={editor.original} onClose={() => setEditor(null)} onSave={save} />}
+			{skillPrompt && (
+					<SkillPickDialog
+						character={character}
+						item={skillPrompt.item}
+						initial={skillPrompt.initial}
+						onCancel={() => setSkillPrompt(null)}
+						onPick={(skill) => { carry(skillPrompt.item, skill); setSkillPrompt(null); }}
+					/>
+				)}
+				{editor && <ItemEditor character={character} groups={groups} catalog={all} libraryItems={items} original={editor.original} onClose={() => setEditor(null)} onSave={save} />}
 			{pendingImport && (
 				<Dialog open onClose={() => setPendingImport(null)} maxWidth="xs" fullWidth>
 					<DialogTitle>You already have &quot;{pendingImport.item.name}&quot;</DialogTitle>

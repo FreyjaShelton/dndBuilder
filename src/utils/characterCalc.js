@@ -117,6 +117,11 @@ export function getAbilityMods(character) {
 	return Object.fromEntries(ABILITY_KEYS.map((k) => [k, getModifier(finals[k])]));
 }
 
+// Dexterity modifier plus any initiative bonus from magic items.
+export function getInitiative(character) {
+	return getAbilityMods(character).dex + getItemBonuses(character).initiative;
+}
+
 // Skills the species grants outright or lets the player pick.
 export function getRacialSkills(character) {
 	if (!is2024(character)) return getRaceSkills(character);
@@ -423,11 +428,12 @@ export function getSkillBonuses(character) {
 	const prof = getProficiencyBonus(getLevel(character));
 	const proficient = getProficientSkills(character);
 	const expertise = is2024(character) ? [] : isSkillOverride(character) ? (character.skills.manualExpertise || []) : getExpertiseSkills(character);
-	const itemSkills = getItemBonuses(character).skills; // magic items that add to one skill's checks
+	const { skills: itemSkills, skillProfs } = getItemBonuses(character); // magic items that add to one skill's checks, or make you proficient in one
 	return skills.map((s) => {
-		const isProf = proficient.includes(s.name);
+		const fromItem = skillProfs.includes(s.name);
+		const isProf = proficient.includes(s.name) || fromItem;
 		const isExpert = isProf && expertise.includes(s.name);
-		return { ...s, proficient: isProf, expertise: isExpert, bonus: mods[s.ability] + (isProf ? prof : 0) + (isExpert ? prof : 0) + (itemSkills[s.name] || 0) };
+		return { ...s, proficient: isProf, fromItem: fromItem && !proficient.includes(s.name), expertise: isExpert, bonus: mods[s.ability] + (isProf ? prof : 0) + (isExpert ? prof : 0) + (itemSkills[s.name] || 0) };
 	});
 }
 

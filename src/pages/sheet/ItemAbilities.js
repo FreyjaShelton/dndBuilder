@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Box, Button, Checkbox, Chip, Collapse, FormControlLabel, Menu, MenuItem, Typography } from '@mui/material';
-import { MAX_ATTUNED, describeItemBonuses, describeMagicItem, getAttunedNames, toggleAttunement } from '../../utils/equipment';
+import { MAX_ATTUNED, describeItemBonuses, describeMagicItem, getAttunedNames, getItemSkillPick, toggleAttunement } from '../../utils/equipment';
 import { ABILITY_NAMES } from '../../utils/abilityScore';
 import { itemSpellKey } from '../../utils/itemSpells';
 import { abilityChargeOptions, abilityMaxUses, abilityUsesKey, chargesLeft, getItemActions, getMagicItems, itemSpellStats } from './itemCharges';
@@ -173,7 +173,7 @@ export default function ItemAbilities({ character, play, setPlay, onUse, onCastS
 					const left = chargesLeft(max, used);
 					const rule = item.charges;
 					const isAttuned = attuned.includes(item.name);
-					const bonuses = bonusText(item.bonuses);
+					const bonuses = bonusText(item.bonuses, getItemSkillPick(character, item.name));
 					const passives = (item.abilities || []).filter((a) => a.activation === 'Passive');
 					return (
 						<Box key={item.name} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, padding: 1.5, marginBottom: 1.5 }}>
