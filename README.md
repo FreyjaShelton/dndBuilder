@@ -123,13 +123,15 @@ Drive sync needs an OAuth client ID.
 
 1. In Google Cloud Console, go to APIs & Services, then Credentials, and create an OAuth client ID of type Web application.
 2. Add your site's address and `http://localhost:3000` under Authorized JavaScript origins.
-3. Put the client ID in `.env`:
+3. Copy `.env.example` to `.env` and put the client ID in it. `.env` is git-ignored:
 
 ```
 REACT_APP_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ```
 
-A client ID is visible to anyone who loads the page, so it is not a secret.
+A client ID is visible to anyone who loads the page, so it is not a secret. It is kept out of the repository so each deployment can use its own client.
+
+For the Cloudflare deployment, set `REACT_APP_GOOGLE_CLIENT_ID` as a build variable in the Worker's settings (Settings, then Build, then Variables and secrets). Create React App reads it at build time, and without it the deployed site shows Drive sync as not set up.
 
 ### Deployment
 
